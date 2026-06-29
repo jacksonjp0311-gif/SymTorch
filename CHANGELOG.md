@@ -2,6 +2,12 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.22 Browser Interaction E2E Seal
+
+- Added Playwright browser interaction coverage for the playground.
+- Verified training, state export/import, invalid-rule recovery, and ledger recording through the UI.
+- Added the browser interaction gate to CI.
+
 ## v0.1.21 Browser Preview Smoke Seal
 
 - Added a dependency-free Vite preview smoke test for the browser playground.

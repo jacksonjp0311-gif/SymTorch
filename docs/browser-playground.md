@@ -20,6 +20,12 @@ Run the production preview smoke test:
 pnpm playground:smoke
 ```
 
+Run the browser interaction E2E test:
+
+```powershell
+pnpm playground:e2e
+```
+
 The first screen is the actual tool, not a landing page. It supports:
 
 - editing a readable rule
@@ -44,6 +50,7 @@ Current scope:
 - Imports and exports rules, facts, training examples, and threshold state with the `symtorch.playground.v1` schema.
 - Does not persist ledger entries outside memory.
 - CI verifies the production build and a Vite preview smoke test.
+- CI verifies browser interactions with Playwright.
 
 Next browser step:
 
