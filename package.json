@@ -22,6 +22,7 @@
     "playground:test": "vitest run tests/browser-playground.test.ts",
     "playground:browser": "vite --config examples/browser-playground/vite.config.ts",
     "playground:build": "vite build --config examples/browser-playground/vite.config.ts",
+    "playground:smoke": "pnpm playground:build && tsx scripts/smoke-browser-playground.ts",
     "example:linear": "tsx examples/linear-regression/src/index.ts",
     "example:routing": "tsx examples/neuro-symbolic-routing/src/index.ts",
     "example:trainable-routing": "tsx examples/trainable-routing/src/index.ts",

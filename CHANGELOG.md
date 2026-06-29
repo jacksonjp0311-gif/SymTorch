@@ -2,6 +2,12 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.21 Browser Preview Smoke Seal
+
+- Added a dependency-free Vite preview smoke test for the browser playground.
+- Verified production HTML, CSS, and JS assets load from the built app.
+- Added the browser preview smoke gate to CI.
+
 ## v0.1.20 Browser CI Gate Seal
 
 - Added focused browser playground regression tests to CI.

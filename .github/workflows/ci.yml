@@ -21,3 +21,4 @@ jobs:
       - run: pnpm playground:test
       - run: pnpm build
       - run: pnpm playground:build
+      - run: pnpm exec tsx scripts/smoke-browser-playground.ts

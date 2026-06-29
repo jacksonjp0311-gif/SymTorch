@@ -14,6 +14,12 @@ Run the focused playground regression tests:
 pnpm playground:test
 ```
 
+Run the production preview smoke test:
+
+```powershell
+pnpm playground:smoke
+```
+
 The first screen is the actual tool, not a landing page. It supports:
 
 - editing a readable rule
@@ -37,6 +43,7 @@ Current scope:
 - Persists playground state in browser local storage.
 - Imports and exports rules, facts, training examples, and threshold state with the `symtorch.playground.v1` schema.
 - Does not persist ledger entries outside memory.
+- CI verifies the production build and a Vite preview smoke test.
 
 Next browser step:
 
