@@ -2,6 +2,12 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.15 Browser Training Panel Seal
+
+- Added an in-browser `ThresholdPredicate` training panel.
+- Added threshold, score, and loss movement display.
+- Preserved explanation trace output after browser-side training.
+
 ## v0.1.14 Browser Playground Prep Seal
 
 - Added a minimal browser playground example.

@@ -105,6 +105,23 @@ pre {
   white-space: pre-wrap;
 }
 
+.stats {
+  background: #eef4ff;
+  border: 1px solid #cbdaf7;
+  border-radius: 6px;
+  color: #20304a;
+  font: 0.92rem ui-monospace, SFMono-Regular, Consolas, monospace;
+  min-height: 84px;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+.hint {
+  color: #526070;
+  font-size: 0.9rem;
+  margin-top: 12px;
+}
+
 .case-row,
 .decision {
   align-items: center;

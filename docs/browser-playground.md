@@ -13,6 +13,8 @@ The first screen is the actual tool, not a landing page. It supports:
 - editing a readable rule
 - validating rule syntax and predicate bindings
 - changing entity-scoped facts with sliders
+- training a `ThresholdPredicate` for `high_risk(X)`
+- viewing threshold, score, and loss movement after training
 - ranking serialized entity decisions
 - recording accepted top-K decisions into the in-memory ledger
 - inspecting JSON-safe traces and ledger replay data
@@ -20,12 +22,12 @@ The first screen is the actual tool, not a landing page. It supports:
 Current scope:
 
 - Uses CPU-backed SymTorch packages.
-- Uses fixed `FactPredicate` inputs.
-- Does not yet train predicates in the browser.
+- Uses fixed `FactPredicate` inputs for entity decision ranking.
+- Uses a trainable `ThresholdPredicate` in the training panel.
 - Does not persist ledger entries outside memory.
 
 Next browser step:
 
-- Add an in-browser training panel for `ThresholdPredicate`.
-- Show before/after threshold and score movement.
-- Keep the explanation trace visible during training.
+- Add browser-side tests for rule editing, training, and ledger replay.
+- Add a clearer training dataset editor.
+- Add persisted demo state via URL or local storage.
