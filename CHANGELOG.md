@@ -7,7 +7,7 @@ SymTorch currently uses "seal" checkpoints as internal engineering milestones. P
 - Added Playwright browser interaction coverage for the playground.
 - Verified training, state export/import, invalid-rule recovery, and ledger recording through the UI.
 - Added the browser interaction gate to CI.
-- Used the official Playwright CI image to avoid slow browser dependency installation.
+- Added a CI timeout and Chromium headless-shell install for the browser interaction gate.
 
 ## v0.1.21 Browser Preview Smoke Seal
 
