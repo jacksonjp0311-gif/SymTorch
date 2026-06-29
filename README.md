@@ -1,5 +1,10 @@
 # SymTorch
 
+[![CI](https://github.com/jacksonjp0311-gif/SymTorch/actions/workflows/ci.yml/badge.svg)](https://github.com/jacksonjp0311-gif/SymTorch/actions/workflows/ci.yml)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)
+![pnpm](https://img.shields.io/badge/pnpm-11.7.0-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 **Differentiable tensors, trainable symbolic rules, and explainable agent decisions in TypeScript.**
 
 SymTorch is a JavaScript-native research and engineering project for building neuro-symbolic AI systems in the browser, Node.js, and edge-style runtimes. It combines a PyTorch-inspired eager tensor/autograd core with a fuzzy-logic rule engine, learnable predicates, working memory, and agent-facing explanations.
@@ -12,6 +17,45 @@ escalate(X) :- customer_vip(X).
 ```
 
 Those rules can produce one aggregated `escalate(X)` score, train their predicates from feedback, and preserve an explanation trace for every contributing rule.
+
+## 30-Second Demo
+
+```ts
+import { tensor } from "@symtorch/core";
+import {
+  decisionTrace,
+  FuzzyRuleEngine,
+  PredicateRegistry,
+  RuleProgram,
+  RuleTrainer,
+  ThresholdPredicate
+} from "@symtorch/logic";
+
+const program = new RuleProgram(`
+  escalate(X) :- high_risk(X), not approved(X).
+`);
+
+const highRisk = new ThresholdPredicate("high_risk", "risk", 0.9, 10);
+const registry = new PredicateRegistry()
+  .register(highRisk)
+  .fixed("approved", (_call, context) => tensor(context.approved as number));
+
+const engine = new FuzzyRuleEngine(registry);
+const trainer = new RuleTrainer(engine, program.rules[0]!, registry, { learningRate: 0.2 });
+
+trainer.fit([
+  { risk: 0.15, approved: 0.05, label: 0 },
+  { risk: 0.72, approved: 0.05, label: 1 },
+  { risk: 0.90, approved: 0.95, label: 0 }
+], { epochs: 100 });
+
+const result = trainer.predict({ risk: 0.82, approved: 0.08 });
+
+console.log(result.score.item());
+console.log(decisionTrace(result));
+```
+
+The rule stays readable, `high_risk(X)` can train, and the final output remains a versioned JSON-safe explanation trace.
 
 ## Why SymTorch
 
@@ -146,6 +190,13 @@ examples/
   trainable-routing/
 ```
 
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [30-second demo](docs/demo.md)
+- [Limitations](docs/limitations.md)
+- [Changelog](CHANGELOG.md)
+
 ## Design Principles
 
 - **CPU first, WebGPU second.** CPU semantics are the correctness oracle.
@@ -181,22 +232,4 @@ Long term:
 
 SymTorch is early, active, and intentionally foundation-first. The current implementation is useful for small differentiable-rule experiments and agent-policy prototypes, while the tensor and backend layers continue to harden.
 
-**v0.1.1 Gradient Correctness Seal:** axis-reduction gradients are hardened, finite-difference coverage now protects reductions and core neural losses, and rule training tests assert that explanations survive learning.
-
-**v0.1.2 Explanation Schema Seal:** explanations now have a versioned, JSON-safe schema helper so agents can store, compare, and transmit decision traces without depending on renderer text.
-
-**v0.1.3 Agent Decision Contract Seal:** rule agents now expose a JSON-safe decision contract with action, selected head, score, threshold, acceptance state, and versioned traces.
-
-**v0.1.4 Entity Decision Batch Seal:** agents can now emit ranked, JSON-safe decisions for entity-scoped working memory while preserving traces for accepted and below-threshold candidates.
-
-**v0.1.5 Rule Evaluation Options Seal:** entity decisions now support deterministic tie ordering plus `topK`, `minScore`, and accepted-only filtering for queue-style integrations.
-
-**v0.1.6 Decision Ledger Seal:** agents now include an append-only in-memory ledger for JSON-safe decision records with timestamps, context snapshots, and replayable traces.
-
-**v0.1.7 Rule Parser Diagnostics Seal:** malformed rules now fail with structured parser diagnostics, including line, column, snippets, and caret pointers for faster rule authoring.
-
-**v0.1.8 Rule Authoring Helpers Seal:** `validateProgram()` now gives editors and LLM rule-refinement loops a non-throwing path for checking rules and surfacing diagnostics.
-
-**v0.1.9 Predicate Binding Diagnostics Seal:** validation can now check parsed rules against a predicate registry and report missing predicate bindings before runtime.
-
-**v0.1.10 Batch Authoring Throughput Seal:** `validatePrograms()` validates many rule drafts in one run, giving authoring tools stable IDs, per-draft results, and diagnostics.
+Package versions are still `0.1.0`. The `v0.1.x` labels in this repository are internal engineering seal checkpoints, not published npm releases. See [CHANGELOG.md](CHANGELOG.md) for the seal history.
