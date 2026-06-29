@@ -7,6 +7,8 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.53.0-noble
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -22,5 +24,4 @@ jobs:
       - run: pnpm build
       - run: pnpm playground:build
       - run: pnpm exec tsx scripts/smoke-browser-playground.ts
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm playground:e2e
