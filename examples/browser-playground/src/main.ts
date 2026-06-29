@@ -1,11 +1,22 @@
 import { RuleAgent } from "@symtorch/agent";
 import { RuleProgram } from "@symtorch/logic";
-import { buildAgent, createFactRegistry, defaultCases, defaultRule, trainHighRiskRule, validateRuleSource } from "./app-model";
+import {
+  buildAgent,
+  createFactRegistry,
+  createPlaygroundState,
+  defaultCases,
+  defaultRule,
+  parsePlaygroundState,
+  trainHighRiskRule,
+  validateRuleSource
+} from "./app-model";
 
-const cases = defaultCases();
+const stateKey = "symtorch.browser-playground.state.v1";
+const initialState = loadState();
+const cases = initialState?.cases ?? defaultCases();
 const registry = createFactRegistry();
 
-let trainedThreshold = 0.9;
+let trainedThreshold = initialState?.trainedThreshold ?? 0.9;
 let trainingSummary = "Not trained yet.";
 
 const ruleSource = mustElement<HTMLTextAreaElement>("ruleSource");
@@ -19,19 +30,24 @@ const record = mustElement<HTMLButtonElement>("record");
 const resetRule = mustElement<HTMLButtonElement>("resetRule");
 const train = mustElement<HTMLButtonElement>("train");
 
-ruleSource.value = defaultRule;
+ruleSource.value = initialState?.ruleSource ?? defaultRule;
 renderFacts();
 evaluatePolicy();
 
 evaluate.addEventListener("click", evaluatePolicy);
 record.addEventListener("click", recordLedger);
 train.addEventListener("click", trainHighRisk);
+ruleSource.addEventListener("input", persistState);
 resetRule.addEventListener("click", () => {
   ruleSource.value = defaultRule;
+  trainedThreshold = 0.9;
+  trainingSummary = "Not trained yet.";
+  persistState();
   evaluatePolicy();
 });
 
 function evaluatePolicy(): RuleAgent | null {
+  persistState();
   const validation = validateRuleSource(ruleSource.value, registry);
   if (!validation.ok) {
     diagnostics.textContent = validation.diagnostics.map((item) => item.message).join("\n");
@@ -65,6 +81,7 @@ function trainHighRisk(): void {
 
   const result = trainHighRiskRule(ruleSource.value, trainedThreshold);
   trainedThreshold = result.afterThreshold;
+  persistState();
   trainingSummary = [
     `threshold: ${result.beforeThreshold.toFixed(4)} -> ${result.afterThreshold.toFixed(4)}`,
     `score: ${result.beforeScore.toFixed(4)} -> ${result.afterScore.toFixed(4)}`,
@@ -94,6 +111,7 @@ function renderFacts(): void {
       const key = input.dataset.key as "high_risk" | "approved" | undefined;
       if (!item || !key) return;
       item[key] = Number(input.value);
+      persistState();
       renderFacts();
       evaluatePolicy();
     });
@@ -114,4 +132,20 @@ function mustElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
   if (!element) throw new Error(`Missing element #${id}`);
   return element as T;
+}
+
+function loadState(): ReturnType<typeof parsePlaygroundState> {
+  try {
+    return parsePlaygroundState(localStorage.getItem(stateKey));
+  } catch {
+    return null;
+  }
+}
+
+function persistState(): void {
+  try {
+    localStorage.setItem(stateKey, JSON.stringify(createPlaygroundState(ruleSource.value, cases, trainedThreshold)));
+  } catch {
+    // Persistence is best-effort; evaluation should still work if storage is unavailable.
+  }
 }

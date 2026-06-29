@@ -3,8 +3,10 @@ import { RuleProgram } from "@symtorch/logic";
 import {
   buildAgent,
   createFactRegistry,
+  createPlaygroundState,
   defaultCases,
   defaultRule,
+  parsePlaygroundState,
   trainHighRiskRule,
   validateRuleSource
 } from "../examples/browser-playground/src/app-model";
@@ -43,5 +45,19 @@ describe("browser playground model", () => {
     expect(result.historyLength).toBe(100);
     expect(result.explanationPredicateCount).toBe(2);
     expect(JSON.stringify(result.explanationJson)).toContain("high_risk");
+  });
+
+  it("round-trips versioned playground state and rejects invalid state", () => {
+    const state = createPlaygroundState(defaultRule, defaultCases(), 0.42);
+    const roundTrip = parsePlaygroundState(JSON.stringify(state));
+
+    expect(roundTrip).toEqual(state);
+    expect(parsePlaygroundState(null)).toBeNull();
+    expect(parsePlaygroundState("{")).toBeNull();
+    expect(parsePlaygroundState(JSON.stringify({ ...state, schemaVersion: "old" }))).toBeNull();
+    expect(parsePlaygroundState(JSON.stringify({ ...state, cases: [{ entityId: "bad", high_risk: 2, approved: -1 }] })))
+      .toMatchObject({
+        cases: [{ entityId: "bad", high_risk: 1, approved: 0 }]
+      });
   });
 });

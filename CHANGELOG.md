@@ -2,6 +2,12 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.17 Browser State Persistence Seal
+
+- Added versioned browser playground state serialization.
+- Persisted editable rule source, entity facts, and trained threshold in local storage.
+- Added state round-trip and invalid-state tests.
+
 ## v0.1.16 Browser Playground Test Seal
 
 - Extracted browser playground policy behavior into a reusable model module.

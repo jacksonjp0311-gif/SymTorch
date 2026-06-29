@@ -24,16 +24,18 @@ The first screen is the actual tool, not a landing page. It supports:
 - ranking serialized entity decisions
 - recording accepted top-K decisions into the in-memory ledger
 - inspecting JSON-safe traces and ledger replay data
+- preserving rule edits, facts, and trained threshold across refreshes
 
 Current scope:
 
 - Uses CPU-backed SymTorch packages.
 - Uses fixed `FactPredicate` inputs for entity decision ranking.
 - Uses a trainable `ThresholdPredicate` in the training panel.
+- Persists playground state in browser local storage.
 - Does not persist ledger entries outside memory.
 
 Next browser step:
 
 - Add a clearer training dataset editor.
-- Add persisted demo state via URL or local storage.
+- Add import/export for persisted demo state.
 - Add end-to-end browser interaction tests once the UI surface stabilizes.

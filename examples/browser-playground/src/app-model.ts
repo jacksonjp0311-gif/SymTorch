@@ -28,6 +28,15 @@ export type TrainingResult = {
   explanationJson: unknown;
 };
 
+export type BrowserPlaygroundState = {
+  schemaVersion: typeof PLAYGROUND_STATE_VERSION;
+  ruleSource: string;
+  cases: CaseFacts[];
+  trainedThreshold: number;
+};
+
+export const PLAYGROUND_STATE_VERSION = "symtorch.playground.v1";
+
 export const defaultRule = `escalate(X) :- high_risk(X), not approved(X).
 defer(X) :- approved(X).`;
 
@@ -59,6 +68,40 @@ export function buildAgent(program: RuleProgram, cases: readonly CaseFacts[], re
 
 export function validateRuleSource(source: string, registry = createFactRegistry()): ReturnType<typeof validateProgram> {
   return validateProgram(source, { registry });
+}
+
+export function createPlaygroundState(
+  ruleSource: string,
+  cases: readonly CaseFacts[],
+  trainedThreshold: number
+): BrowserPlaygroundState {
+  return {
+    schemaVersion: PLAYGROUND_STATE_VERSION,
+    ruleSource,
+    cases: cases.map((item) => ({ ...item })),
+    trainedThreshold
+  };
+}
+
+export function parsePlaygroundState(serialized: string | null): BrowserPlaygroundState | null {
+  if (!serialized) return null;
+  try {
+    const value = JSON.parse(serialized) as Partial<BrowserPlaygroundState>;
+    if (value.schemaVersion !== PLAYGROUND_STATE_VERSION) return null;
+    if (typeof value.ruleSource !== "string") return null;
+    if (typeof value.trainedThreshold !== "number" || !Number.isFinite(value.trainedThreshold)) return null;
+    if (!Array.isArray(value.cases)) return null;
+    const cases = value.cases.map(normalizeCase);
+    if (cases.some((item) => item === null)) return null;
+    return {
+      schemaVersion: PLAYGROUND_STATE_VERSION,
+      ruleSource: value.ruleSource,
+      cases: cases as CaseFacts[],
+      trainedThreshold: value.trainedThreshold
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function trainHighRiskRule(ruleSource: string, threshold: number): TrainingResult {
@@ -95,4 +138,24 @@ export function trainHighRiskRule(ruleSource: string, threshold: number): Traini
     explanationPredicateCount: prediction.explanation.predicates.length,
     explanationJson: prediction.explanation
   };
+}
+
+function normalizeCase(value: unknown): CaseFacts | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.entityId !== "string") return null;
+  if (typeof value.high_risk !== "number" || !Number.isFinite(value.high_risk)) return null;
+  if (typeof value.approved !== "number" || !Number.isFinite(value.approved)) return null;
+  return {
+    entityId: value.entityId,
+    high_risk: clamp01(value.high_risk),
+    approved: clamp01(value.approved)
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
 }
