@@ -135,6 +135,14 @@ export class Tensor {
   sigmoid(): Tensor {
     return sigmoid(this);
   }
+
+  tanh(): Tensor {
+    return tanh(this);
+  }
+
+  pow(exponent: number): Tensor {
+    return pow(this, exponent);
+  }
 }
 
 export type TensorLike = Tensor | number | readonly number[] | Float32Array;
@@ -217,6 +225,43 @@ export function exp(x: Tensor): Tensor {
 
 export function log(x: Tensor): Tensor {
   return unaryOp(x, (v) => Math.log(Math.max(v, EPS)), (grad) => divNoGrad(grad, x));
+}
+
+export function pow(x: Tensor, exponent: number): Tensor {
+  return unaryOp(
+    x,
+    (v) => v ** exponent,
+    (grad) => mulNoGrad(grad, new Tensor(mapData(x, (v) => exponent * v ** (exponent - 1)), x.shape))
+  );
+}
+
+export function sqrt(x: Tensor): Tensor {
+  const out = unaryOp(
+    x,
+    (v) => Math.sqrt(Math.max(v, EPS)),
+    (grad) => divNoGrad(grad, mulNoGrad(out.detach(), tensor(2)))
+  );
+  return out;
+}
+
+export function tanh(x: Tensor): Tensor {
+  const out = unaryOp(x, Math.tanh, (grad) => {
+    const y = out.detach();
+    return mulNoGrad(grad, subNoGrad(ones(y.shape), mulNoGrad(y, y)));
+  });
+  return out;
+}
+
+export function clip(x: Tensor, min: number, max: number): Tensor {
+  if (min > max) throw new Error(`clip min (${min}) must be <= max (${max}).`);
+  return unaryOp(
+    x,
+    (v) => Math.min(max, Math.max(min, v)),
+    (grad) => new Tensor(mapData(grad, (g, i) => {
+      const value = x.data[i] ?? 0;
+      return value >= min && value <= max ? g : 0;
+    }), x.shape)
+  );
 }
 
 export function relu(x: Tensor): Tensor {
@@ -304,8 +349,14 @@ export function reshape(x: Tensor, shape: readonly number[]): Tensor {
 }
 
 export function logsumexp(x: Tensor, axis?: number, keepDims = false): Tensor {
-  const m = max(x);
-  return add(log(sum(exp(sub(x, m)), axis, keepDims)), m);
+  if (axis === undefined) {
+    const m = max(x);
+    return add(log(sum(exp(sub(x, m)))), m);
+  }
+  const normalized = normalizeAxis(axis, x.ndim);
+  const m = maxAlongAxis(x, normalized, true);
+  const reduced = log(sum(exp(sub(x, m)), normalized, keepDims));
+  return add(reduced, keepDims ? m : reshapeWithoutAxis(m, normalized));
 }
 
 export function softmax(x: Tensor, axis = x.ndim - 1): Tensor {
@@ -347,6 +398,11 @@ function maxAlongAxis(x: Tensor, axis: number, keepDims: boolean): Tensor {
     out[outIndex] = Math.max(out[outIndex] ?? -Infinity, x.data[offsetOf(idx, x.shape)] ?? -Infinity);
   });
   return new Tensor(out, outShape);
+}
+
+function reshapeWithoutAxis(x: Tensor, axis: number): Tensor {
+  const shape = x.shape.filter((_, i) => i !== axis);
+  return new Tensor(x.data.slice(), shape);
 }
 
 function broadcastTo(x: Tensor, fromShape: readonly number[], toShape: readonly number[]): Tensor {
