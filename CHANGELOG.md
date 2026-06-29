@@ -2,6 +2,11 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.20 Browser CI Gate Seal
+
+- Added focused browser playground regression tests to CI.
+- Added browser playground production build validation to CI.
+
 ## v0.1.19 Browser Training Dataset Seal
 
 - Moved browser training examples into the playground model API.
