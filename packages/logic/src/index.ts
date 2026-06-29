@@ -18,6 +18,21 @@ export type RuleAst = {
   source: string;
 };
 
+export class RuleParseError extends Error {
+  readonly line: number;
+  readonly column: number;
+  readonly snippet: string;
+
+  constructor(reason: string, readonly source: string, readonly index: number) {
+    const location = locateSource(source, index);
+    super(`Rule parse error at line ${location.line}, column ${location.column}: ${reason}\n${location.snippet}\n${" ".repeat(location.column - 1)}^`);
+    this.name = "RuleParseError";
+    this.line = location.line;
+    this.column = location.column;
+    this.snippet = location.snippet;
+  }
+}
+
 export type PredicateContext = Record<string, unknown>;
 export type PredicateResolver = (call: PredicateCall, context: PredicateContext) => Tensor;
 
@@ -502,20 +517,11 @@ export function serializeExplanation(explanation: RuleExplanation | AggregatedRu
 }
 
 export function parseProgram(source: string): RuleAst[] {
-  return source
-    .split(".")
-    .map((chunk) => chunk.trim())
-    .filter(Boolean)
-    .map((chunk) => parseRule(`${chunk}.`));
+  return splitRuleSources(source).map((rule) => parseRuleAt(rule.text, rule.start, source));
 }
 
 export function parseRule(source: string): RuleAst {
-  const normalized = source.trim().replace(/\.$/, "");
-  const [headText, bodyText] = normalized.split(":-").map((part) => part.trim());
-  if (!headText) throw new Error(`Rule is missing a head: ${source}`);
-  const head = parsePredicate(headText);
-  const body = bodyText ? splitTopLevel(bodyText).map(parsePredicate) : [];
-  return { head, body, source: source.trim() };
+  return parseRuleAt(source, 0, source);
 }
 
 export function productAnd(values: readonly Tensor[]): Tensor {
@@ -535,25 +541,58 @@ export function formatPredicate(call: PredicateCall): string {
   return `${prefix}${call.name}(${call.terms.map((term) => term.name).join(", ")})`;
 }
 
+function parseRuleAt(source: string, startIndex: number, fullSource: string): RuleAst {
+  const trimmedStart = leadingWhitespaceLength(source);
+  const trimmed = source.trim();
+  const normalized = trimmed.replace(/\.$/, "");
+  const localBase = startIndex + trimmedStart;
+  const separatorIndex = normalized.indexOf(":-");
+  if (separatorIndex !== normalized.lastIndexOf(":-")) {
+    throw new RuleParseError("Rule contains more than one body separator \":-\".", fullSource, localBase + normalized.lastIndexOf(":-"));
+  }
+  const headText = separatorIndex >= 0 ? normalized.slice(0, separatorIndex).trim() : normalized.trim();
+  const headStart = localBase + (separatorIndex >= 0 ? leadingWhitespaceLength(normalized.slice(0, separatorIndex)) : leadingWhitespaceLength(normalized));
+  if (!headText) throw new RuleParseError("Rule is missing a head.", fullSource, localBase);
+  const head = parsePredicateAt(headText, fullSource, headStart);
+  const bodyText = separatorIndex >= 0 ? normalized.slice(separatorIndex + 2) : "";
+  const bodyStart = localBase + separatorIndex + 2;
+  const body = bodyText ? splitTopLevelWithOffsets(bodyText, fullSource, bodyStart).map((part) => parsePredicateAt(part.text, fullSource, part.start)) : [];
+  return { head, body, source: trimmed };
+}
+
 function parsePredicate(text: string): PredicateCall {
+  return parsePredicateAt(text, text, 0);
+}
+
+function parsePredicateAt(text: string, fullSource: string, startIndex: number): PredicateCall {
+  const trimmedStart = leadingWhitespaceLength(text);
   const trimmed = text.trim();
+  const absoluteStart = startIndex + trimmedStart;
   const negated = trimmed.startsWith("not ");
   const body = negated ? trimmed.slice(4).trim() : trimmed;
+  const bodyStart = absoluteStart + (negated ? 4 + leadingWhitespaceLength(trimmed.slice(4)) : 0);
   const match = /^([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/.exec(body);
-  if (!match) throw new Error(`Invalid predicate call: ${text}`);
+  if (!match) throw new RuleParseError(`Invalid predicate call "${trimmed}". Expected name(term, ...).`, fullSource, absoluteStart);
   const name = match[1];
-  if (!name) throw new Error(`Invalid predicate name: ${text}`);
-  const terms = (match[2] ?? "")
-    .split(",")
-    .map((term) => term.trim())
-    .filter(Boolean)
-    .map(parseTerm);
+  if (!name) throw new RuleParseError(`Invalid predicate name "${trimmed}".`, fullSource, bodyStart);
+  const termsText = match[2] ?? "";
+  const termsStart = bodyStart + name.length + 1;
+  const terms = splitTermsWithOffsets(termsText, termsStart)
+    .filter((term) => term.text.trim().length > 0)
+    .map((term) => parseTermAt(term.text, fullSource, term.start));
   return { name, terms, negated };
 }
 
 function parseTerm(text: string): Term {
+  return parseTermAt(text, text, 0);
+}
+
+function parseTermAt(text: string, fullSource: string, startIndex: number): Term {
+  const trimmedStart = leadingWhitespaceLength(text);
   const name = text.trim();
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`Invalid term: ${text}`);
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new RuleParseError(`Invalid term "${name}". Terms must be identifiers.`, fullSource, startIndex + trimmedStart);
+  }
   return {
     kind: /^[A-Z_]/.test(name) ? "variable" : "constant",
     name
@@ -561,20 +600,85 @@ function parseTerm(text: string): Term {
 }
 
 function splitTopLevel(text: string): string[] {
+  return splitTopLevelWithOffsets(text, text, 0).map((part) => part.text);
+}
+
+function splitTopLevelWithOffsets(text: string, fullSource: string, startIndex: number): { text: string; start: number }[] {
   const parts: string[] = [];
+  const offsets: number[] = [];
   let depth = 0;
   let start = 0;
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     if (char === "(") depth += 1;
-    if (char === ")") depth -= 1;
+    if (char === ")") {
+      depth -= 1;
+      if (depth < 0) throw new RuleParseError("Unexpected closing parenthesis.", fullSource, startIndex + i);
+    }
     if (char === "," && depth === 0) {
-      parts.push(text.slice(start, i).trim());
+      const raw = text.slice(start, i);
+      parts.push(raw.trim());
+      offsets.push(startIndex + start + leadingWhitespaceLength(raw));
       start = i + 1;
     }
   }
-  parts.push(text.slice(start).trim());
-  return parts.filter(Boolean);
+  if (depth > 0) throw new RuleParseError("Unclosed parenthesis in rule body.", fullSource, startIndex + text.length - 1);
+  const raw = text.slice(start);
+  parts.push(raw.trim());
+  offsets.push(startIndex + start + leadingWhitespaceLength(raw));
+  return parts
+    .map((part, index) => ({ text: part, start: offsets[index] ?? startIndex }))
+    .filter((part) => part.text.length > 0);
+}
+
+function splitTermsWithOffsets(text: string, startIndex: number): { text: string; start: number }[] {
+  const terms: { text: string; start: number }[] = [];
+  let start = 0;
+  for (let i = 0; i <= text.length; i++) {
+    if (i === text.length || text[i] === ",") {
+      const raw = text.slice(start, i);
+      terms.push({ text: raw, start: startIndex + start + leadingWhitespaceLength(raw) });
+      start = i + 1;
+    }
+  }
+  return terms;
+}
+
+function splitRuleSources(source: string): { text: string; start: number }[] {
+  const rules: { text: string; start: number }[] = [];
+  let start = 0;
+  for (let i = 0; i < source.length; i++) {
+    if (source[i] === ".") {
+      const raw = source.slice(start, i + 1);
+      const trimmedStart = leadingWhitespaceLength(raw);
+      const text = raw.trim();
+      if (text) rules.push({ text, start: start + trimmedStart });
+      start = i + 1;
+    }
+  }
+  const raw = source.slice(start);
+  const trimmedStart = leadingWhitespaceLength(raw);
+  const text = raw.trim();
+  if (text) rules.push({ text: `${text}.`, start: start + trimmedStart });
+  return rules;
+}
+
+function leadingWhitespaceLength(value: string): number {
+  return value.length - value.trimStart().length;
+}
+
+function locateSource(source: string, index: number): { line: number; column: number; snippet: string } {
+  const safeIndex = Math.max(0, Math.min(index, Math.max(0, source.length - 1)));
+  const before = source.slice(0, safeIndex);
+  const line = before.split("\n").length;
+  const lineStart = Math.max(source.lastIndexOf("\n", safeIndex - 1) + 1, 0);
+  const nextLine = source.indexOf("\n", safeIndex);
+  const lineEnd = nextLine === -1 ? source.length : nextLine;
+  return {
+    line,
+    column: safeIndex - lineStart + 1,
+    snippet: source.slice(lineStart, lineEnd)
+  };
 }
 
 function readScalar(context: PredicateContext, key: string): number {

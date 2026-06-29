@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate } from "@symtorch/logic";
+import { decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, parseProgram, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -151,6 +151,48 @@ describe("@symtorch/logic", () => {
     });
     expect(traced).toEqual(serialized);
     expect(roundTrip).toEqual(serialized);
+  });
+
+  it("reports rule parser diagnostics with line, column, and snippets", () => {
+    const source = `
+      ok(X) :- known(X).
+      escalate(X) :- high-risk(X).
+    `;
+
+    expect(() => parseProgram(source)).toThrow(RuleParseError);
+    try {
+      parseProgram(source);
+      throw new Error("Expected parseProgram to fail.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(RuleParseError);
+      const diagnostic = error as RuleParseError;
+      expect(diagnostic.line).toBe(3);
+      expect(diagnostic.column).toBe(22);
+      expect(diagnostic.snippet).toContain("escalate(X) :- high-risk(X).");
+      expect(diagnostic.message).toContain("Invalid predicate call");
+      expect(diagnostic.message).toContain("^");
+    }
+  });
+
+  it("points parser diagnostics at invalid terms and unbalanced bodies", () => {
+    try {
+      parseProgram("escalate(X) :- high_risk(123bad).");
+      throw new Error("Expected invalid term to fail.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(RuleParseError);
+      const diagnostic = error as RuleParseError;
+      expect(diagnostic.line).toBe(1);
+      expect(diagnostic.column).toBe(26);
+      expect(diagnostic.message).toContain("Invalid term");
+    }
+
+    try {
+      parseProgram("escalate(X) :- high_risk(X, approved(X).");
+      throw new Error("Expected unbalanced body to fail.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(RuleParseError);
+      expect((error as RuleParseError).message).toContain("Unclosed parenthesis");
+    }
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {
