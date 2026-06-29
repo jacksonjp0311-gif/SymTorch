@@ -50,7 +50,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Same-head rule aggregation with per-rule explanations.
 - Versioned, JSON-safe explanation traces for agent integrations.
 - Entity batch evaluation and ranking over fact stores.
-- Agent loop primitives for observation -> decision -> serialized explanation.
+- Agent loop primitives for observation -> decision -> serialized explanation, including entity batches.
 - WebGPU package shell with runtime detection and backend planning.
 
 ## Quickstart
@@ -162,3 +162,5 @@ SymTorch is early, active, and intentionally foundation-first. The current imple
 **v0.1.2 Explanation Schema Seal:** explanations now have a versioned, JSON-safe schema helper so agents can store, compare, and transmit decision traces without depending on renderer text.
 
 **v0.1.3 Agent Decision Contract Seal:** rule agents now expose a JSON-safe decision contract with action, selected head, score, threshold, acceptance state, and versioned traces.
+
+**v0.1.4 Entity Decision Batch Seal:** agents can now emit ranked, JSON-safe decisions for entity-scoped working memory while preserving traces for accepted and below-threshold candidates.

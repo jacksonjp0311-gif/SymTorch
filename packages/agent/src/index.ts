@@ -17,6 +17,10 @@ export type SerializedAgentDecision = {
   results: SerializedAggregatedRuleExplanation[];
 };
 
+export type SerializedEntityDecision = SerializedAgentDecision & {
+  entityId: string;
+};
+
 export class WorkingMemory {
   private readonly facts = new FactStore();
 
@@ -35,6 +39,10 @@ export class WorkingMemory {
   entitySnapshot(entityId: string): PredicateContext {
     return this.facts.entityContext(entityId);
   }
+
+  entityIds(): string[] {
+    return this.facts.entityIds();
+  }
 }
 
 export class RuleAgent {
@@ -51,14 +59,34 @@ export class RuleAgent {
   }
 
   decide(): AgentDecision {
-    const results = this.engine.evaluateProgramGrouped(this.program, this.memory.snapshot());
+    return this.decideFromContext(this.memory.snapshot());
+  }
+
+  decideTrace(): SerializedAgentDecision {
+    return this.serializeDecision(this.decide());
+  }
+
+  decideEntityTrace(entityId: string): SerializedEntityDecision {
+    return {
+      entityId,
+      ...this.serializeDecision(this.decideFromContext(this.memory.entitySnapshot(entityId)))
+    };
+  }
+
+  decideEntitiesTrace(entityIds = this.memory.entityIds()): SerializedEntityDecision[] {
+    return entityIds
+      .map((entityId) => this.decideEntityTrace(entityId))
+      .sort((left, right) => right.score - left.score);
+  }
+
+  private decideFromContext(context: PredicateContext): AgentDecision {
+    const results = this.engine.evaluateProgramGrouped(this.program, context);
     const best = selectBestResult(results);
     const action = best && best.score.item() >= this.threshold ? best.head : "no_action";
     return { action, results };
   }
 
-  decideTrace(): SerializedAgentDecision {
-    const decision = this.decide();
+  private serializeDecision(decision: AgentDecision): SerializedAgentDecision {
     const best = selectBestResult(decision.results);
     const score = best?.score.item() ?? 0;
     const accepted = Boolean(best && score >= this.threshold);

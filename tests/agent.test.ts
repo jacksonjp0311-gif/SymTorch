@@ -87,5 +87,62 @@ describe("@symtorch/agent", () => {
 
     expect(agent.memory.entitySnapshot("case-1")).toMatchObject({ entity: "case-1", risk: 0.8, approved: 0.1 });
     expect(agent.memory.entitySnapshot("case-2")).toMatchObject({ entity: "case-2", risk: 0.2, approved: 0.9 });
+    expect(agent.memory.entityIds()).toEqual(["case-1", "case-2"]);
+  });
+
+  it("returns ranked serialized decisions for entity batches", () => {
+    const program = new RuleProgram(`
+      escalate(X) :- high_risk(X), not approved(X).
+      defer(X) :- approved(X).
+    `);
+    const registry = new PredicateRegistry()
+      .register(new FactPredicate("high_risk"))
+      .register(new FactPredicate("approved"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.memory.observeEntity("case-low", { high_risk: 0.2, approved: 0.1 });
+    agent.memory.observeEntity("case-approved", { high_risk: 0.9, approved: 0.95 });
+    agent.memory.observeEntity("case-hot", { high_risk: 0.9, approved: 0.1 });
+
+    const decisions = agent.decideEntitiesTrace();
+    const roundTrip = JSON.parse(JSON.stringify(decisions));
+
+    expect(decisions.map((decision) => decision.entityId)).toEqual(["case-approved", "case-hot", "case-low"]);
+    expect(decisions[0]).toMatchObject({
+      entityId: "case-approved",
+      action: "defer(X)",
+      selectedHead: "defer(X)",
+      accepted: true
+    });
+    expect(decisions[1]).toMatchObject({
+      entityId: "case-hot",
+      action: "escalate(X)",
+      selectedHead: "escalate(X)",
+      accepted: true
+    });
+    expect(decisions[1]?.trace?.schemaVersion).toBe(EXPLANATION_SCHEMA_VERSION);
+    expect(decisions[1]?.results.map((result) => result.head)).toEqual(["escalate(X)", "defer(X)"]);
+    expect(roundTrip).toEqual(decisions);
+  });
+
+  it("supports explicit entity batches and preserves below-threshold traces", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.8);
+
+    agent.memory.observeEntity("case-a", { high_risk: 0.4 });
+    agent.memory.observeEntity("case-b", { high_risk: 0.6 });
+    agent.memory.observeEntity("case-c", { high_risk: 0.1 });
+
+    const decisions = agent.decideEntitiesTrace(["case-a", "case-c"]);
+
+    expect(decisions.map((decision) => decision.entityId)).toEqual(["case-a", "case-c"]);
+    expect(decisions[0]).toMatchObject({
+      action: "no_action",
+      selectedHead: "escalate(X)",
+      accepted: false
+    });
+    expect(decisions[0]?.score).toBeCloseTo(0.4, 5);
+    expect(decisions[0]?.trace?.head).toBe("escalate(X)");
   });
 });
