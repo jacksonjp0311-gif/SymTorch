@@ -97,6 +97,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Agent loop primitives for observation -> decision -> serialized explanation, including entity batches.
 - Browser policy workbench with scenario selection, trainable predicates, import/export, smoke tests, and Playwright E2E coverage.
 - Versioned `symtorch.scenario.v1` contracts for JSON-safe policy scenarios.
+- Versioned `symtorch.trainingRun.v1` records for browser-side training history.
 - WebGPU package shell with runtime detection and backend planning.
 
 ## Quickstart
@@ -245,6 +246,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.2.0` workspace line is the first policy-runtime alpha: useful for small differentiable-rule experiments, browser policy workbench demos, and agent-policy prototypes while the tensor and backend layers continue to harden.
+SymTorch is early, active, and intentionally foundation-first. The `0.3.0` workspace line is the trainable policy workbench alpha: useful for small differentiable-rule experiments, browser policy workbench demos, and agent-policy prototypes while the tensor and backend layers continue to harden.
 
-The `v0.1.x` and `v0.2.0` labels in this repository are engineering checkpoints for the private workspace. They are not production-readiness or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history.
+The version labels in this repository are engineering checkpoints for the private workspace. They are not production-readiness or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history.

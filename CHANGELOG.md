@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.2.0` is the first policy-runtime alpha line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.3.0` is the trainable policy workbench alpha line, not a production stability claim.
+
+## v0.3.0 Trainable Policy Workbench Alpha
+
+- Added the `symtorch.trainingRun.v1` training-run contract.
+- Persisted and exported structured training history with playground state.
+- Added before/after loss movement and sampled loss-history rendering in the browser workbench.
+- Added training-run round-trip tests and browser E2E coverage.
+- Bumped the private workspace package versions to `0.3.0`.
 
 ## v0.2.0 Policy Runtime Alpha
 

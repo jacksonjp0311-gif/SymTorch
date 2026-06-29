@@ -13,11 +13,14 @@ test("browser playground trains, exports, imports, and records decisions", async
 
   await page.getByRole("button", { name: "Train High Risk" }).click();
   await expect(page.locator("#trainingStats")).toContainText("threshold:");
+  await expect(page.locator("#trainingStats")).toContainText("epochs: 100");
+  await expect(page.locator("#trainingHistory span")).toHaveCount(12);
   await expect(page.locator("#traceOutput")).toContainText("high_risk");
 
   await page.getByRole("button", { name: "Export", exact: true }).click();
   const exported = await page.locator("#stateBuffer").inputValue();
   expect(exported).toContain("symtorch.playground.v1");
+  expect(exported).toContain("symtorch.trainingRun.v1");
   expect(exported).toContain("fraud-review");
   expect(exported).toContain("trainingExamples");
 
@@ -38,6 +41,7 @@ test("browser playground trains, exports, imports, and records decisions", async
   await page.locator("#stateBuffer").fill(exported);
   await page.getByRole("button", { name: "Import" }).click();
   await expect(page.locator("#stateStatus")).toContainText("Imported playground state.");
+  await expect(page.locator("#trainingStats")).toContainText("epochs: 100");
 
   await page.getByRole("button", { name: "Record Top 2" }).click();
   await expect(page.locator("#traceOutput")).toContainText("decision-1");

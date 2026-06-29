@@ -4,6 +4,7 @@ import {
   buildAgent,
   createFactRegistry,
   createPlaygroundState,
+  createTrainingRun,
   DEFAULT_SCENARIO_ID,
   defaultCases,
   defaultRule,
@@ -15,7 +16,9 @@ import {
   parsePlaygroundScenario,
   playgroundScenarios,
   SCENARIO_SCHEMA_VERSION,
+  summarizeTrainingRun,
   trainHighRiskRule,
+  TRAINING_RUN_SCHEMA_VERSION,
   validatePlaygroundScenario,
   validateRuleSource
 } from "../examples/browser-playground/src/app-model";
@@ -72,9 +75,23 @@ describe("browser playground model", () => {
     expect(result.afterThreshold).toBeLessThan(result.beforeThreshold);
     expect(result.afterScore).toBeGreaterThan(result.beforeScore);
     expect(result.finalLoss).toBeLessThan(0.1);
+    expect(result.initialLoss).toBeGreaterThan(result.finalLoss);
     expect(result.historyLength).toBe(100);
+    expect(result.history).toHaveLength(100);
     expect(result.explanationPredicateCount).toBe(2);
     expect(JSON.stringify(result.explanationJson)).toContain("high_risk");
+  });
+
+  it("creates and persists versioned training runs", () => {
+    const result = trainHighRiskRule(defaultRule, 0.9, defaultTrainingExamples());
+    const run = createTrainingRun(DEFAULT_SCENARIO_ID, result);
+    const state = createPlaygroundState(DEFAULT_SCENARIO_ID, defaultRule, defaultCases(), run.finalThreshold, defaultTrainingExamples(), run);
+    const roundTrip = parsePlaygroundState(JSON.stringify(state));
+
+    expect(run.schemaVersion).toBe(TRAINING_RUN_SCHEMA_VERSION);
+    expect(run.initialLoss).toBeGreaterThan(run.finalLoss);
+    expect(summarizeTrainingRun(run)).toContain("epochs: 100");
+    expect(roundTrip?.lastTrainingRun).toEqual(run);
   });
 
   it("uses caller-provided training examples", () => {
@@ -89,7 +106,7 @@ describe("browser playground model", () => {
   });
 
   it("round-trips versioned playground state and rejects invalid state", () => {
-    const state = createPlaygroundState(DEFAULT_SCENARIO_ID, defaultRule, defaultCases(), 0.42, defaultTrainingExamples());
+    const state = createPlaygroundState(DEFAULT_SCENARIO_ID, defaultRule, defaultCases(), 0.42, defaultTrainingExamples(), null);
     const roundTrip = parsePlaygroundState(JSON.stringify(state));
 
     expect(roundTrip).toEqual(state);
@@ -104,6 +121,7 @@ describe("browser playground model", () => {
       .toMatchObject({
         trainingExamples: [{ risk: 1, approved: 0, label: 1 }]
       });
+    expect(parsePlaygroundState(JSON.stringify({ ...state, lastTrainingRun: { schemaVersion: "bad" } }))).toBeNull();
   });
 
   it("exports readable versioned playground state", () => {

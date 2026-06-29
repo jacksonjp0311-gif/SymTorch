@@ -49,9 +49,28 @@ export type TrainingResult = {
   beforeScore: number;
   afterScore: number;
   finalLoss: number;
+  initialLoss: number;
   historyLength: number;
+  history: TrainingHistoryItem[];
   explanationPredicateCount: number;
   explanationJson: unknown;
+};
+
+export type TrainingHistoryItem = {
+  epoch: number;
+  loss: number;
+};
+
+export type TrainingRun = {
+  schemaVersion: typeof TRAINING_RUN_SCHEMA_VERSION;
+  scenarioId: string;
+  startedThreshold: number;
+  finalThreshold: number;
+  beforeScore: number;
+  afterScore: number;
+  initialLoss: number;
+  finalLoss: number;
+  history: TrainingHistoryItem[];
 };
 
 export type BrowserPlaygroundState = {
@@ -61,10 +80,12 @@ export type BrowserPlaygroundState = {
   cases: CaseFacts[];
   trainingExamples: TrainingExample[];
   trainedThreshold: number;
+  lastTrainingRun: TrainingRun | null;
 };
 
 export const PLAYGROUND_STATE_VERSION = "symtorch.playground.v1";
 export const SCENARIO_SCHEMA_VERSION = "symtorch.scenario.v1";
+export const TRAINING_RUN_SCHEMA_VERSION = "symtorch.trainingRun.v1";
 export const DEFAULT_SCENARIO_ID = "case-escalation";
 
 export const defaultRule = `escalate(X) :- high_risk(X), not approved(X).
@@ -238,7 +259,8 @@ export function createPlaygroundState(
   ruleSource: string,
   cases: readonly CaseFacts[],
   trainedThreshold: number,
-  trainingExamples: readonly TrainingExample[] = defaultTrainingExamples()
+  trainingExamples: readonly TrainingExample[] = defaultTrainingExamples(),
+  lastTrainingRun: TrainingRun | null = null
 ): BrowserPlaygroundState {
   return {
     schemaVersion: PLAYGROUND_STATE_VERSION,
@@ -246,7 +268,8 @@ export function createPlaygroundState(
     ruleSource,
     cases: cases.map((item) => ({ ...item })),
     trainingExamples: trainingExamples.map((item) => ({ ...item })),
-    trainedThreshold
+    trainedThreshold,
+    lastTrainingRun: lastTrainingRun ? cloneTrainingRun(lastTrainingRun) : null
   };
 }
 
@@ -255,9 +278,10 @@ export function exportPlaygroundState(
   ruleSource: string,
   cases: readonly CaseFacts[],
   trainedThreshold: number,
-  trainingExamples: readonly TrainingExample[] = defaultTrainingExamples()
+  trainingExamples: readonly TrainingExample[] = defaultTrainingExamples(),
+  lastTrainingRun: TrainingRun | null = null
 ): string {
-  return JSON.stringify(createPlaygroundState(scenarioId, ruleSource, cases, trainedThreshold, trainingExamples), null, 2);
+  return JSON.stringify(createPlaygroundState(scenarioId, ruleSource, cases, trainedThreshold, trainingExamples, lastTrainingRun), null, 2);
 }
 
 export function parsePlaygroundState(serialized: string | null): BrowserPlaygroundState | null {
@@ -274,13 +298,18 @@ export function parsePlaygroundState(serialized: string | null): BrowserPlaygrou
       ? value.trainingExamples.map(normalizeTrainingExample)
       : defaultTrainingExamples();
     if (trainingExamples.some((item) => item === null)) return null;
+    const lastTrainingRun = value.lastTrainingRun === null || value.lastTrainingRun === undefined
+      ? null
+      : normalizeTrainingRun(value.lastTrainingRun);
+    if (value.lastTrainingRun !== null && value.lastTrainingRun !== undefined && !lastTrainingRun) return null;
     return {
       schemaVersion: PLAYGROUND_STATE_VERSION,
       scenarioId: typeof value.scenarioId === "string" ? value.scenarioId : DEFAULT_SCENARIO_ID,
       ruleSource: value.ruleSource,
       cases: cases as CaseFacts[],
       trainingExamples: trainingExamples as TrainingExample[],
-      trainedThreshold: value.trainedThreshold
+      trainedThreshold: value.trainedThreshold,
+      lastTrainingRun
     };
   } catch {
     return null;
@@ -372,11 +401,91 @@ export function trainHighRiskRule(
     afterThreshold: highRisk.threshold.item(),
     beforeScore,
     afterScore: prediction.score.item(),
+    initialLoss: result.history[0]?.loss ?? Number.NaN,
     finalLoss: result.finalLoss,
     historyLength: result.history.length,
+    history: result.history.map((item) => ({ ...item })),
     explanationPredicateCount: prediction.explanation.predicates.length,
     explanationJson: prediction.explanation
   };
+}
+
+export function createTrainingRun(scenarioId: string, result: TrainingResult): TrainingRun {
+  return {
+    schemaVersion: TRAINING_RUN_SCHEMA_VERSION,
+    scenarioId,
+    startedThreshold: result.beforeThreshold,
+    finalThreshold: result.afterThreshold,
+    beforeScore: result.beforeScore,
+    afterScore: result.afterScore,
+    initialLoss: result.initialLoss,
+    finalLoss: result.finalLoss,
+    history: result.history.map((item) => ({ ...item }))
+  };
+}
+
+export function summarizeTrainingRun(run: TrainingRun | null): string {
+  if (!run) return "Not trained yet.";
+  const lossDelta = run.initialLoss - run.finalLoss;
+  return [
+    `threshold: ${run.startedThreshold.toFixed(4)} -> ${run.finalThreshold.toFixed(4)}`,
+    `score: ${run.beforeScore.toFixed(4)} -> ${run.afterScore.toFixed(4)}`,
+    `loss: ${run.initialLoss.toFixed(4)} -> ${run.finalLoss.toFixed(4)} (${lossDelta >= 0 ? "-" : "+"}${Math.abs(lossDelta).toFixed(4)})`,
+    `epochs: ${run.history.length}`
+  ].join("\n");
+}
+
+function cloneTrainingRun(run: TrainingRun): TrainingRun {
+  return {
+    ...run,
+    history: run.history.map((item) => ({ ...item }))
+  };
+}
+
+function normalizeTrainingRun(value: unknown): TrainingRun | null {
+  if (!isRecord(value)) return null;
+  if (value.schemaVersion !== TRAINING_RUN_SCHEMA_VERSION) return null;
+  if (typeof value.scenarioId !== "string") return null;
+  const startedThreshold = finiteNumber(value.startedThreshold);
+  const finalThreshold = finiteNumber(value.finalThreshold);
+  const beforeScore = finiteNumber(value.beforeScore);
+  const afterScore = finiteNumber(value.afterScore);
+  const initialLoss = finiteNumber(value.initialLoss);
+  const finalLoss = finiteNumber(value.finalLoss);
+  if (
+    startedThreshold === null ||
+    finalThreshold === null ||
+    beforeScore === null ||
+    afterScore === null ||
+    initialLoss === null ||
+    finalLoss === null ||
+    !Array.isArray(value.history)
+  ) return null;
+  const history = value.history.map(normalizeTrainingHistoryItem);
+  if (history.some((item) => item === null)) return null;
+  return {
+    schemaVersion: TRAINING_RUN_SCHEMA_VERSION,
+    scenarioId: value.scenarioId,
+    startedThreshold,
+    finalThreshold,
+    beforeScore,
+    afterScore,
+    initialLoss,
+    finalLoss,
+    history: history as TrainingHistoryItem[]
+  };
+}
+
+function normalizeTrainingHistoryItem(value: unknown): TrainingHistoryItem | null {
+  if (!isRecord(value)) return null;
+  const epoch = finiteNumber(value.epoch);
+  const loss = finiteNumber(value.loss);
+  if (epoch === null || loss === null) return null;
+  return { epoch, loss };
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function normalizeTrainingExample(value: unknown): TrainingExample | null {

@@ -148,6 +148,27 @@ pre {
   white-space: pre-wrap;
 }
 
+.history {
+  align-items: end;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.history span {
+  background: #d8e6ff;
+  border: 1px solid #bed0ee;
+  border-radius: 4px;
+  color: #20304a;
+  font: 0.72rem ui-monospace, SFMono-Regular, Consolas, monospace;
+  min-height: 24px;
+  overflow: hidden;
+  padding: 5px 3px;
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
 .hint {
   color: #526070;
   font-size: 0.9rem;

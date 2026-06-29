@@ -4,6 +4,7 @@ import {
   buildAgent,
   createFactRegistry,
   createPlaygroundState,
+  createTrainingRun,
   defaultScenario,
   exportPlaygroundScenario,
   exportPlaygroundState,
@@ -11,6 +12,8 @@ import {
   parsePlaygroundScenario,
   playgroundScenarios,
   scenarioById,
+  summarizeTrainingRun,
+  type TrainingRun,
   trainHighRiskRule,
   validateRuleSource
 } from "./app-model";
@@ -24,7 +27,8 @@ const trainingExamples = initialState?.trainingExamples ?? initialScenario.train
 const registry = createFactRegistry();
 
 let trainedThreshold = initialState?.trainedThreshold ?? initialScenario.trainedThreshold;
-let trainingSummary = "Not trained yet.";
+let lastTrainingRun: TrainingRun | null = initialState?.lastTrainingRun ?? null;
+let trainingSummary = summarizeTrainingRun(lastTrainingRun);
 
 const scenarioTitle = mustElement<HTMLElement>("scenarioTitle");
 const scenarioDescription = mustElement<HTMLElement>("scenarioDescription");
@@ -36,6 +40,7 @@ const decisionList = mustElement<HTMLElement>("decisionList");
 const traceOutput = mustElement<HTMLElement>("traceOutput");
 const trainingExamplesView = mustElement<HTMLElement>("trainingExamples");
 const trainingStats = mustElement<HTMLElement>("trainingStats");
+const trainingHistory = mustElement<HTMLElement>("trainingHistory");
 const evaluate = mustElement<HTMLButtonElement>("evaluate");
 const record = mustElement<HTMLButtonElement>("record");
 const resetRule = mustElement<HTMLButtonElement>("resetRule");
@@ -70,7 +75,8 @@ resetRule.addEventListener("click", () => {
   cases.splice(0, cases.length, ...scenario.cases.map((item) => ({ ...item })));
   trainingExamples.splice(0, trainingExamples.length, ...scenario.trainingExamples.map((item) => ({ ...item })));
   trainedThreshold = scenario.trainedThreshold;
-  trainingSummary = "Not trained yet.";
+  lastTrainingRun = null;
+  trainingSummary = summarizeTrainingRun(lastTrainingRun);
   persistState();
   renderScenarioHeader();
   renderFacts();
@@ -85,7 +91,8 @@ function loadSelectedScenario(): void {
   cases.splice(0, cases.length, ...scenario.cases.map((item) => ({ ...item })));
   trainingExamples.splice(0, trainingExamples.length, ...scenario.trainingExamples.map((item) => ({ ...item })));
   trainedThreshold = scenario.trainedThreshold;
-  trainingSummary = "Not trained yet.";
+  lastTrainingRun = null;
+  trainingSummary = summarizeTrainingRun(lastTrainingRun);
   renderScenarioHeader();
   renderFacts();
   renderTrainingExamples();
@@ -128,18 +135,16 @@ function trainHighRisk(): void {
 
   const result = trainHighRiskRule(ruleSource.value, trainedThreshold, trainingExamples);
   trainedThreshold = result.afterThreshold;
+  lastTrainingRun = createTrainingRun(scenarioId, result);
   persistState();
-  trainingSummary = [
-    `threshold: ${result.beforeThreshold.toFixed(4)} -> ${result.afterThreshold.toFixed(4)}`,
-    `score: ${result.beforeScore.toFixed(4)} -> ${result.afterScore.toFixed(4)}`,
-    `loss: ${result.finalLoss.toFixed(4)}`
-  ].join("\n");
+  trainingSummary = summarizeTrainingRun(lastTrainingRun);
   trainingStats.textContent = trainingSummary;
+  renderTrainingHistory();
   traceOutput.textContent = JSON.stringify(result.explanationJson, null, 2);
 }
 
 function exportCurrentState(): void {
-  stateBuffer.value = exportPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples);
+  stateBuffer.value = exportPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples, lastTrainingRun);
   stateStatus.textContent = "Exported current playground state.";
 }
 
@@ -180,7 +185,8 @@ function loadImportedState(imported: NonNullable<ReturnType<typeof parsePlaygrou
   cases.splice(0, cases.length, ...imported.cases);
   trainingExamples.splice(0, trainingExamples.length, ...imported.trainingExamples);
   trainedThreshold = imported.trainedThreshold;
-  trainingSummary = "Imported state.";
+  lastTrainingRun = imported.lastTrainingRun;
+  trainingSummary = summarizeTrainingRun(lastTrainingRun);
   refreshAfterLoad();
 }
 
@@ -191,7 +197,8 @@ function loadScenario(scenario: ReturnType<typeof defaultScenario>): void {
   cases.splice(0, cases.length, ...scenario.cases.map((item) => ({ ...item })));
   trainingExamples.splice(0, trainingExamples.length, ...scenario.trainingExamples.map((item) => ({ ...item })));
   trainedThreshold = scenario.trainedThreshold;
-  trainingSummary = "Imported scenario.";
+  lastTrainingRun = null;
+  trainingSummary = summarizeTrainingRun(lastTrainingRun);
   refreshAfterLoad();
 }
 
@@ -205,6 +212,18 @@ function refreshAfterLoad(): void {
 
 function renderTrainingStats(): void {
   trainingStats.textContent = trainingSummary;
+  renderTrainingHistory();
+}
+
+function renderTrainingHistory(): void {
+  if (!lastTrainingRun) {
+    trainingHistory.innerHTML = "";
+    return;
+  }
+  const sampled = sampleHistory(lastTrainingRun.history, 12);
+  trainingHistory.innerHTML = sampled.map((item) => `
+    <span title="epoch ${item.epoch}: ${item.loss.toFixed(5)}">${item.loss.toFixed(3)}</span>
+  `).join("");
 }
 
 function renderScenarioHeader(): void {
@@ -285,8 +304,14 @@ function loadState(): ReturnType<typeof parsePlaygroundState> {
 
 function persistState(): void {
   try {
-    localStorage.setItem(stateKey, JSON.stringify(createPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples)));
+    localStorage.setItem(stateKey, JSON.stringify(createPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples, lastTrainingRun)));
   } catch {
     // Persistence is best-effort; evaluation should still work if storage is unavailable.
   }
+}
+
+function sampleHistory(history: readonly { epoch: number; loss: number }[], maxItems: number): readonly { epoch: number; loss: number }[] {
+  if (history.length <= maxItems) return history;
+  const stride = (history.length - 1) / (maxItems - 1);
+  return Array.from({ length: maxItems }, (_value, index) => history[Math.round(index * stride)]!);
 }

@@ -31,3 +31,5 @@ Validation checks:
 - finite threshold values
 
 The contract is not a security boundary. It is an authoring and interchange format for demos, tests, and future agent-policy tooling.
+
+Training results are stored separately in playground state as `symtorch.trainingRun.v1` records. Scenario contracts describe the starting policy and data; training-run records describe what happened after local fitting.

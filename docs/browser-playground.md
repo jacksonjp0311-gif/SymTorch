@@ -35,6 +35,7 @@ The first screen is the actual tool, not a landing page. It supports:
 - training a `ThresholdPredicate` for `high_risk(X)`
 - editing the small supervised training set used by the threshold demo
 - viewing threshold, score, and loss movement after training
+- viewing sampled training-loss history after training
 - ranking serialized entity decisions
 - recording accepted top-K decisions into the in-memory ledger
 - inspecting JSON-safe traces and ledger replay data
@@ -52,6 +53,7 @@ Current scope:
 - Persists playground state in browser local storage.
 - Imports and exports rules, facts, training examples, and threshold state with the `symtorch.playground.v1` state schema.
 - Imports and exports portable scenario definitions with the `symtorch.scenario.v1` contract.
+- Persists training history with the `symtorch.trainingRun.v1` contract.
 - Does not persist ledger entries outside memory.
 - CI verifies the production build and a Vite preview smoke test.
 - CI verifies browser interactions with Playwright.
