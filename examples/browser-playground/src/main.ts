@@ -1,34 +1,9 @@
 import { RuleAgent } from "@symtorch/agent";
-import {
-  FactPredicate,
-  FuzzyRuleEngine,
-  PredicateRegistry,
-  RuleProgram,
-  RuleTrainer,
-  ThresholdPredicate,
-  validateProgram
-} from "@symtorch/logic";
-import { tensor } from "@symtorch/core";
+import { RuleProgram } from "@symtorch/logic";
+import { buildAgent, createFactRegistry, defaultCases, defaultRule, trainHighRiskRule, validateRuleSource } from "./app-model";
 
-type CaseFacts = {
-  entityId: string;
-  high_risk: number;
-  approved: number;
-};
-
-const defaultRule = `escalate(X) :- high_risk(X), not approved(X).
-defer(X) :- approved(X).`;
-
-const cases: CaseFacts[] = [
-  { entityId: "case-low", high_risk: 0.2, approved: 0.1 },
-  { entityId: "case-hot", high_risk: 0.9, approved: 0.1 },
-  { entityId: "case-approved", high_risk: 0.9, approved: 0.95 },
-  { entityId: "case-borderline", high_risk: 0.55, approved: 0.2 }
-];
-
-const registry = new PredicateRegistry()
-  .register(new FactPredicate("high_risk"))
-  .register(new FactPredicate("approved"));
+const cases = defaultCases();
+const registry = createFactRegistry();
 
 let trainedThreshold = 0.9;
 let trainingSummary = "Not trained yet.";
@@ -57,7 +32,7 @@ resetRule.addEventListener("click", () => {
 });
 
 function evaluatePolicy(): RuleAgent | null {
-  const validation = validateProgram(ruleSource.value, { registry });
+  const validation = validateRuleSource(ruleSource.value, registry);
   if (!validation.ok) {
     diagnostics.textContent = validation.diagnostics.map((item) => item.message).join("\n");
     decisionList.innerHTML = "";
@@ -66,7 +41,7 @@ function evaluatePolicy(): RuleAgent | null {
   }
 
   diagnostics.textContent = "Rule validation: PASS";
-  const agent = buildAgent(new RuleProgram(ruleSource.value));
+  const agent = buildAgent(new RuleProgram(ruleSource.value), cases, registry);
   const decisions = agent.decideEntitiesTrace();
   decisionList.innerHTML = decisions.map(renderDecision).join("");
   traceOutput.textContent = JSON.stringify(decisions[0] ?? null, null, 2);
@@ -82,48 +57,21 @@ function recordLedger(): void {
 }
 
 function trainHighRisk(): void {
-  const validation = validateProgram(ruleSource.value, { registry });
+  const validation = validateRuleSource(ruleSource.value, registry);
   if (!validation.ok) {
     diagnostics.textContent = validation.diagnostics.map((item) => item.message).join("\n");
     return;
   }
 
-  const program = new RuleProgram(ruleSource.value);
-  const highRisk = new ThresholdPredicate("high_risk", "risk", trainedThreshold, 10);
-  const trainableRegistry = new PredicateRegistry()
-    .register(highRisk)
-    .fixed("approved", (_call, context) => tensor(typeof context.approved === "number" ? context.approved : 0));
-  const engine = new FuzzyRuleEngine(trainableRegistry);
-  const trainer = new RuleTrainer(engine, program.rules[0]!, trainableRegistry, { learningRate: 0.2 });
-  const beforeThreshold = highRisk.threshold.item();
-  const beforeScore = trainer.predict({ risk: 0.82, approved: 0.08 }).score.item();
-  const result = trainer.fit([
-    { risk: 0.2, approved: 0.05, label: 0 },
-    { risk: 0.35, approved: 0.15, label: 0 },
-    { risk: 0.75, approved: 0.05, label: 1 },
-    { risk: 0.9, approved: 0.1, label: 1 },
-    { risk: 0.88, approved: 0.95, label: 0 }
-  ], { epochs: 100 });
-  const prediction = trainer.predict({ risk: 0.82, approved: 0.08 });
-  trainedThreshold = highRisk.threshold.item();
+  const result = trainHighRiskRule(ruleSource.value, trainedThreshold);
+  trainedThreshold = result.afterThreshold;
   trainingSummary = [
-    `threshold: ${beforeThreshold.toFixed(4)} -> ${trainedThreshold.toFixed(4)}`,
-    `score: ${beforeScore.toFixed(4)} -> ${prediction.score.item().toFixed(4)}`,
+    `threshold: ${result.beforeThreshold.toFixed(4)} -> ${result.afterThreshold.toFixed(4)}`,
+    `score: ${result.beforeScore.toFixed(4)} -> ${result.afterScore.toFixed(4)}`,
     `loss: ${result.finalLoss.toFixed(4)}`
   ].join("\n");
   trainingStats.textContent = trainingSummary;
-  traceOutput.textContent = JSON.stringify(prediction.explanation, null, 2);
-}
-
-function buildAgent(program: RuleProgram): RuleAgent {
-  const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
-  for (const item of cases) {
-    agent.memory.observeEntity(item.entityId, {
-      high_risk: item.high_risk,
-      approved: item.approved
-    });
-  }
-  return agent;
+  traceOutput.textContent = JSON.stringify(result.explanationJson, null, 2);
 }
 
 function renderTrainingStats(): void {

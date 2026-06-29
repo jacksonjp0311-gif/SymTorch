@@ -8,6 +8,12 @@ Run it from the repository root:
 pnpm playground:browser
 ```
 
+Run the focused playground regression tests:
+
+```powershell
+pnpm playground:test
+```
+
 The first screen is the actual tool, not a landing page. It supports:
 
 - editing a readable rule
@@ -28,6 +34,6 @@ Current scope:
 
 Next browser step:
 
-- Add browser-side tests for rule editing, training, and ledger replay.
 - Add a clearer training dataset editor.
 - Add persisted demo state via URL or local storage.
+- Add end-to-end browser interaction tests once the UI surface stabilizes.

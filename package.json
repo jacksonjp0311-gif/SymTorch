@@ -19,6 +19,7 @@
     "demo:rule": "tsx scripts/demo-rule-training.ts",
     "demo:ledger": "tsx scripts/demo-agent-ledger.ts",
     "demo:all": "pnpm demo:gradients && pnpm demo:rule && pnpm demo:ledger",
+    "playground:test": "vitest run tests/browser-playground.test.ts",
     "playground:browser": "vite --config examples/browser-playground/vite.config.ts",
     "playground:build": "vite build --config examples/browser-playground/vite.config.ts",
     "example:linear": "tsx examples/linear-regression/src/index.ts",

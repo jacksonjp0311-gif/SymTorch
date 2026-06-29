@@ -2,6 +2,12 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.16 Browser Playground Test Seal
+
+- Extracted browser playground policy behavior into a reusable model module.
+- Added regression tests for rule validation, entity decisions, ledger replay, and browser-side rule training.
+- Added `playground:test` for focused playground validation.
+
 ## v0.1.15 Browser Training Panel Seal
 
 - Added an in-browser `ThresholdPredicate` training panel.
