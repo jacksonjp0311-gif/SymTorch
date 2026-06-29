@@ -6,6 +6,7 @@ import {
   createPlaygroundState,
   defaultCases,
   defaultRule,
+  exportPlaygroundState,
   parsePlaygroundState,
   trainHighRiskRule,
   validateRuleSource
@@ -29,6 +30,10 @@ const evaluate = mustElement<HTMLButtonElement>("evaluate");
 const record = mustElement<HTMLButtonElement>("record");
 const resetRule = mustElement<HTMLButtonElement>("resetRule");
 const train = mustElement<HTMLButtonElement>("train");
+const exportState = mustElement<HTMLButtonElement>("exportState");
+const importState = mustElement<HTMLButtonElement>("importState");
+const stateBuffer = mustElement<HTMLTextAreaElement>("stateBuffer");
+const stateStatus = mustElement<HTMLElement>("stateStatus");
 
 ruleSource.value = initialState?.ruleSource ?? defaultRule;
 renderFacts();
@@ -37,6 +42,8 @@ evaluatePolicy();
 evaluate.addEventListener("click", evaluatePolicy);
 record.addEventListener("click", recordLedger);
 train.addEventListener("click", trainHighRisk);
+exportState.addEventListener("click", exportCurrentState);
+importState.addEventListener("click", importBufferedState);
 ruleSource.addEventListener("input", persistState);
 resetRule.addEventListener("click", () => {
   ruleSource.value = defaultRule;
@@ -89,6 +96,28 @@ function trainHighRisk(): void {
   ].join("\n");
   trainingStats.textContent = trainingSummary;
   traceOutput.textContent = JSON.stringify(result.explanationJson, null, 2);
+}
+
+function exportCurrentState(): void {
+  stateBuffer.value = exportPlaygroundState(ruleSource.value, cases, trainedThreshold);
+  stateStatus.textContent = "Exported current playground state.";
+}
+
+function importBufferedState(): void {
+  const imported = parsePlaygroundState(stateBuffer.value);
+  if (!imported) {
+    stateStatus.textContent = "Import failed: expected symtorch.playground.v1 JSON.";
+    return;
+  }
+
+  ruleSource.value = imported.ruleSource;
+  cases.splice(0, cases.length, ...imported.cases);
+  trainedThreshold = imported.trainedThreshold;
+  trainingSummary = "Imported state.";
+  persistState();
+  renderFacts();
+  evaluatePolicy();
+  stateStatus.textContent = "Imported playground state.";
 }
 
 function renderTrainingStats(): void {

@@ -6,6 +6,7 @@ import {
   createPlaygroundState,
   defaultCases,
   defaultRule,
+  exportPlaygroundState,
   parsePlaygroundState,
   trainHighRiskRule,
   validateRuleSource
@@ -59,5 +60,15 @@ describe("browser playground model", () => {
       .toMatchObject({
         cases: [{ entityId: "bad", high_risk: 1, approved: 0 }]
       });
+  });
+
+  it("exports readable versioned playground state", () => {
+    const exported = exportPlaygroundState(defaultRule, defaultCases(), 0.5);
+    const parsed = parsePlaygroundState(exported);
+
+    expect(exported).toContain("\n");
+    expect(exported).toContain("symtorch.playground.v1");
+    expect(parsed?.ruleSource).toBe(defaultRule);
+    expect(parsed?.trainedThreshold).toBe(0.5);
   });
 });

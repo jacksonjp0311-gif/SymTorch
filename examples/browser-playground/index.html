@@ -56,6 +56,18 @@
             </div>
             <pre id="traceOutput"></pre>
           </section>
+
+          <section class="panel state">
+            <div class="panel-title">
+              <h2>State</h2>
+              <div class="button-row">
+                <button id="exportState" type="button">Export</button>
+                <button id="importState" type="button">Import</button>
+              </div>
+            </div>
+            <textarea id="stateBuffer" spellcheck="false"></textarea>
+            <div id="stateStatus" class="hint">Export copies the versioned rule, facts, and trained threshold state here.</div>
+          </section>
         </div>
       </section>
     </main>

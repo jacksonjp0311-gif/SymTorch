@@ -83,6 +83,14 @@ export function createPlaygroundState(
   };
 }
 
+export function exportPlaygroundState(
+  ruleSource: string,
+  cases: readonly CaseFacts[],
+  trainedThreshold: number
+): string {
+  return JSON.stringify(createPlaygroundState(ruleSource, cases, trainedThreshold), null, 2);
+}
+
 export function parsePlaygroundState(serialized: string | null): BrowserPlaygroundState | null {
   if (!serialized) return null;
   try {

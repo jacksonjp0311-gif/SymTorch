@@ -26,6 +26,11 @@ button:hover {
   border-color: #4169e1;
 }
 
+.button-row {
+  display: flex;
+  gap: 8px;
+}
+
 .shell {
   min-height: 100vh;
   padding: 32px;
@@ -96,6 +101,10 @@ textarea {
   resize: vertical;
   width: 100%;
   padding: 12px;
+}
+
+.state textarea {
+  min-height: 220px;
 }
 
 pre {
