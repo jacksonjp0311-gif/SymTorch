@@ -4,7 +4,7 @@
 
 SymTorch is a JavaScript-native research and engineering project for building neuro-symbolic AI systems in the browser, Node.js, and edge-style runtimes. It combines a PyTorch-inspired eager tensor/autograd core with a fuzzy-logic rule engine, learnable predicates, working memory, and agent-facing explanations.
 
-The bet is simple: developers should be able to write rules humans can read, compile them into differentiable tensor programs, train them with gradient descent, and still ask, “why did the system decide that?”
+The bet is simple: developers should be able to write rules humans can read, compile them into differentiable tensor programs, train them with gradient descent, and still ask, "why did the system decide that?"
 
 ```prolog
 escalate(X) :- high_risk(X), not approved(X).
@@ -48,6 +48,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - `RuleTrainer` for fitting differentiable rules against labeled examples.
 - `FactStore` working memory for observations and entity-scoped facts.
 - Same-head rule aggregation with per-rule explanations.
+- Versioned, JSON-safe explanation traces for agent integrations.
 - Entity batch evaluation and ranking over fact stores.
 - Agent loop primitives for observation -> decision -> explanation.
 - WebGPU package shell with runtime detection and backend planning.
@@ -157,3 +158,5 @@ Long term:
 SymTorch is early, active, and intentionally foundation-first. The current implementation is useful for small differentiable-rule experiments and agent-policy prototypes, while the tensor and backend layers continue to harden.
 
 **v0.1.1 Gradient Correctness Seal:** axis-reduction gradients are hardened, finite-difference coverage now protects reductions and core neural losses, and rule training tests assert that explanations survive learning.
+
+**v0.1.2 Explanation Schema Seal:** explanations now have a versioned, JSON-safe schema helper so agents can store, compare, and transmit decision traces without depending on renderer text.

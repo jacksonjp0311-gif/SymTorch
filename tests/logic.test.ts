@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { decisionCard, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleProgram, RuleTrainer, ThresholdPredicate } from "@symtorch/logic";
+import { decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -110,6 +110,47 @@ describe("@symtorch/logic", () => {
     expect(renderRuleExplanation(single.explanation)).toContain("rule: escalate(X) :- high_risk(X).");
     expect(renderAggregatedExplanation(aggregate.explanation)).toContain("from 2 rules");
     expect(decisionCard(aggregate)).toContain("customer_vip(X)");
+  });
+
+  it("serializes explanations into a versioned agent-safe schema", () => {
+    const program = new RuleProgram(`
+      escalate(X) :- high_risk(X), not approved(X).
+      escalate(X) :- customer_vip(X).
+    `);
+    const registry = new PredicateRegistry()
+      .register(new FactPredicate("high_risk"))
+      .register(new FactPredicate("approved"))
+      .register(new FactPredicate("customer_vip"));
+    const aggregate = new FuzzyRuleEngine(registry).evaluateProgramGrouped(program, {
+      high_risk: 0.8,
+      approved: 0.25,
+      customer_vip: 0.1
+    })[0]!;
+
+    const serialized = serializeExplanation(aggregate.explanation);
+    const traced = decisionTrace(aggregate);
+    const roundTrip = JSON.parse(JSON.stringify(serialized));
+
+    expect(serialized.schemaVersion).toBe(EXPLANATION_SCHEMA_VERSION);
+    expect(serialized.type).toBe("aggregate");
+    expect(serialized.head).toBe("escalate(X)");
+    expect(serialized.ruleCount).toBe(2);
+    expect(serialized.rules[0]?.schemaVersion).toBe(EXPLANATION_SCHEMA_VERSION);
+    expect(serialized.rules[0]?.type).toBe("rule");
+    expect(serialized.rules[0]?.predicates[0]).toMatchObject({
+      name: "high_risk(X)",
+      negated: false,
+      kind: "fixed",
+      detail: { key: "high_risk" }
+    });
+    expect(serialized.rules[0]?.predicates[1]).toMatchObject({
+      name: "not approved(X)",
+      negated: true,
+      kind: "fixed",
+      detail: { key: "approved" }
+    });
+    expect(traced).toEqual(serialized);
+    expect(roundTrip).toEqual(serialized);
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {

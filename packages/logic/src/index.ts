@@ -27,6 +27,9 @@ export type PredicateResolution = {
   detail?: Record<string, number | string>;
 };
 
+export const EXPLANATION_SCHEMA_VERSION = "symtorch.explanation.v1" as const;
+export type ExplanationSchemaVersion = typeof EXPLANATION_SCHEMA_VERSION;
+
 export interface Predicate {
   readonly name: string;
   readonly kind: "fixed" | "learnable";
@@ -68,6 +71,35 @@ export type AggregatedRuleResult = {
   score: Tensor;
   explanation: AggregatedRuleExplanation;
 };
+
+export type SerializedPredicateTrace = {
+  name: string;
+  negated: boolean;
+  value: number;
+  contribution: number;
+  kind?: "fixed" | "learnable";
+  detail?: Record<string, number | string>;
+};
+
+export type SerializedRuleExplanation = {
+  schemaVersion: ExplanationSchemaVersion;
+  type: "rule";
+  rule: string;
+  head: string;
+  score: number;
+  predicates: SerializedPredicateTrace[];
+};
+
+export type SerializedAggregatedRuleExplanation = {
+  schemaVersion: ExplanationSchemaVersion;
+  type: "aggregate";
+  head: string;
+  score: number;
+  ruleCount: number;
+  rules: SerializedRuleExplanation[];
+};
+
+export type SerializedExplanation = SerializedRuleExplanation | SerializedAggregatedRuleExplanation;
 
 export type EntityRuleResult = {
   entityId: string;
@@ -446,6 +478,29 @@ export function decisionCard(result: RuleResult | AggregatedRuleResult): string 
   return renderRuleExplanation(result.explanation);
 }
 
+export function decisionTrace(result: RuleResult): SerializedRuleExplanation;
+export function decisionTrace(result: AggregatedRuleResult): SerializedAggregatedRuleExplanation;
+export function decisionTrace(result: RuleResult | AggregatedRuleResult): SerializedExplanation {
+  return serializeExplanation(result.explanation);
+}
+
+export function serializeExplanation(explanation: RuleExplanation): SerializedRuleExplanation;
+export function serializeExplanation(explanation: AggregatedRuleExplanation): SerializedAggregatedRuleExplanation;
+export function serializeExplanation(explanation: RuleExplanation | AggregatedRuleExplanation): SerializedExplanation;
+export function serializeExplanation(explanation: RuleExplanation | AggregatedRuleExplanation): SerializedExplanation {
+  if (isAggregatedExplanation(explanation)) {
+    return {
+      schemaVersion: EXPLANATION_SCHEMA_VERSION,
+      type: "aggregate",
+      head: explanation.head,
+      score: explanation.score,
+      ruleCount: explanation.ruleCount,
+      rules: explanation.rules.map((rule) => serializeRuleExplanation(rule))
+    };
+  }
+  return serializeRuleExplanation(explanation);
+}
+
 export function parseProgram(source: string): RuleAst[] {
   return source
     .split(".")
@@ -548,6 +603,33 @@ function formatScore(value: number): string {
 
 function isAggregatedExplanation(explanation: RuleExplanation | AggregatedRuleExplanation): explanation is AggregatedRuleExplanation {
   return "rules" in explanation;
+}
+
+function serializeRuleExplanation(explanation: RuleExplanation): SerializedRuleExplanation {
+  return {
+    schemaVersion: EXPLANATION_SCHEMA_VERSION,
+    type: "rule",
+    rule: explanation.rule,
+    head: explanation.head,
+    score: explanation.score,
+    predicates: explanation.predicates.map(serializePredicateTrace)
+  };
+}
+
+function serializePredicateTrace(trace: PredicateTrace): SerializedPredicateTrace {
+  const serialized: SerializedPredicateTrace = {
+    name: trace.name,
+    negated: trace.negated,
+    value: trace.value,
+    contribution: trace.contribution
+  };
+  if (trace.kind) serialized.kind = trace.kind;
+  if (trace.detail) serialized.detail = stableDetail(trace.detail);
+  return serialized;
+}
+
+function stableDetail(detail: Record<string, number | string>): Record<string, number | string> {
+  return Object.fromEntries(Object.entries(detail).sort(([left], [right]) => left.localeCompare(right)));
 }
 
 function formatDetail(detail: Record<string, number | string>): string {
