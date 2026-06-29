@@ -2,6 +2,13 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.14 Browser Playground Prep Seal
+
+- Added a minimal browser playground example.
+- Added rule editing, fact sliders, validation diagnostics, entity decision ranking, and ledger replay.
+- Added `playground:browser` and `playground:build` package scripts.
+- Added browser playground documentation.
+
 ## v0.1.13 Demo Script Seal
 
 - Added executable gradient sanity demo.

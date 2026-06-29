@@ -19,6 +19,8 @@
     "demo:rule": "tsx scripts/demo-rule-training.ts",
     "demo:ledger": "tsx scripts/demo-agent-ledger.ts",
     "demo:all": "pnpm demo:gradients && pnpm demo:rule && pnpm demo:ledger",
+    "playground:browser": "vite --config examples/browser-playground/vite.config.ts",
+    "playground:build": "vite build --config examples/browser-playground/vite.config.ts",
     "example:linear": "tsx examples/linear-regression/src/index.ts",
     "example:routing": "tsx examples/neuro-symbolic-routing/src/index.ts",
     "example:trainable-routing": "tsx examples/trainable-routing/src/index.ts",
@@ -29,6 +31,7 @@
     "@webgpu/types": "^0.1.64",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
+    "vite": "^6.4.1",
     "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@11.7.0"

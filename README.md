@@ -206,6 +206,7 @@ examples/
 - [Architecture](docs/architecture.md)
 - [Public API surface](docs/api-surface.md)
 - [30-second demo](docs/demo.md)
+- [Browser playground prep](docs/browser-playground.md)
 - [Limitations](docs/limitations.md)
 - [Changelog](CHANGELOG.md)
 

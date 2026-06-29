@@ -1,0 +1,10 @@
+{
+  "name": "@symtorch/example-browser-playground",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@symtorch/agent": "workspace:*",
+    "@symtorch/logic": "workspace:*"
+  }
+}

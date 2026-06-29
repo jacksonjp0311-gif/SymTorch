@@ -43,6 +43,7 @@ See [Public API Surface](api-surface.md) for the currently supported exports and
 ## Near-Term Direction
 
 - Browser policy playground.
+- Browser playground training panel.
 - Public API surface documentation.
 - Typed domains and guarded grounding.
 - Broader gradient checks and tensor op coverage.

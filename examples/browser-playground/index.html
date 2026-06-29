@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SymTorch Agent Policy Playground</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace">
+        <header>
+          <p class="eyebrow">SymTorch playground prep</p>
+          <h1>Explainable Escalation Agent</h1>
+          <p class="lede">Edit a readable rule, change case facts, evaluate entity decisions, and record replayable ledger entries.</p>
+        </header>
+
+        <div class="grid">
+          <section class="panel editor">
+            <div class="panel-title">
+              <h2>Rule</h2>
+              <button id="resetRule" type="button">Reset</button>
+            </div>
+            <textarea id="ruleSource" spellcheck="false"></textarea>
+            <pre id="diagnostics" class="diagnostics"></pre>
+          </section>
+
+          <section class="panel facts">
+            <div class="panel-title">
+              <h2>Facts</h2>
+              <button id="evaluate" type="button">Evaluate</button>
+            </div>
+            <div id="facts"></div>
+          </section>
+
+          <section class="panel decisions">
+            <div class="panel-title">
+              <h2>Decisions</h2>
+              <button id="record" type="button">Record Top 2</button>
+            </div>
+            <div id="decisionList"></div>
+          </section>
+
+          <section class="panel trace">
+            <div class="panel-title">
+              <h2>Trace</h2>
+            </div>
+            <pre id="traceOutput"></pre>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
