@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RuleAgent } from "@symtorch/agent";
+import { HolographicMemory, RuleAgent, vectorSymbol } from "@symtorch/agent";
 import { EXPLANATION_SCHEMA_VERSION, FactPredicate, FuzzyRuleEngine, PredicateRegistry, RuleProgram } from "@symtorch/logic";
 
 describe("@symtorch/agent", () => {
@@ -215,5 +215,36 @@ describe("@symtorch/agent", () => {
     });
     expect(replay[0]?.context).toEqual({ entity: "case-hot", high_risk: 0.9 });
     expect(JSON.parse(JSON.stringify(replay))).toEqual(replay);
+  });
+
+  it("binds and recalls vector-symbolic memory traces", () => {
+    const memory = new HolographicMemory(5);
+    const riskRole = vectorSymbol([1, 0, 0, 0, 0]);
+    const approvedRole = vectorSymbol([0, 1, 0, 0, 0]);
+    const highRisk = vectorSymbol([0.8, 0.1, 0.1, 0, 0]);
+    const approved = vectorSymbol([0.1, 0.9, 0, 0, 0]);
+
+    memory.bind(riskRole, highRisk);
+    memory.bind(approvedRole, approved);
+
+    const recalledRisk = memory.recall(riskRole);
+    const recalledApproved = memory.recall(approvedRole);
+    expect(memory.snapshot()).toMatchObject({ dimension: 5, bindings: 2 });
+    expect(memory.similarity(recalledRisk, highRisk)).toBeGreaterThan(memory.similarity(recalledRisk, approved));
+    expect(memory.similarity(recalledApproved, approved)).toBeGreaterThan(memory.similarity(recalledApproved, highRisk));
+  });
+
+  it("clears holographic memory traces", () => {
+    const memory = new HolographicMemory(3);
+    memory.bind(vectorSymbol([1, 0, 0]), vectorSymbol([0.2, 0.4, 0.6]));
+    expect(memory.snapshot().bindings).toBe(1);
+
+    memory.clear();
+
+    expect(memory.snapshot()).toEqual({
+      dimension: 3,
+      bindings: 0,
+      vector: [0, 0, 0]
+    });
   });
 });

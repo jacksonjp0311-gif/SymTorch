@@ -96,6 +96,9 @@ importers:
 
   packages/agent:
     dependencies:
+      '@symtorch/core':
+        specifier: workspace:*
+        version: link:../core
       '@symtorch/logic':
         specifier: workspace:*
         version: link:../logic

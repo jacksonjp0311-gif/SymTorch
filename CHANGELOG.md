@@ -1,6 +1,15 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.3.0` is the trainable policy workbench alpha line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.4.0` is the vector-symbolic memory alpha line, not a production stability claim.
+
+## v0.4.0 Vector-Symbolic Memory Alpha
+
+- Added differentiable circular convolution and circular correlation to `@symtorch/core`.
+- Added `bind` and `unbind` aliases for vector-symbolic binding workflows.
+- Added `HolographicMemory` and `vectorSymbol` to `@symtorch/agent`.
+- Added finite-difference gradient coverage for circular binding ops.
+- Added executable holographic memory demo and included it in `demo:all`.
+- Bumped private workspace package versions to `0.4.0`.
 
 ## v0.3.0 Trainable Policy Workbench Alpha
 

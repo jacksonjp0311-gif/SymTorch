@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.3.0` trainable-policy-workbench alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.4.0` vector-symbolic-memory alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -19,6 +19,7 @@ Supported:
 - `relu`, `sigmoid`
 - `sum`, `mean`, `max`
 - `matmul`, `transpose`, `reshape`
+- `circularConvolve`, `circularCorrelate`, `bind`, `unbind`
 - `logsumexp`, `softmax`, `logSoftmax`
 - `sizeOf`
 - `DType`, `Device`, `TensorOptions`, `TensorLike`
@@ -82,6 +83,9 @@ Supported:
 - `DecisionLedgerEntry`
 - `DecisionLedger`
 - `WorkingMemory`
+- `HolographicMemory`
+- `HolographicMemoryTrace`
+- `vectorSymbol`
 - `RuleAgent`
 
 Notes:
@@ -89,6 +93,7 @@ Notes:
 - `RuleAgent.decide()` returns live tensor-backed results.
 - `RuleAgent.decideTrace()` and entity trace methods return JSON-safe decision contracts.
 - `DecisionLedger` is in-memory only. It is an audit primitive, not persistent storage.
+- `HolographicMemory` is an experimental vector-symbolic memory primitive. It supports differentiable binding and approximate recall, not guaranteed cleanup memory.
 
 ## `@symtorch/webgpu`
 

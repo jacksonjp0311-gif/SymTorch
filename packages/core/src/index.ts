@@ -147,6 +147,14 @@ export class Tensor {
   logSoftmax(axis = this.ndim - 1): Tensor {
     return logSoftmax(this, axis);
   }
+
+  circularConvolve(other: Tensor): Tensor {
+    return circularConvolve(this, other);
+  }
+
+  circularCorrelate(other: Tensor): Tensor {
+    return circularCorrelate(this, other);
+  }
 }
 
 export type TensorLike = Tensor | number | readonly number[] | Float32Array;
@@ -358,6 +366,27 @@ export function matmul(a: Tensor, b: Tensor): Tensor {
   ]);
 }
 
+export function circularConvolve(a: Tensor, b: Tensor): Tensor {
+  assertSameVector("circularConvolve", a, b);
+  const out = circularConvolveNoGrad(a, b);
+  return new Tensor(out.data, out.shape, {}, [
+    { parent: a, backward: (grad) => circularCorrelateNoGrad(grad, b) },
+    { parent: b, backward: (grad) => circularCorrelateNoGrad(grad, a) }
+  ]);
+}
+
+export function circularCorrelate(a: Tensor, b: Tensor): Tensor {
+  assertSameVector("circularCorrelate", a, b);
+  const out = circularCorrelateNoGrad(a, b);
+  return new Tensor(out.data, out.shape, {}, [
+    { parent: a, backward: (grad) => circularConvolveNoGrad(grad, b) },
+    { parent: b, backward: (grad) => circularCorrelateNoGrad(a, grad) }
+  ]);
+}
+
+export const bind = circularConvolve;
+export const unbind = circularCorrelate;
+
 export function transpose(x: Tensor): Tensor {
   if (x.ndim !== 2) throw new Error("transpose currently supports rank-2 tensors.");
   const out = transposeNoGrad(x);
@@ -492,6 +521,34 @@ function matmulNoGrad(a: Tensor, b: Tensor): Tensor {
   return matmul(a.detach(), b.detach()).detach();
 }
 
+function circularConvolveNoGrad(a: Tensor, b: Tensor): Tensor {
+  assertSameVector("circularConvolve", a, b);
+  const n = a.size;
+  const out = new Float32Array(n);
+  for (let t = 0; t < n; t++) {
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      acc += (a.data[i] ?? 0) * (b.data[mod(t - i, n)] ?? 0);
+    }
+    out[t] = acc;
+  }
+  return new Tensor(out, a.shape);
+}
+
+function circularCorrelateNoGrad(a: Tensor, b: Tensor): Tensor {
+  assertSameVector("circularCorrelate", a, b);
+  const n = a.size;
+  const out = new Float32Array(n);
+  for (let k = 0; k < n; k++) {
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      acc += (a.data[i] ?? 0) * (b.data[mod(i - k, n)] ?? 0);
+    }
+    out[k] = acc;
+  }
+  return new Tensor(out, a.shape);
+}
+
 function transposeNoGrad(x: Tensor): Tensor {
   const [rows, cols] = x.shape as [number, number];
   const out = new Float32Array(x.size);
@@ -571,6 +628,15 @@ function normalizeAxis(axis: number, rank: number): number {
   const normalized = axis < 0 ? rank + axis : axis;
   if (normalized < 0 || normalized >= rank) throw new Error(`Axis ${axis} is out of bounds for rank ${rank}.`);
   return normalized;
+}
+
+function assertSameVector(op: string, a: Tensor, b: Tensor): void {
+  if (a.ndim !== 1 || b.ndim !== 1) throw new Error(`${op} currently supports rank-1 tensors.`);
+  if (a.size !== b.size) throw new Error(`${op} shape mismatch: [${a.shape.join(", ")}] vs [${b.shape.join(", ")}].`);
+}
+
+function mod(value: number, modulus: number): number {
+  return ((value % modulus) + modulus) % modulus;
 }
 
 function replaceAt(values: readonly number[], index: number, value: number): number[] {

@@ -86,6 +86,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Eager `Tensor` API with CPU `float32` typed-array storage.
 - Reverse-mode autograd with `.backward()` and gradient accumulation.
 - Core ops including `matmul`, broadcasting, reductions, activations, `softmax`, `logSoftmax`, and `logsumexp`.
+- Vector-symbolic binding ops with differentiable circular convolution and circular correlation.
 - `nn.Module`, `Parameter`, `Linear`, `LayerNorm`, `Sequential`, `SGD`, `Adam`, MSE, cross-entropy, and BCE-with-logits.
 - Prolog-like fuzzy rules with product-t-norm conjunction and probabilistic-OR aggregation.
 - Fixed, fact-backed, threshold, and linear predicates.
@@ -95,6 +96,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Versioned, JSON-safe explanation traces for agent integrations.
 - Entity batch evaluation and ranking over fact stores.
 - Agent loop primitives for observation -> decision -> serialized explanation, including entity batches.
+- Holographic memory primitive for binding, superposing, and recalling vector symbols.
 - Browser policy workbench with scenario selection, trainable predicates, import/export, smoke tests, and Playwright E2E coverage.
 - Versioned `symtorch.scenario.v1` contracts for JSON-safe policy scenarios.
 - Versioned `symtorch.trainingRun.v1` records for browser-side training history.
@@ -210,6 +212,7 @@ examples/
 - [Public API surface](docs/api-surface.md)
 - [30-second demo](docs/demo.md)
 - [Browser playground prep](docs/browser-playground.md)
+- [Holographic memory](docs/holographic-memory.md)
 - [Limitations](docs/limitations.md)
 - [Changelog](CHANGELOG.md)
 
@@ -246,6 +249,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.3.0` workspace line is the trainable policy workbench alpha: useful for small differentiable-rule experiments, browser policy workbench demos, and agent-policy prototypes while the tensor and backend layers continue to harden.
+SymTorch is early, active, and intentionally foundation-first. The `0.4.0` workspace line is the vector-symbolic memory alpha: useful for small differentiable-rule experiments, browser policy workbench demos, holographic-memory experiments, and agent-policy prototypes while the tensor and backend layers continue to harden.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production-readiness or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history.

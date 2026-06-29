@@ -1,3 +1,4 @@
+import { add, bind, mul, sum, tensor, type Tensor, unbind, zeros } from "@symtorch/core";
 import { decisionTrace, FactStore, type AggregatedRuleResult, type FuzzyRuleEngine, type PredicateContext, type RuleProgram, type SerializedAggregatedRuleExplanation } from "@symtorch/logic";
 
 export type Observation = Record<string, unknown>;
@@ -84,6 +85,67 @@ export class WorkingMemory {
   entityIds(): string[] {
     return this.facts.entityIds();
   }
+}
+
+export type HolographicMemoryTrace = {
+  dimension: number;
+  bindings: number;
+  vector: number[];
+};
+
+export class HolographicMemory {
+  private trace: Tensor;
+  private bindingCount = 0;
+
+  constructor(readonly dimension: number) {
+    if (!Number.isInteger(dimension) || dimension <= 0) {
+      throw new Error(`HolographicMemory dimension must be a positive integer, received ${dimension}.`);
+    }
+    this.trace = zeros([dimension]);
+  }
+
+  bind(role: Tensor, value: Tensor): Tensor {
+    this.assertVector(role, "role");
+    this.assertVector(value, "value");
+    const bound = bind(role, value);
+    this.trace = add(this.trace, bound);
+    this.bindingCount += 1;
+    return bound;
+  }
+
+  recall(role: Tensor): Tensor {
+    this.assertVector(role, "role");
+    return unbind(this.trace, role);
+  }
+
+  similarity(left: Tensor, right: Tensor): number {
+    this.assertVector(left, "left");
+    this.assertVector(right, "right");
+    return sum(mul(left, right)).item();
+  }
+
+  snapshot(): HolographicMemoryTrace {
+    return {
+      dimension: this.dimension,
+      bindings: this.bindingCount,
+      vector: this.trace.toArray()
+    };
+  }
+
+  clear(): void {
+    this.trace = zeros([this.dimension]);
+    this.bindingCount = 0;
+  }
+
+  private assertVector(value: Tensor, label: string): void {
+    if (value.ndim !== 1 || value.size !== this.dimension) {
+      throw new Error(`HolographicMemory ${label} must have shape [${this.dimension}], received [${value.shape.join(", ")}].`);
+    }
+  }
+}
+
+export function vectorSymbol(values: readonly number[]): Tensor {
+  return tensor(values, { shape: [values.length] });
 }
 
 export class RuleAgent {

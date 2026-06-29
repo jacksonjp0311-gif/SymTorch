@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { add, clip, logsumexp, matmul, mean, mul, pow, sigmoid, softmax, sqrt, tanh, Tensor, tensor } from "@symtorch/core";
+import { add, bind, circularConvolve, circularCorrelate, clip, logsumexp, matmul, mean, mul, pow, sigmoid, softmax, sqrt, tanh, Tensor, tensor, unbind } from "@symtorch/core";
 
 describe("@symtorch/core", () => {
   it("adds tensors with broadcasting", () => {
@@ -78,6 +78,29 @@ describe("@symtorch/core", () => {
     expectGradientClose(values, shape, (x) => sumSquares(x.mean(1)));
     expectGradientClose(values, shape, (x) => sumSquares(logsumexp(x, 0)));
     expectGradientClose(values, shape, (x) => sumSquares(logsumexp(x, 1)));
+  });
+
+  it("computes circular convolution and correlation for vector-symbolic binding", () => {
+    const a = tensor([1, 2, 3], { shape: [3] });
+    const b = tensor([4, 5, 6], { shape: [3] });
+
+    expect(circularConvolve(a, b).toArray()).toEqual([31, 31, 28]);
+    expect(circularCorrelate(circularConvolve(a, b), b).shape).toEqual([3]);
+    expect(bind(a, b).toArray()).toEqual(circularConvolve(a, b).toArray());
+    expect(unbind(bind(a, b), b).shape).toEqual([3]);
+  });
+
+  it("matches finite-difference gradients for circular binding ops", () => {
+    expectGradientClose(
+      [0.2, -0.4, 0.7, 1.1],
+      [4],
+      (x) => sumSquares(circularConvolve(x, tensor([0.5, -0.25, 0.75, 0.1], { shape: [4] })))
+    );
+    expectGradientClose(
+      [0.2, -0.4, 0.7, 1.1],
+      [4],
+      (x) => sumSquares(circularCorrelate(x, tensor([0.5, -0.25, 0.75, 0.1], { shape: [4] })))
+    );
   });
 });
 
