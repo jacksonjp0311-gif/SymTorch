@@ -6,6 +6,7 @@ import {
   createPlaygroundState,
   defaultCases,
   defaultRule,
+  defaultTrainingExamples,
   exportPlaygroundState,
   parsePlaygroundState,
   trainHighRiskRule,
@@ -38,7 +39,7 @@ describe("browser playground model", () => {
   });
 
   it("trains the high-risk threshold and preserves explanation output", () => {
-    const result = trainHighRiskRule(defaultRule, 0.9);
+    const result = trainHighRiskRule(defaultRule, 0.9, defaultTrainingExamples());
 
     expect(result.afterThreshold).toBeLessThan(result.beforeThreshold);
     expect(result.afterScore).toBeGreaterThan(result.beforeScore);
@@ -48,8 +49,19 @@ describe("browser playground model", () => {
     expect(JSON.stringify(result.explanationJson)).toContain("high_risk");
   });
 
+  it("uses caller-provided training examples", () => {
+    const result = trainHighRiskRule(defaultRule, 0.9, [
+      { risk: 0.1, approved: 0.05, label: 0 },
+      { risk: 0.2, approved: 0.05, label: 0 },
+      { risk: 0.95, approved: 0.05, label: 1 }
+    ]);
+
+    expect(result.historyLength).toBe(100);
+    expect(result.afterThreshold).toBeLessThan(result.beforeThreshold);
+  });
+
   it("round-trips versioned playground state and rejects invalid state", () => {
-    const state = createPlaygroundState(defaultRule, defaultCases(), 0.42);
+    const state = createPlaygroundState(defaultRule, defaultCases(), 0.42, defaultTrainingExamples());
     const roundTrip = parsePlaygroundState(JSON.stringify(state));
 
     expect(roundTrip).toEqual(state);
@@ -60,15 +72,20 @@ describe("browser playground model", () => {
       .toMatchObject({
         cases: [{ entityId: "bad", high_risk: 1, approved: 0 }]
       });
+    expect(parsePlaygroundState(JSON.stringify({ ...state, trainingExamples: [{ risk: 2, approved: -1, label: 0.6 }] })))
+      .toMatchObject({
+        trainingExamples: [{ risk: 1, approved: 0, label: 1 }]
+      });
   });
 
   it("exports readable versioned playground state", () => {
-    const exported = exportPlaygroundState(defaultRule, defaultCases(), 0.5);
+    const exported = exportPlaygroundState(defaultRule, defaultCases(), 0.5, defaultTrainingExamples());
     const parsed = parsePlaygroundState(exported);
 
     expect(exported).toContain("\n");
     expect(exported).toContain("symtorch.playground.v1");
     expect(parsed?.ruleSource).toBe(defaultRule);
     expect(parsed?.trainedThreshold).toBe(0.5);
+    expect(parsed?.trainingExamples).toHaveLength(5);
   });
 });

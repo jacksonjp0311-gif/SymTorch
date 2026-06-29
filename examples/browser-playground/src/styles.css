@@ -132,6 +132,7 @@ pre {
 }
 
 .case-row,
+.training-row,
 .decision {
   align-items: center;
   border-bottom: 1px solid #e7ebf0;
@@ -143,6 +144,10 @@ pre {
 
 .decision {
   grid-template-columns: 1fr 1fr auto;
+}
+
+.training-row {
+  grid-template-columns: 0.5fr 1fr 1fr 0.8fr auto;
 }
 
 .decision.accepted strong {
@@ -169,6 +174,7 @@ input {
   }
 
   .case-row,
+  .training-row,
   .decision {
     grid-template-columns: 1fr;
   }

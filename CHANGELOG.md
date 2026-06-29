@@ -2,6 +2,12 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.19 Browser Training Dataset Seal
+
+- Moved browser training examples into the playground model API.
+- Added editable in-browser training examples for risk, approval, and label.
+- Added coverage for caller-provided rule training examples.
+
 ## v0.1.18 Playground Import/Export Seal
 
 - Added explicit browser playground state import/export.

@@ -17,6 +17,12 @@ export type CaseFacts = {
   approved: number;
 };
 
+export type TrainingExample = {
+  risk: number;
+  approved: number;
+  label: number;
+};
+
 export type TrainingResult = {
   beforeThreshold: number;
   afterThreshold: number;
@@ -32,6 +38,7 @@ export type BrowserPlaygroundState = {
   schemaVersion: typeof PLAYGROUND_STATE_VERSION;
   ruleSource: string;
   cases: CaseFacts[];
+  trainingExamples: TrainingExample[];
   trainedThreshold: number;
 };
 
@@ -46,6 +53,16 @@ export function defaultCases(): CaseFacts[] {
     { entityId: "case-hot", high_risk: 0.9, approved: 0.1 },
     { entityId: "case-approved", high_risk: 0.9, approved: 0.95 },
     { entityId: "case-borderline", high_risk: 0.55, approved: 0.2 }
+  ];
+}
+
+export function defaultTrainingExamples(): TrainingExample[] {
+  return [
+    { risk: 0.2, approved: 0.05, label: 0 },
+    { risk: 0.35, approved: 0.15, label: 0 },
+    { risk: 0.75, approved: 0.05, label: 1 },
+    { risk: 0.9, approved: 0.1, label: 1 },
+    { risk: 0.88, approved: 0.95, label: 0 }
   ];
 }
 
@@ -73,12 +90,14 @@ export function validateRuleSource(source: string, registry = createFactRegistry
 export function createPlaygroundState(
   ruleSource: string,
   cases: readonly CaseFacts[],
-  trainedThreshold: number
+  trainedThreshold: number,
+  trainingExamples: readonly TrainingExample[] = defaultTrainingExamples()
 ): BrowserPlaygroundState {
   return {
     schemaVersion: PLAYGROUND_STATE_VERSION,
     ruleSource,
     cases: cases.map((item) => ({ ...item })),
+    trainingExamples: trainingExamples.map((item) => ({ ...item })),
     trainedThreshold
   };
 }
@@ -86,9 +105,10 @@ export function createPlaygroundState(
 export function exportPlaygroundState(
   ruleSource: string,
   cases: readonly CaseFacts[],
-  trainedThreshold: number
+  trainedThreshold: number,
+  trainingExamples: readonly TrainingExample[] = defaultTrainingExamples()
 ): string {
-  return JSON.stringify(createPlaygroundState(ruleSource, cases, trainedThreshold), null, 2);
+  return JSON.stringify(createPlaygroundState(ruleSource, cases, trainedThreshold, trainingExamples), null, 2);
 }
 
 export function parsePlaygroundState(serialized: string | null): BrowserPlaygroundState | null {
@@ -101,10 +121,15 @@ export function parsePlaygroundState(serialized: string | null): BrowserPlaygrou
     if (!Array.isArray(value.cases)) return null;
     const cases = value.cases.map(normalizeCase);
     if (cases.some((item) => item === null)) return null;
+    const trainingExamples = Array.isArray(value.trainingExamples)
+      ? value.trainingExamples.map(normalizeTrainingExample)
+      : defaultTrainingExamples();
+    if (trainingExamples.some((item) => item === null)) return null;
     return {
       schemaVersion: PLAYGROUND_STATE_VERSION,
       ruleSource: value.ruleSource,
       cases: cases as CaseFacts[],
+      trainingExamples: trainingExamples as TrainingExample[],
       trainedThreshold: value.trainedThreshold
     };
   } catch {
@@ -112,7 +137,11 @@ export function parsePlaygroundState(serialized: string | null): BrowserPlaygrou
   }
 }
 
-export function trainHighRiskRule(ruleSource: string, threshold: number): TrainingResult {
+export function trainHighRiskRule(
+  ruleSource: string,
+  threshold: number,
+  examples: readonly TrainingExample[] = defaultTrainingExamples()
+): TrainingResult {
   const validation = validateRuleSource(ruleSource);
   if (!validation.ok) {
     throw new Error(validation.diagnostics.map((item) => item.message).join("\n"));
@@ -127,13 +156,7 @@ export function trainHighRiskRule(ruleSource: string, threshold: number): Traini
   const trainer = new RuleTrainer(engine, program.rules[0]!, trainableRegistry, { learningRate: 0.2 });
   const beforeThreshold = highRisk.threshold.item();
   const beforeScore = trainer.predict({ risk: 0.82, approved: 0.08 }).score.item();
-  const result = trainer.fit([
-    { risk: 0.2, approved: 0.05, label: 0 },
-    { risk: 0.35, approved: 0.15, label: 0 },
-    { risk: 0.75, approved: 0.05, label: 1 },
-    { risk: 0.9, approved: 0.1, label: 1 },
-    { risk: 0.88, approved: 0.95, label: 0 }
-  ], { epochs: 100 });
+  const result = trainer.fit(examples.map((example) => ({ ...example })), { epochs: 100 });
   const prediction = trainer.predict({ risk: 0.82, approved: 0.08 });
 
   return {
@@ -145,6 +168,18 @@ export function trainHighRiskRule(ruleSource: string, threshold: number): Traini
     historyLength: result.history.length,
     explanationPredicateCount: prediction.explanation.predicates.length,
     explanationJson: prediction.explanation
+  };
+}
+
+function normalizeTrainingExample(value: unknown): TrainingExample | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.risk !== "number" || !Number.isFinite(value.risk)) return null;
+  if (typeof value.approved !== "number" || !Number.isFinite(value.approved)) return null;
+  if (typeof value.label !== "number" || !Number.isFinite(value.label)) return null;
+  return {
+    risk: clamp01(value.risk),
+    approved: clamp01(value.approved),
+    label: value.label >= 0.5 ? 1 : 0
   };
 }
 

@@ -6,6 +6,7 @@ import {
   createPlaygroundState,
   defaultCases,
   defaultRule,
+  defaultTrainingExamples,
   exportPlaygroundState,
   parsePlaygroundState,
   trainHighRiskRule,
@@ -15,6 +16,7 @@ import {
 const stateKey = "symtorch.browser-playground.state.v1";
 const initialState = loadState();
 const cases = initialState?.cases ?? defaultCases();
+const trainingExamples = initialState?.trainingExamples ?? defaultTrainingExamples();
 const registry = createFactRegistry();
 
 let trainedThreshold = initialState?.trainedThreshold ?? 0.9;
@@ -25,6 +27,7 @@ const diagnostics = mustElement<HTMLElement>("diagnostics");
 const facts = mustElement<HTMLElement>("facts");
 const decisionList = mustElement<HTMLElement>("decisionList");
 const traceOutput = mustElement<HTMLElement>("traceOutput");
+const trainingExamplesView = mustElement<HTMLElement>("trainingExamples");
 const trainingStats = mustElement<HTMLElement>("trainingStats");
 const evaluate = mustElement<HTMLButtonElement>("evaluate");
 const record = mustElement<HTMLButtonElement>("record");
@@ -37,6 +40,7 @@ const stateStatus = mustElement<HTMLElement>("stateStatus");
 
 ruleSource.value = initialState?.ruleSource ?? defaultRule;
 renderFacts();
+renderTrainingExamples();
 evaluatePolicy();
 
 evaluate.addEventListener("click", evaluatePolicy);
@@ -86,7 +90,7 @@ function trainHighRisk(): void {
     return;
   }
 
-  const result = trainHighRiskRule(ruleSource.value, trainedThreshold);
+  const result = trainHighRiskRule(ruleSource.value, trainedThreshold, trainingExamples);
   trainedThreshold = result.afterThreshold;
   persistState();
   trainingSummary = [
@@ -99,7 +103,7 @@ function trainHighRisk(): void {
 }
 
 function exportCurrentState(): void {
-  stateBuffer.value = exportPlaygroundState(ruleSource.value, cases, trainedThreshold);
+  stateBuffer.value = exportPlaygroundState(ruleSource.value, cases, trainedThreshold, trainingExamples);
   stateStatus.textContent = "Exported current playground state.";
 }
 
@@ -112,16 +116,41 @@ function importBufferedState(): void {
 
   ruleSource.value = imported.ruleSource;
   cases.splice(0, cases.length, ...imported.cases);
+  trainingExamples.splice(0, trainingExamples.length, ...imported.trainingExamples);
   trainedThreshold = imported.trainedThreshold;
   trainingSummary = "Imported state.";
   persistState();
   renderFacts();
+  renderTrainingExamples();
   evaluatePolicy();
   stateStatus.textContent = "Imported playground state.";
 }
 
 function renderTrainingStats(): void {
   trainingStats.textContent = trainingSummary;
+}
+
+function renderTrainingExamples(): void {
+  trainingExamplesView.innerHTML = trainingExamples.map((item, index) => `
+    <article class="training-row">
+      <strong>ex ${index + 1}</strong>
+      <label>risk <input data-index="${index}" data-key="risk" type="range" min="0" max="1" step="0.01" value="${item.risk}" /></label>
+      <label>approved <input data-index="${index}" data-key="approved" type="range" min="0" max="1" step="0.01" value="${item.approved}" /></label>
+      <label>label <input data-index="${index}" data-key="label" type="range" min="0" max="1" step="1" value="${item.label}" /></label>
+      <span>${item.risk.toFixed(2)} / ${item.approved.toFixed(2)} -> ${item.label.toFixed(0)}</span>
+    </article>
+  `).join("");
+
+  trainingExamplesView.querySelectorAll<HTMLInputElement>("input").forEach((input) => {
+    input.addEventListener("input", () => {
+      const index = Number(input.dataset.index);
+      const key = input.dataset.key as "risk" | "approved" | "label" | undefined;
+      const item = trainingExamples[index];
+      if (!item || !key) return;
+      item[key] = Number(input.value);
+      renderTrainingExamples();
+    });
+  });
 }
 
 function renderFacts(): void {
@@ -173,7 +202,7 @@ function loadState(): ReturnType<typeof parsePlaygroundState> {
 
 function persistState(): void {
   try {
-    localStorage.setItem(stateKey, JSON.stringify(createPlaygroundState(ruleSource.value, cases, trainedThreshold)));
+    localStorage.setItem(stateKey, JSON.stringify(createPlaygroundState(ruleSource.value, cases, trainedThreshold, trainingExamples)));
   } catch {
     // Persistence is best-effort; evaluation should still work if storage is unavailable.
   }
