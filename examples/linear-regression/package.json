@@ -1,0 +1,11 @@
+{
+  "name": "@symtorch/example-linear-regression",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@symtorch/core": "workspace:*",
+    "@symtorch/nn": "workspace:*"
+  }
+}
+

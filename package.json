@@ -1,0 +1,23 @@
+{
+  "name": "symtorch-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SymTorch: differentiable tensors and neuro-symbolic agents for TypeScript.",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc -b --pretty false",
+    "example:linear": "tsx examples/linear-regression/src/index.ts",
+    "example:routing": "tsx examples/neuro-symbolic-routing/src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "@webgpu/types": "^0.1.64",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@11.7.0"
+}
