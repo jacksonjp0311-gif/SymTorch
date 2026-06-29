@@ -7,6 +7,19 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@symtorch/agent':
+        specifier: workspace:*
+        version: link:packages/agent
+      '@symtorch/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@symtorch/logic':
+        specifier: workspace:*
+        version: link:packages/logic
+      '@symtorch/nn':
+        specifier: workspace:*
+        version: link:packages/nn
     devDependencies:
       '@types/node':
         specifier: ^20.19.0

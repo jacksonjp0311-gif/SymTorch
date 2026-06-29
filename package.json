@@ -4,11 +4,21 @@
   "private": true,
   "type": "module",
   "description": "SymTorch: differentiable tensors and neuro-symbolic agents for TypeScript.",
+  "dependencies": {
+    "@symtorch/agent": "workspace:*",
+    "@symtorch/core": "workspace:*",
+    "@symtorch/logic": "workspace:*",
+    "@symtorch/nn": "workspace:*"
+  },
   "scripts": {
     "build": "tsc -b",
     "clean": "node scripts/clean.mjs",
     "test": "vitest run",
     "typecheck": "tsc -b --pretty false",
+    "demo:gradients": "tsx scripts/demo-gradient-checks.ts",
+    "demo:rule": "tsx scripts/demo-rule-training.ts",
+    "demo:ledger": "tsx scripts/demo-agent-ledger.ts",
+    "demo:all": "pnpm demo:gradients && pnpm demo:rule && pnpm demo:ledger",
     "example:linear": "tsx examples/linear-regression/src/index.ts",
     "example:routing": "tsx examples/neuro-symbolic-routing/src/index.ts",
     "example:trainable-routing": "tsx examples/trainable-routing/src/index.ts",

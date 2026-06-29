@@ -2,6 +2,13 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.13 Demo Script Seal
+
+- Added executable gradient sanity demo.
+- Added executable trainable rule demo.
+- Added executable agent ledger demo.
+- Added `demo:gradients`, `demo:rule`, `demo:ledger`, and `demo:all` package scripts.
+
 ## v0.1.12 Public API Surface Seal
 
 - Added `docs/api-surface.md`.

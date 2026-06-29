@@ -115,6 +115,17 @@ pnpm example:trainable-routing
 pnpm example:batch-routing
 ```
 
+## Executable Demos
+
+```powershell
+pnpm demo:gradients
+pnpm demo:rule
+pnpm demo:ledger
+pnpm demo:all
+```
+
+These are short verification scripts. They are meant to show the core claims directly: gradient sanity, trainable readable rules, and JSON-safe agent ledger replay.
+
 ## Trainable Rule Example
 
 ```ts

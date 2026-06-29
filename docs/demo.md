@@ -2,6 +2,19 @@
 
 This demo shows the core SymTorch loop: readable rule, fuzzy tensor execution, trainable predicate, and explanation-preserving decision output.
 
+For executable verification, run:
+
+```powershell
+pnpm demo:gradients
+pnpm demo:rule
+pnpm demo:ledger
+pnpm demo:all
+```
+
+- `demo:gradients` checks finite-difference sanity for reductions, cross entropy, and LayerNorm.
+- `demo:rule` trains a readable fuzzy rule and prints a versioned explanation trace.
+- `demo:ledger` ranks entity decisions, filters accepted results, and prints replayable ledger entries.
+
 ```ts
 import { tensor } from "@symtorch/core";
 import {
