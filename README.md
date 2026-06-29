@@ -14,6 +14,7 @@ The project starts with a correct eager CPU tensor/autograd core, then layers on
 - Trainable fixed, threshold, and linear predicates for neuro-symbolic rules.
 - `RuleTrainer` for fitting differentiable rules against labeled examples.
 - `FactStore` working memory for observations, entity-scoped facts, and agent contexts.
+- Multi-rule same-head aggregation with fuzzy OR and per-rule explanations.
 - WebGPU package shell with capability detection and backend-planning docs.
 
 ## Install

@@ -56,6 +56,19 @@ export type RuleResult = {
   explanation: RuleExplanation;
 };
 
+export type AggregatedRuleExplanation = {
+  head: string;
+  score: number;
+  ruleCount: number;
+  rules: RuleExplanation[];
+};
+
+export type AggregatedRuleResult = {
+  head: string;
+  score: Tensor;
+  explanation: AggregatedRuleExplanation;
+};
+
 export type LabeledRuleExample = PredicateContext & {
   label: number;
 };
@@ -162,6 +175,30 @@ export class FuzzyRuleEngine {
 
   evaluateProgram(program: RuleProgram, context: PredicateContext = {}): RuleResult[] {
     return program.rules.map((rule) => this.evaluate(rule, context));
+  }
+
+  evaluateProgramGrouped(program: RuleProgram, context: PredicateContext = {}): AggregatedRuleResult[] {
+    const groups = new Map<string, RuleResult[]>();
+    for (const rule of program.rules) {
+      const result = this.evaluate(rule, context);
+      const group = groups.get(result.explanation.head) ?? [];
+      group.push(result);
+      groups.set(result.explanation.head, group);
+    }
+
+    return Array.from(groups.entries()).map(([head, results]) => {
+      const score = results.reduce((acc, result) => probabilisticOr(acc, result.score), tensor(0));
+      return {
+        head,
+        score,
+        explanation: {
+          head,
+          score: score.item(),
+          ruleCount: results.length,
+          rules: results.map((result) => result.explanation)
+        }
+      };
+    });
   }
 
   private resolve(call: PredicateCall, context: PredicateContext): PredicateResolution {

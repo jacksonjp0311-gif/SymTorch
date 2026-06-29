@@ -14,7 +14,25 @@ describe("@symtorch/agent", () => {
 
     const decision = agent.decide();
     expect(decision.action).toBe("escalate(X)");
-    expect(decision.results[0]?.explanation.predicates[0]?.detail?.key).toBe("high_risk");
+    expect(decision.results[0]?.explanation.rules[0]?.predicates[0]?.detail?.key).toBe("high_risk");
+  });
+
+  it("selects actions after aggregating same-head rules", () => {
+    const program = new RuleProgram(`
+      escalate(X) :- high_risk(X).
+      escalate(X) :- customer_vip(X).
+    `);
+    const registry = new PredicateRegistry()
+      .register(new FactPredicate("high_risk"))
+      .register(new FactPredicate("customer_vip"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.6);
+
+    agent.observe({ high_risk: 0.4, customer_vip: 0.5 });
+
+    const decision = agent.decide();
+    expect(decision.action).toBe("escalate(X)");
+    expect(decision.results[0]?.score.item()).toBeCloseTo(0.7, 5);
+    expect(decision.results[0]?.explanation.ruleCount).toBe(2);
   });
 
   it("supports entity-scoped working memory snapshots", () => {

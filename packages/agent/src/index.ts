@@ -1,10 +1,10 @@
-import { FactStore, type FuzzyRuleEngine, type PredicateContext, type RuleProgram, type RuleResult } from "@symtorch/logic";
+import { FactStore, type AggregatedRuleResult, type FuzzyRuleEngine, type PredicateContext, type RuleProgram } from "@symtorch/logic";
 
 export type Observation = Record<string, unknown>;
 
 export type AgentDecision = {
   action: string;
-  results: readonly RuleResult[];
+  results: readonly AggregatedRuleResult[];
 };
 
 export class WorkingMemory {
@@ -41,12 +41,12 @@ export class RuleAgent {
   }
 
   decide(): AgentDecision {
-    const results = this.engine.evaluateProgram(this.program, this.memory.snapshot());
-    const best = results.reduce<RuleResult | null>((winner, result) => {
+    const results = this.engine.evaluateProgramGrouped(this.program, this.memory.snapshot());
+    const best = results.reduce<AggregatedRuleResult | null>((winner, result) => {
       if (!winner || result.score.item() > winner.score.item()) return result;
       return winner;
     }, null);
-    const action = best && best.score.item() >= this.threshold ? best.explanation.head : "no_action";
+    const action = best && best.score.item() >= this.threshold ? best.head : "no_action";
     return { action, results };
   }
 }

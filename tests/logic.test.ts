@@ -41,6 +41,33 @@ describe("@symtorch/logic", () => {
     expect(engine.evaluate(program.rules[0]!, facts.entityContext("case-2")).score.item()).toBeCloseTo(0.27, 5);
   });
 
+  it("aggregates multiple rules with the same head using probabilistic OR", () => {
+    const program = new RuleProgram(`
+      escalate(X) :- high_risk(X).
+      escalate(X) :- customer_vip(X).
+      defer(X) :- approved(X).
+    `);
+    const registry = new PredicateRegistry()
+      .register(new FactPredicate("high_risk"))
+      .register(new FactPredicate("customer_vip"))
+      .register(new FactPredicate("approved"));
+    const results = new FuzzyRuleEngine(registry).evaluateProgramGrouped(program, {
+      high_risk: 0.4,
+      customer_vip: 0.5,
+      approved: 0.2
+    });
+
+    const escalate = results.find((result) => result.head === "escalate(X)");
+    const defer = results.find((result) => result.head === "defer(X)");
+    expect(escalate?.score.item()).toBeCloseTo(0.7, 5);
+    expect(escalate?.explanation.ruleCount).toBe(2);
+    expect(escalate?.explanation.rules.map((rule) => rule.rule)).toEqual([
+      "escalate(X) :- high_risk(X).",
+      "escalate(X) :- customer_vip(X)."
+    ]);
+    expect(defer?.score.item()).toBeCloseTo(0.2, 5);
+  });
+
   it("trains a threshold predicate through a fuzzy rule", () => {
     const program = new RuleProgram("escalate(X) :- high_risk(X).");
     const predicate = new ThresholdPredicate("high_risk", "risk", 0.9, 10);
