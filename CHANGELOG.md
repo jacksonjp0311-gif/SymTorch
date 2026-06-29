@@ -2,6 +2,12 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.23 Agent Policy Scenario Seal
+
+- Added bundled case escalation, fraud review, and support routing scenarios.
+- Added a browser scenario selector and scenario-aware state export/import.
+- Added scenario validation and browser interaction coverage.
+
 ## v0.1.22 Browser Interaction E2E Seal
 
 - Added Playwright browser interaction coverage for the playground.

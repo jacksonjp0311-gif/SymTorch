@@ -4,24 +4,29 @@ import {
   buildAgent,
   createFactRegistry,
   createPlaygroundState,
-  defaultCases,
-  defaultRule,
-  defaultTrainingExamples,
+  defaultScenario,
   exportPlaygroundState,
   parsePlaygroundState,
+  playgroundScenarios,
+  scenarioById,
   trainHighRiskRule,
   validateRuleSource
 } from "./app-model";
 
 const stateKey = "symtorch.browser-playground.state.v1";
 const initialState = loadState();
-const cases = initialState?.cases ?? defaultCases();
-const trainingExamples = initialState?.trainingExamples ?? defaultTrainingExamples();
+const initialScenario = initialState ? scenarioById(initialState.scenarioId) ?? defaultScenario() : defaultScenario();
+let scenarioId = initialState?.scenarioId ?? initialScenario.id;
+const cases = initialState?.cases ?? initialScenario.cases;
+const trainingExamples = initialState?.trainingExamples ?? initialScenario.trainingExamples;
 const registry = createFactRegistry();
 
-let trainedThreshold = initialState?.trainedThreshold ?? 0.9;
+let trainedThreshold = initialState?.trainedThreshold ?? initialScenario.trainedThreshold;
 let trainingSummary = "Not trained yet.";
 
+const scenarioTitle = mustElement<HTMLElement>("scenarioTitle");
+const scenarioDescription = mustElement<HTMLElement>("scenarioDescription");
+const scenarioSelect = mustElement<HTMLSelectElement>("scenarioSelect");
 const ruleSource = mustElement<HTMLTextAreaElement>("ruleSource");
 const diagnostics = mustElement<HTMLElement>("diagnostics");
 const facts = mustElement<HTMLElement>("facts");
@@ -38,11 +43,17 @@ const importState = mustElement<HTMLButtonElement>("importState");
 const stateBuffer = mustElement<HTMLTextAreaElement>("stateBuffer");
 const stateStatus = mustElement<HTMLElement>("stateStatus");
 
-ruleSource.value = initialState?.ruleSource ?? defaultRule;
+scenarioSelect.innerHTML = playgroundScenarios
+  .map((scenario) => `<option value="${scenario.id}">${scenario.title}</option>`)
+  .join("");
+scenarioSelect.value = scenarioId;
+ruleSource.value = initialState?.ruleSource ?? initialScenario.ruleSource;
+renderScenarioHeader();
 renderFacts();
 renderTrainingExamples();
 evaluatePolicy();
 
+scenarioSelect.addEventListener("change", loadSelectedScenario);
 evaluate.addEventListener("click", evaluatePolicy);
 record.addEventListener("click", recordLedger);
 train.addEventListener("click", trainHighRisk);
@@ -50,12 +61,33 @@ exportState.addEventListener("click", exportCurrentState);
 importState.addEventListener("click", importBufferedState);
 ruleSource.addEventListener("input", persistState);
 resetRule.addEventListener("click", () => {
-  ruleSource.value = defaultRule;
-  trainedThreshold = 0.9;
+  const scenario = scenarioById(scenarioId) ?? defaultScenario();
+  ruleSource.value = scenario.ruleSource;
+  cases.splice(0, cases.length, ...scenario.cases.map((item) => ({ ...item })));
+  trainingExamples.splice(0, trainingExamples.length, ...scenario.trainingExamples.map((item) => ({ ...item })));
+  trainedThreshold = scenario.trainedThreshold;
   trainingSummary = "Not trained yet.";
   persistState();
+  renderScenarioHeader();
+  renderFacts();
+  renderTrainingExamples();
   evaluatePolicy();
 });
+
+function loadSelectedScenario(): void {
+  const scenario = scenarioById(scenarioSelect.value) ?? defaultScenario();
+  scenarioId = scenario.id;
+  ruleSource.value = scenario.ruleSource;
+  cases.splice(0, cases.length, ...scenario.cases.map((item) => ({ ...item })));
+  trainingExamples.splice(0, trainingExamples.length, ...scenario.trainingExamples.map((item) => ({ ...item })));
+  trainedThreshold = scenario.trainedThreshold;
+  trainingSummary = "Not trained yet.";
+  renderScenarioHeader();
+  renderFacts();
+  renderTrainingExamples();
+  persistState();
+  evaluatePolicy();
+}
 
 function evaluatePolicy(): RuleAgent | null {
   persistState();
@@ -103,7 +135,7 @@ function trainHighRisk(): void {
 }
 
 function exportCurrentState(): void {
-  stateBuffer.value = exportPlaygroundState(ruleSource.value, cases, trainedThreshold, trainingExamples);
+  stateBuffer.value = exportPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples);
   stateStatus.textContent = "Exported current playground state.";
 }
 
@@ -115,11 +147,14 @@ function importBufferedState(): void {
   }
 
   ruleSource.value = imported.ruleSource;
+  scenarioId = imported.scenarioId;
+  scenarioSelect.value = scenarioId;
   cases.splice(0, cases.length, ...imported.cases);
   trainingExamples.splice(0, trainingExamples.length, ...imported.trainingExamples);
   trainedThreshold = imported.trainedThreshold;
   trainingSummary = "Imported state.";
   persistState();
+  renderScenarioHeader();
   renderFacts();
   renderTrainingExamples();
   evaluatePolicy();
@@ -128,6 +163,12 @@ function importBufferedState(): void {
 
 function renderTrainingStats(): void {
   trainingStats.textContent = trainingSummary;
+}
+
+function renderScenarioHeader(): void {
+  const scenario = scenarioById(scenarioId) ?? defaultScenario();
+  scenarioTitle.textContent = scenario.title;
+  scenarioDescription.textContent = scenario.description;
 }
 
 function renderTrainingExamples(): void {
@@ -202,7 +243,7 @@ function loadState(): ReturnType<typeof parsePlaygroundState> {
 
 function persistState(): void {
   try {
-    localStorage.setItem(stateKey, JSON.stringify(createPlaygroundState(ruleSource.value, cases, trainedThreshold, trainingExamples)));
+    localStorage.setItem(stateKey, JSON.stringify(createPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples)));
   } catch {
     // Persistence is best-effort; evaluation should still work if storage is unavailable.
   }

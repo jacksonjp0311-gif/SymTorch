@@ -4,11 +4,14 @@ import {
   buildAgent,
   createFactRegistry,
   createPlaygroundState,
+  DEFAULT_SCENARIO_ID,
   defaultCases,
   defaultRule,
+  defaultScenario,
   defaultTrainingExamples,
   exportPlaygroundState,
   parsePlaygroundState,
+  playgroundScenarios,
   trainHighRiskRule,
   validateRuleSource
 } from "../examples/browser-playground/src/app-model";
@@ -19,6 +22,25 @@ describe("browser playground model", () => {
 
     expect(validation.ok).toBe(true);
     expect(validation.diagnostics).toEqual([]);
+  });
+
+  it("ships valid policy scenarios with decision data", () => {
+    expect(playgroundScenarios.map((scenario) => scenario.id)).toEqual([
+      "case-escalation",
+      "fraud-review",
+      "support-routing"
+    ]);
+
+    for (const scenario of playgroundScenarios) {
+      const validation = validateRuleSource(scenario.ruleSource, createFactRegistry());
+      const agent = buildAgent(new RuleProgram(scenario.ruleSource), scenario.cases);
+      const decisions = agent.decideEntitiesTrace();
+
+      expect(validation.ok).toBe(true);
+      expect(scenario.cases.length).toBeGreaterThanOrEqual(4);
+      expect(scenario.trainingExamples.length).toBeGreaterThanOrEqual(5);
+      expect(decisions[0]?.score).toBeGreaterThan(0);
+    }
   });
 
   it("ranks entity decisions and records accepted ledger entries", () => {
@@ -61,7 +83,7 @@ describe("browser playground model", () => {
   });
 
   it("round-trips versioned playground state and rejects invalid state", () => {
-    const state = createPlaygroundState(defaultRule, defaultCases(), 0.42, defaultTrainingExamples());
+    const state = createPlaygroundState(DEFAULT_SCENARIO_ID, defaultRule, defaultCases(), 0.42, defaultTrainingExamples());
     const roundTrip = parsePlaygroundState(JSON.stringify(state));
 
     expect(roundTrip).toEqual(state);
@@ -79,11 +101,12 @@ describe("browser playground model", () => {
   });
 
   it("exports readable versioned playground state", () => {
-    const exported = exportPlaygroundState(defaultRule, defaultCases(), 0.5, defaultTrainingExamples());
+    const exported = exportPlaygroundState(defaultScenario().id, defaultRule, defaultCases(), 0.5, defaultTrainingExamples());
     const parsed = parsePlaygroundState(exported);
 
     expect(exported).toContain("\n");
     expect(exported).toContain("symtorch.playground.v1");
+    expect(parsed?.scenarioId).toBe(DEFAULT_SCENARIO_ID);
     expect(parsed?.ruleSource).toBe(defaultRule);
     expect(parsed?.trainedThreshold).toBe(0.5);
     expect(parsed?.trainingExamples).toHaveLength(5);

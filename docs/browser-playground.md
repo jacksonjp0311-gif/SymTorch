@@ -28,6 +28,7 @@ pnpm playground:e2e
 
 The first screen is the actual tool, not a landing page. It supports:
 
+- switching between bundled case escalation, fraud review, and support routing scenarios
 - editing a readable rule
 - validating rule syntax and predicate bindings
 - changing entity-scoped facts with sliders
@@ -43,6 +44,7 @@ The first screen is the actual tool, not a landing page. It supports:
 Current scope:
 
 - Uses CPU-backed SymTorch packages.
+- Ships a small scenario catalog for agent-policy demos.
 - Uses fixed `FactPredicate` inputs for entity decision ranking.
 - Uses a trainable `ThresholdPredicate` in the training panel.
 - Uses a small editable in-memory training dataset.

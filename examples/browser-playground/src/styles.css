@@ -60,6 +60,29 @@ h1 {
   max-width: 780px;
 }
 
+.hero-row {
+  align-items: end;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+}
+
+.scenario-control {
+  color: #526070;
+  display: grid;
+  font-size: 0.9rem;
+  gap: 6px;
+}
+
+select {
+  border: 1px solid #b8c2cc;
+  border-radius: 6px;
+  color: #18202a;
+  font: inherit;
+  padding: 0.5rem 0.65rem;
+  width: 100%;
+}
+
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -170,6 +193,10 @@ input {
   }
 
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-row {
     grid-template-columns: 1fr;
   }
 

@@ -3,9 +3,13 @@ import { expect, test } from "@playwright/test";
 test("browser playground trains, exports, imports, and records decisions", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Explainable Escalation Agent" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Case Escalation" })).toBeVisible();
   await expect(page.locator("#diagnostics")).toContainText("Rule validation: PASS");
   await expect(page.locator("#decisionList")).toContainText("case-hot");
+
+  await page.locator("#scenarioSelect").selectOption("fraud-review");
+  await expect(page.getByRole("heading", { name: "Fraud Review" })).toBeVisible();
+  await expect(page.locator("#decisionList")).toContainText("txn-hot");
 
   await page.getByRole("button", { name: "Train High Risk" }).click();
   await expect(page.locator("#trainingStats")).toContainText("threshold:");
@@ -14,6 +18,7 @@ test("browser playground trains, exports, imports, and records decisions", async
   await page.getByRole("button", { name: "Export" }).click();
   const exported = await page.locator("#stateBuffer").inputValue();
   expect(exported).toContain("symtorch.playground.v1");
+  expect(exported).toContain("fraud-review");
   expect(exported).toContain("trainingExamples");
 
   await page.locator("#ruleSource").fill("escalate(X) :- missing_predicate(X).");
@@ -27,5 +32,5 @@ test("browser playground trains, exports, imports, and records decisions", async
 
   await page.getByRole("button", { name: "Record Top 2" }).click();
   await expect(page.locator("#traceOutput")).toContainText("decision-1");
-  await expect(page.locator("#traceOutput")).toContainText("case-hot");
+  await expect(page.locator("#traceOutput")).toContainText("txn-hot");
 });

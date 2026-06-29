@@ -11,8 +11,15 @@
       <section class="workspace">
         <header>
           <p class="eyebrow">SymTorch playground prep</p>
-          <h1>Explainable Escalation Agent</h1>
-          <p class="lede">Edit a readable rule, change case facts, evaluate entity decisions, and record replayable ledger entries.</p>
+          <div class="hero-row">
+            <div>
+              <h1 id="scenarioTitle">Explainable Escalation Agent</h1>
+              <p id="scenarioDescription" class="lede">Edit a readable rule, change case facts, evaluate entity decisions, and record replayable ledger entries.</p>
+            </div>
+            <label class="scenario-control">Scenario
+              <select id="scenarioSelect"></select>
+            </label>
+          </div>
         </header>
 
         <div class="grid">
@@ -67,7 +74,7 @@
               </div>
             </div>
             <textarea id="stateBuffer" spellcheck="false"></textarea>
-            <div id="stateStatus" class="hint">Export copies the versioned rule, facts, and trained threshold state here.</div>
+            <div id="stateStatus" class="hint">Export copies the versioned scenario, rule, facts, training data, and threshold here.</div>
           </section>
         </div>
       </section>
