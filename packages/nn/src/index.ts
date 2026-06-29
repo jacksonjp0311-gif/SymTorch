@@ -1,4 +1,4 @@
-import { add, log, matmul, mean, mul, randn, relu, sigmoid, sub, Tensor, tensor, zeros } from "@symtorch/core";
+import { add, exp, log, logSoftmax, matmul, mean, mul, pow, randn, relu, sigmoid, sqrt, sub, sum, Tensor, tensor, zeros } from "@symtorch/core";
 
 export class Parameter extends Tensor {
   constructor(data: Tensor | readonly number[], shape?: readonly number[]) {
@@ -64,6 +64,29 @@ export class Sigmoid extends Module {
   }
 }
 
+export class LayerNorm extends Module {
+  readonly weight: Parameter;
+  readonly bias: Parameter;
+
+  constructor(readonly normalizedShape: number, readonly eps = 1e-5) {
+    super();
+    this.weight = new Parameter(Array.from({ length: normalizedShape }, () => 1), [normalizedShape]);
+    this.bias = new Parameter(zeros([normalizedShape]));
+  }
+
+  forward(input: Tensor): Tensor {
+    if (input.shape[input.shape.length - 1] !== this.normalizedShape) {
+      throw new Error(`LayerNorm expected last dimension ${this.normalizedShape}, got [${input.shape.join(", ")}].`);
+    }
+    const axis = input.ndim - 1;
+    const mu = mean(input, axis, true);
+    const centered = sub(input, mu);
+    const variance = mean(pow(centered, 2), axis, true);
+    const normalized = centered.div(sqrt(add(variance, this.eps)));
+    return add(mul(normalized, this.weight), this.bias);
+  }
+}
+
 export function mseLoss(prediction: Tensor, target: Tensor): Tensor {
   const error = sub(prediction, target);
   return mean(mul(error, error));
@@ -75,6 +98,32 @@ export function binaryCrossEntropy(prediction: Tensor, target: Tensor): Tensor {
   const clipped = add(mul(prediction, 1 - 2e-7), eps);
   const loss = sub(tensor(0), add(mul(target, log(clipped)), mul(sub(one, target), log(sub(one, clipped)))));
   return mean(loss);
+}
+
+export function binaryCrossEntropyWithLogits(logits: Tensor, target: Tensor): Tensor {
+  const zero = tensor(0);
+  const maxPart = relu(logits);
+  const absLogits = add(relu(logits), relu(sub(zero, logits)));
+  const loss = add(sub(maxPart, mul(logits, target)), log(add(tensor(1), exp(sub(zero, absLogits)))));
+  return mean(loss);
+}
+
+export function crossEntropyLoss(logits: Tensor, targetClassIndices: readonly number[]): Tensor {
+  if (logits.ndim !== 2) throw new Error("crossEntropyLoss expects logits with shape [batch, classes].");
+  const [batch, classes] = logits.shape as [number, number];
+  if (targetClassIndices.length !== batch) {
+    throw new Error(`Expected ${batch} target labels, got ${targetClassIndices.length}.`);
+  }
+  const labels = new Float32Array(batch * classes);
+  for (let row = 0; row < batch; row++) {
+    const label = targetClassIndices[row];
+    if (label === undefined || label < 0 || label >= classes || !Number.isInteger(label)) {
+      throw new Error(`Invalid class index ${String(label)} for ${classes} classes.`);
+    }
+    labels[row * classes + label] = 1;
+  }
+  const oneHot = new Tensor(labels, [batch, classes]);
+  return mean(sub(tensor(0), sum(mul(oneHot, logSoftmax(logits, 1)), 1)));
 }
 
 export abstract class Optimizer {

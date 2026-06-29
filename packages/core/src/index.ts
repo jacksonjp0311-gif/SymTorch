@@ -143,6 +143,10 @@ export class Tensor {
   pow(exponent: number): Tensor {
     return pow(this, exponent);
   }
+
+  logSoftmax(axis = this.ndim - 1): Tensor {
+    return logSoftmax(this, axis);
+  }
 }
 
 export type TensorLike = Tensor | number | readonly number[] | Float32Array;
@@ -225,6 +229,17 @@ export function exp(x: Tensor): Tensor {
 
 export function log(x: Tensor): Tensor {
   return unaryOp(x, (v) => Math.log(Math.max(v, EPS)), (grad) => divNoGrad(grad, x));
+}
+
+export function abs(x: Tensor): Tensor {
+  return unaryOp(
+    x,
+    Math.abs,
+    (grad) => new Tensor(mapData(grad, (g, i) => {
+      const value = x.data[i] ?? 0;
+      return value > 0 ? g : value < 0 ? -g : 0;
+    }), x.shape)
+  );
 }
 
 export function pow(x: Tensor, exponent: number): Tensor {
@@ -364,6 +379,10 @@ export function softmax(x: Tensor, axis = x.ndim - 1): Tensor {
   const shifted = sub(x, maxAlongAxis(x, normalized, true));
   const ex = exp(shifted);
   return div(ex, sum(ex, normalized, true));
+}
+
+export function logSoftmax(x: Tensor, axis = x.ndim - 1): Tensor {
+  return sub(x, logsumexp(x, axis, true));
 }
 
 function binaryOp(
