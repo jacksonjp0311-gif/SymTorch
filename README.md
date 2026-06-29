@@ -109,7 +109,7 @@ console.log(result.explanation);
 ## Rule Authoring Validation
 
 ```ts
-import { validateProgram } from "@symtorch/logic";
+import { FactPredicate, PredicateRegistry, validateProgram, validatePrograms } from "@symtorch/logic";
 
 const validation = validateProgram("escalate(X) :- high-risk(X).");
 
@@ -117,6 +117,17 @@ if (!validation.ok) {
   console.log(validation.error.line, validation.error.column);
   console.log(validation.error.message);
 }
+
+const registry = new PredicateRegistry()
+  .register(new FactPredicate("high_risk"))
+  .register(new FactPredicate("approved"));
+
+const drafts = validatePrograms([
+  { id: "draft-a", source: "escalate(X) :- high_risk(X), not approved(X)." },
+  { id: "draft-b", source: "escalate(X) :- customer_vip(X)." }
+], { registry });
+
+console.log(drafts.map((draft) => [draft.id, draft.result.ok]));
 ```
 
 ## Monorepo Layout
@@ -185,3 +196,7 @@ SymTorch is early, active, and intentionally foundation-first. The current imple
 **v0.1.7 Rule Parser Diagnostics Seal:** malformed rules now fail with structured parser diagnostics, including line, column, snippets, and caret pointers for faster rule authoring.
 
 **v0.1.8 Rule Authoring Helpers Seal:** `validateProgram()` now gives editors and LLM rule-refinement loops a non-throwing path for checking rules and surfacing diagnostics.
+
+**v0.1.9 Predicate Binding Diagnostics Seal:** validation can now check parsed rules against a predicate registry and report missing predicate bindings before runtime.
+
+**v0.1.10 Batch Authoring Throughput Seal:** `validatePrograms()` validates many rule drafts in one run, giving authoring tools stable IDs, per-draft results, and diagnostics.

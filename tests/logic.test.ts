@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, parseProgram, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate, validateProgram } from "@symtorch/logic";
+import { decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, parseProgram, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate, validateProgram, validatePrograms } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -216,6 +216,42 @@ describe("@symtorch/logic", () => {
       expect(invalid.error.line).toBe(2);
       expect(invalid.error.message).toContain("Invalid predicate call");
     }
+  });
+
+  it("validates predicate bindings against a registry before runtime", () => {
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const missing = validateProgram("escalate(X) :- high_risk(X), not approved(X).", { registry });
+    const bound = validateProgram("escalate(X) :- high_risk(X).", { registry });
+
+    expect(bound.ok).toBe(true);
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) {
+      expect(missing.rules).toHaveLength(1);
+      expect(missing.diagnostics).toEqual([{
+        code: "missing_predicate",
+        severity: "error",
+        predicate: "approved",
+        message: "Predicate \"approved\" is not registered."
+      }]);
+      expect(missing.error).toBe(missing.diagnostics[0]);
+    }
+  });
+
+  it("validates many rule drafts in one authoring run", () => {
+    const registry = new PredicateRegistry()
+      .register(new FactPredicate("high_risk"))
+      .register(new FactPredicate("approved"));
+    const batch = validatePrograms([
+      { id: "good", source: "escalate(X) :- high_risk(X), not approved(X)." },
+      { id: "missing", source: "escalate(X) :- customer_vip(X)." },
+      { id: "syntax", source: "escalate(X) :- high-risk(X)." }
+    ], { registry });
+
+    expect(batch.map((item) => item.id)).toEqual(["good", "missing", "syntax"]);
+    expect(batch.map((item) => item.result.ok)).toEqual([true, false, false]);
+    expect(batch[0]?.result.diagnostics).toEqual([]);
+    expect(batch[1]?.result.diagnostics[0]?.code).toBe("missing_predicate");
+    expect(batch[2]?.result.diagnostics[0]?.code).toBe("parse_error");
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {

@@ -34,8 +34,33 @@ export class RuleParseError extends Error {
 }
 
 export type RuleValidationResult =
-  | { ok: true; rules: RuleAst[] }
-  | { ok: false; error: RuleParseError };
+  | { ok: true; rules: RuleAst[]; diagnostics: RuleDiagnostic[] }
+  | { ok: false; rules: RuleAst[]; diagnostics: RuleDiagnostic[]; error: RuleParseError | RuleDiagnostic };
+
+export type RuleDiagnostic = {
+  code: "parse_error" | "missing_predicate";
+  message: string;
+  severity: "error";
+  line?: number;
+  column?: number;
+  snippet?: string;
+  predicate?: string;
+};
+
+export type BatchRuleValidationItem = {
+  id: string;
+  source: string;
+  result: RuleValidationResult;
+};
+
+export type RuleValidationOptions = {
+  registry?: PredicateRegistry;
+};
+
+export type RuleValidationInput = string | {
+  id: string;
+  source: string;
+};
 
 export type PredicateContext = Record<string, unknown>;
 export type PredicateResolver = (call: PredicateCall, context: PredicateContext) => Tensor;
@@ -306,6 +331,14 @@ export class PredicateRegistry {
     return this.register(new FixedPredicate(name, resolver));
   }
 
+  has(name: string): boolean {
+    return this.predicates.has(name);
+  }
+
+  names(): string[] {
+    return Array.from(this.predicates.keys()).sort();
+  }
+
   resolve(call: PredicateCall, context: PredicateContext): PredicateResolution {
     const predicate = this.predicates.get(call.name);
     if (!predicate) throw new Error(`No predicate registered for "${call.name}".`);
@@ -524,13 +557,30 @@ export function parseProgram(source: string): RuleAst[] {
   return splitRuleSources(source).map((rule) => parseRuleAt(rule.text, rule.start, source));
 }
 
-export function validateProgram(source: string): RuleValidationResult {
+export function validateProgram(source: string, options: RuleValidationOptions = {}): RuleValidationResult {
   try {
-    return { ok: true, rules: parseProgram(source) };
+    const rules = parseProgram(source);
+    const diagnostics = options.registry ? validatePredicateBindings(rules, options.registry) : [];
+    if (diagnostics.length > 0) return { ok: false, rules, diagnostics, error: diagnostics[0]! };
+    return { ok: true, rules, diagnostics };
   } catch (error) {
-    if (error instanceof RuleParseError) return { ok: false, error };
+    if (error instanceof RuleParseError) {
+      const diagnostic = diagnosticFromParseError(error);
+      return { ok: false, rules: [], diagnostics: [diagnostic], error };
+    }
     throw error;
   }
+}
+
+export function validatePrograms(inputs: readonly RuleValidationInput[], options: RuleValidationOptions = {}): BatchRuleValidationItem[] {
+  return inputs.map((input, index) => {
+    const item = typeof input === "string" ? { id: `rule-${index + 1}`, source: input } : input;
+    return {
+      id: item.id,
+      source: item.source,
+      result: validateProgram(item.source, options)
+    };
+  });
 }
 
 export function parseRule(source: string): RuleAst {
@@ -674,6 +724,37 @@ function splitRuleSources(source: string): { text: string; start: number }[] {
   const text = raw.trim();
   if (text) rules.push({ text: `${text}.`, start: start + trimmedStart });
   return rules;
+}
+
+function validatePredicateBindings(rules: readonly RuleAst[], registry: PredicateRegistry): RuleDiagnostic[] {
+  const diagnostics: RuleDiagnostic[] = [];
+  const seen = new Set<string>();
+  for (const rule of rules) {
+    for (const call of rule.body) {
+      if (registry.has(call.name)) continue;
+      const key = `${rule.source}:${call.name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      diagnostics.push({
+        code: "missing_predicate",
+        severity: "error",
+        predicate: call.name,
+        message: `Predicate "${call.name}" is not registered.`
+      });
+    }
+  }
+  return diagnostics;
+}
+
+function diagnosticFromParseError(error: RuleParseError): RuleDiagnostic {
+  return {
+    code: "parse_error",
+    severity: "error",
+    message: error.message,
+    line: error.line,
+    column: error.column,
+    snippet: error.snippet
+  };
 }
 
 function leadingWhitespaceLength(value: string): number {
