@@ -305,7 +305,13 @@ export function sum(x: Tensor, axis?: number, keepDims = false): Tensor {
     const outIndex = offsetOf(reduced, finalShape);
     out[outIndex] = (out[outIndex] ?? 0) + (x.data[offsetOf(idx, x.shape)] ?? 0);
   });
-  return new Tensor(out, finalShape, {}, [{ parent: x, backward: (grad) => broadcastTo(grad, finalShape, x.shape) }]);
+  return new Tensor(out, finalShape, {}, [{
+    parent: x,
+    backward: (grad) => {
+      const shapedGrad = keepDims ? grad : reshapeForReducedAxis(grad, x.shape, normalized);
+      return broadcastTo(shapedGrad, shapedGrad.shape, x.shape);
+    }
+  }]);
 }
 
 export function mean(x: Tensor, axis?: number, keepDims = false): Tensor {
@@ -422,6 +428,15 @@ function maxAlongAxis(x: Tensor, axis: number, keepDims: boolean): Tensor {
 function reshapeWithoutAxis(x: Tensor, axis: number): Tensor {
   const shape = x.shape.filter((_, i) => i !== axis);
   return new Tensor(x.data.slice(), shape);
+}
+
+function reshapeForReducedAxis(grad: Tensor, originalShape: readonly number[], axis: number): Tensor {
+  const expectedShape = originalShape.filter((_, i) => i !== axis);
+  if (!sameShape(grad.shape, expectedShape)) {
+    throw new Error(`Reduced gradient shape [${grad.shape.join(", ")}] does not match expected [${expectedShape.join(", ")}].`);
+  }
+  const restoredShape = [...expectedShape.slice(0, axis), 1, ...expectedShape.slice(axis)];
+  return new Tensor(grad.data.slice(), restoredShape);
 }
 
 function broadcastTo(x: Tensor, fromShape: readonly number[], toShape: readonly number[]): Tensor {

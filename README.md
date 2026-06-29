@@ -25,6 +25,18 @@ Use it for:
 - fuzzy reasoning over observations, facts, and learned predicates
 - LLM-assisted rule authoring where SymTorch executes, trains, and explains
 
+## Why this is not just JS tensors
+
+Tensors and autograd are the substrate, not the point. SymTorch uses them to make readable symbolic policies executable, differentiable, and trainable without discarding the rule that a human wrote.
+
+The intended path is:
+
+```text
+readable rule -> fuzzy tensor execution -> trainable predicate -> explanation trace -> agent decision
+```
+
+That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can stay readable while `high_risk(X)` becomes a learnable predicate, the rule score remains differentiable, and the final decision still carries a trace of which predicates and rules contributed. SymTorch is early and foundation-first; it is not claiming parity with mature tensor frameworks. The work right now is to make the math and explanations credible enough to build on.
+
 ## Current Capabilities
 
 - Eager `Tensor` API with CPU `float32` typed-array storage.
@@ -143,3 +155,5 @@ Long term:
 ## Status
 
 SymTorch is early, active, and intentionally foundation-first. The current implementation is useful for small differentiable-rule experiments and agent-policy prototypes, while the tensor and backend layers continue to harden.
+
+**v0.1.1 Gradient Correctness Seal:** axis-reduction gradients are hardened, finite-difference coverage now protects reductions and core neural losses, and rule training tests assert that explanations survive learning.

@@ -189,4 +189,33 @@ describe("@symtorch/logic", () => {
     expect(highRisk.threshold.item()).toBeLessThan(0.85);
     expect(trainer.predict({ risk: 0.82, approved: 0.05 }).score.item()).toBeGreaterThan(0.75);
   });
+
+  it("preserves explanations while training a threshold rule", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X), not approved(X).");
+    const highRisk = new ThresholdPredicate("high_risk", "risk", 0.9, 10);
+    const registry = new PredicateRegistry()
+      .register(highRisk)
+      .fixed("approved", (_call, context) => tensor(typeof context.approved === "number" ? context.approved : 0));
+    const engine = new FuzzyRuleEngine(registry);
+    const trainer = new RuleTrainer(engine, program.rules[0]!, registry, { learningRate: 0.2 });
+    const examples = [
+      { risk: 0.2, approved: 0.05, label: 0 },
+      { risk: 0.35, approved: 0.15, label: 0 },
+      { risk: 0.75, approved: 0.05, label: 1 },
+      { risk: 0.9, approved: 0.1, label: 1 },
+      { risk: 0.88, approved: 0.95, label: 0 }
+    ];
+
+    const thresholdBefore = highRisk.threshold.item();
+    const predictionBefore = trainer.predict({ risk: 0.82, approved: 0.08 }).score.item();
+    const result = trainer.fit(examples, { epochs: 100 });
+    const predictionAfter = trainer.predict({ risk: 0.82, approved: 0.08 });
+
+    expect(result.finalLoss).toBeLessThan(result.history[0]!.loss);
+    expect(highRisk.threshold.item()).toBeLessThan(thresholdBefore);
+    expect(predictionAfter.score.item()).toBeGreaterThan(predictionBefore);
+    expect(predictionAfter.explanation.predicates).toHaveLength(2);
+    expect(predictionAfter.explanation.predicates[0]?.name).toBe("high_risk(X)");
+    expect(predictionAfter.explanation.predicates[0]?.kind).toBe("learnable");
+  });
 });

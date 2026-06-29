@@ -68,6 +68,17 @@ describe("@symtorch/core", () => {
       (x) => mean(matmul(x, tensor([0.2, -0.4, 1.1, 0.7], { shape: [2, 2] })))
     );
   });
+
+  it("matches finite-difference gradients for axis reductions", () => {
+    const values = [0.2, -0.4, 0.7, 1.1, -1.3, 0.5];
+    const shape = [2, 3];
+    expectGradientClose(values, shape, (x) => sumSquares(x.sum(0)));
+    expectGradientClose(values, shape, (x) => sumSquares(x.sum(1)));
+    expectGradientClose(values, shape, (x) => sumSquares(x.mean(0)));
+    expectGradientClose(values, shape, (x) => sumSquares(x.mean(1)));
+    expectGradientClose(values, shape, (x) => sumSquares(logsumexp(x, 0)));
+    expectGradientClose(values, shape, (x) => sumSquares(logsumexp(x, 1)));
+  });
 });
 
 function expectGradientClose(values: readonly number[], shape: readonly number[], fn: (x: Tensor) => Tensor): void {
@@ -94,4 +105,8 @@ function finiteDifference(values: readonly number[], shape: readonly number[], f
     const lo = fn(tensor(minus, { shape })).item();
     return (hi - lo) / (2 * eps);
   });
+}
+
+function sumSquares(x: Tensor): Tensor {
+  return mean(mul(x, x));
 }

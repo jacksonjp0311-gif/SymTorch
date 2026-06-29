@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { logSoftmax, mean, Tensor, tensor } from "@symtorch/core";
+import { mean, mul, logSoftmax, Tensor, tensor } from "@symtorch/core";
 import { binaryCrossEntropyWithLogits, crossEntropyLoss, LayerNorm } from "@symtorch/nn";
 
 describe("@symtorch/nn", () => {
@@ -18,6 +18,14 @@ describe("@symtorch/nn", () => {
     expect(logits.grad?.toArray().reduce((acc, value) => acc + value, 0)).toBeCloseTo(0, 5);
   });
 
+  it("matches finite-difference gradients for cross entropy logits", () => {
+    expectGradientClose(
+      [1.5, -0.2, 0.3, -0.7, 0.8, 1.2],
+      [2, 3],
+      (logits) => crossEntropyLoss(logits, [0, 2])
+    );
+  });
+
   it("computes stable BCE with logits for extreme scores", () => {
     const logits = tensor([50, -50, 0], { shape: [3], requiresGrad: true });
     const target = tensor([1, 0, 1], { shape: [3] });
@@ -25,6 +33,15 @@ describe("@symtorch/nn", () => {
     expect(Number.isFinite(loss.item())).toBe(true);
     loss.backward();
     expect(logits.grad?.toArray().every(Number.isFinite)).toBe(true);
+  });
+
+  it("matches finite-difference gradients for BCE with logits", () => {
+    const target = tensor([1, 0, 1, 0], { shape: [4] });
+    expectGradientClose(
+      [1.2, -0.7, 0.4, -1.1],
+      [4],
+      (logits) => binaryCrossEntropyWithLogits(logits, target)
+    );
   });
 
   it("normalizes the final dimension with LayerNorm", () => {
@@ -40,4 +57,39 @@ describe("@symtorch/nn", () => {
     expect(layer.weight.grad?.shape).toEqual([3]);
     expect(layer.bias.grad?.shape).toEqual([3]);
   });
+
+  it("matches finite-difference gradients for LayerNorm input", () => {
+    const layer = new LayerNorm(3);
+    expectGradientClose(
+      [1, 2, 3, 2, 4, 7],
+      [2, 3],
+      (input) => mean(mul(layer.forward(input), tensor([0.2, -0.4, 0.6], { shape: [3] })))
+    );
+  });
 });
+
+function expectGradientClose(values: readonly number[], shape: readonly number[], fn: (x: Tensor) => Tensor): void {
+  const x = tensor(values, { shape, requiresGrad: true });
+  const y = fn(x);
+  y.backward();
+  const analytic = x.grad?.toArray();
+  if (!analytic) throw new Error("Expected analytic gradient.");
+  const numeric = finiteDifference(values, shape, fn);
+  expect(analytic.length).toBe(numeric.length);
+  for (let i = 0; i < analytic.length; i++) {
+    expect(analytic[i]).toBeCloseTo(numeric[i] ?? 0, 2);
+  }
+}
+
+function finiteDifference(values: readonly number[], shape: readonly number[], fn: (x: Tensor) => Tensor): number[] {
+  const eps = 1e-2;
+  return values.map((_, i) => {
+    const plus = [...values];
+    const minus = [...values];
+    plus[i] = (plus[i] ?? 0) + eps;
+    minus[i] = (minus[i] ?? 0) - eps;
+    const hi = fn(tensor(plus, { shape })).item();
+    const lo = fn(tensor(minus, { shape })).item();
+    return (hi - lo) / (2 * eps);
+  });
+}
