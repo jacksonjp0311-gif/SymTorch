@@ -145,4 +145,24 @@ describe("@symtorch/agent", () => {
     expect(decisions[0]?.score).toBeCloseTo(0.4, 5);
     expect(decisions[0]?.trace?.head).toBe("escalate(X)");
   });
+
+  it("filters entity decisions with deterministic ordering options", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.memory.observeEntity("case-c", { high_risk: 0.7 });
+    agent.memory.observeEntity("case-a", { high_risk: 0.7 });
+    agent.memory.observeEntity("case-b", { high_risk: 0.3 });
+    agent.memory.observeEntity("case-d", { high_risk: 0.9 });
+
+    const ranked = agent.decideEntitiesTrace();
+    const filtered = agent.decideEntitiesTrace({ minScore: 0.5, acceptedOnly: true, topK: 2 });
+    const explicit = agent.decideEntitiesTrace({ entityIds: ["case-b", "case-a"], minScore: 0.4 });
+
+    expect(ranked.map((decision) => decision.entityId)).toEqual(["case-d", "case-a", "case-c", "case-b"]);
+    expect(filtered.map((decision) => decision.entityId)).toEqual(["case-d", "case-a"]);
+    expect(filtered.every((decision) => decision.accepted)).toBe(true);
+    expect(explicit.map((decision) => decision.entityId)).toEqual(["case-a"]);
+  });
 });

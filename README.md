@@ -164,3 +164,5 @@ SymTorch is early, active, and intentionally foundation-first. The current imple
 **v0.1.3 Agent Decision Contract Seal:** rule agents now expose a JSON-safe decision contract with action, selected head, score, threshold, acceptance state, and versioned traces.
 
 **v0.1.4 Entity Decision Batch Seal:** agents can now emit ranked, JSON-safe decisions for entity-scoped working memory while preserving traces for accepted and below-threshold candidates.
+
+**v0.1.5 Rule Evaluation Options Seal:** entity decisions now support deterministic tie ordering plus `topK`, `minScore`, and accepted-only filtering for queue-style integrations.

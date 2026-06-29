@@ -21,6 +21,13 @@ export type SerializedEntityDecision = SerializedAgentDecision & {
   entityId: string;
 };
 
+export type EntityDecisionOptions = {
+  entityIds?: readonly string[];
+  minScore?: number;
+  acceptedOnly?: boolean;
+  topK?: number;
+};
+
 export class WorkingMemory {
   private readonly facts = new FactStore();
 
@@ -73,10 +80,19 @@ export class RuleAgent {
     };
   }
 
-  decideEntitiesTrace(entityIds = this.memory.entityIds()): SerializedEntityDecision[] {
-    return entityIds
+  decideEntitiesTrace(options: EntityDecisionOptions | readonly string[] = {}): SerializedEntityDecision[] {
+    const normalized = normalizeEntityDecisionOptions(options);
+    const entityIds = normalized.entityIds ?? this.memory.entityIds();
+    let decisions = entityIds
       .map((entityId) => this.decideEntityTrace(entityId))
-      .sort((left, right) => right.score - left.score);
+      .sort(compareEntityDecisions);
+    if (normalized.minScore !== undefined) {
+      const minScore = normalized.minScore;
+      decisions = decisions.filter((decision) => decision.score >= minScore);
+    }
+    if (normalized.acceptedOnly) decisions = decisions.filter((decision) => decision.accepted);
+    if (normalized.topK !== undefined) decisions = decisions.slice(0, normalized.topK);
+    return decisions;
   }
 
   private decideFromContext(context: PredicateContext): AgentDecision {
@@ -107,4 +123,18 @@ function selectBestResult(results: readonly AggregatedRuleResult[]): AggregatedR
     if (!winner || result.score.item() > winner.score.item()) return result;
     return winner;
   }, null);
+}
+
+function compareEntityDecisions(left: SerializedEntityDecision, right: SerializedEntityDecision): number {
+  const scoreOrder = right.score - left.score;
+  if (scoreOrder !== 0) return scoreOrder;
+  return left.entityId.localeCompare(right.entityId);
+}
+
+function normalizeEntityDecisionOptions(options: EntityDecisionOptions | readonly string[]): EntityDecisionOptions {
+  return isEntityIdList(options) ? { entityIds: options } : options;
+}
+
+function isEntityIdList(options: EntityDecisionOptions | readonly string[]): options is readonly string[] {
+  return Array.isArray(options);
 }
