@@ -94,6 +94,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - `FactStore` working memory for observations and entity-scoped facts.
 - Same-head rule aggregation with per-rule explanations.
 - Versioned, JSON-safe explanation traces for agent integrations.
+- Versioned, JSON-safe agent decision contracts with structural validators.
 - Entity batch evaluation and ranking over fact stores.
 - Agent loop primitives for observation -> decision -> serialized explanation, including entity batches.
 - Holographic memory primitive for binding, superposing, and recalling vector symbols.
@@ -213,6 +214,7 @@ examples/
 - [30-second demo](docs/demo.md)
 - [Browser playground prep](docs/browser-playground.md)
 - [Holographic memory](docs/holographic-memory.md)
+- [Production readiness alpha](docs/production-readiness.md)
 - [Limitations](docs/limitations.md)
 - [Changelog](CHANGELOG.md)
 
@@ -249,6 +251,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.4.0` workspace line is the vector-symbolic memory alpha: useful for small differentiable-rule experiments, browser policy workbench demos, holographic-memory experiments, and agent-policy prototypes while the tensor and backend layers continue to harden.
+SymTorch is early, active, and intentionally foundation-first. The `0.5.0` workspace line is the production-readiness alpha: versioned runtime contracts, a release manifest, structural agent-decision validators, browser/workbench gates, and executable demos that make the current claims inspectable.
 
-The version labels in this repository are engineering checkpoints for the private workspace. They are not production-readiness or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history.
+The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

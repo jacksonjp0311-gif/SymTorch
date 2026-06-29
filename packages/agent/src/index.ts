@@ -8,7 +8,11 @@ export type AgentDecision = {
   results: readonly AggregatedRuleResult[];
 };
 
+export const AGENT_DECISION_SCHEMA_VERSION = "symtorch.agentDecision.v1" as const;
+export type AgentDecisionSchemaVersion = typeof AGENT_DECISION_SCHEMA_VERSION;
+
 export type SerializedAgentDecision = {
+  schemaVersion: AgentDecisionSchemaVersion;
   action: string;
   selectedHead: string | null;
   score: number;
@@ -229,6 +233,7 @@ export class RuleAgent {
     const score = best?.score.item() ?? 0;
     const accepted = Boolean(best && score >= this.threshold);
     return {
+      schemaVersion: AGENT_DECISION_SCHEMA_VERSION,
       action: accepted && best ? best.head : "no_action",
       selectedHead: best?.head ?? null,
       score,
@@ -238,6 +243,27 @@ export class RuleAgent {
       results: decision.results.map((result) => decisionTrace(result))
     };
   }
+}
+
+export function isSerializedAgentDecision(value: unknown): value is SerializedAgentDecision {
+  if (!isRecord(value)) return false;
+  return (
+    value.schemaVersion === AGENT_DECISION_SCHEMA_VERSION &&
+    typeof value.action === "string" &&
+    isNullableString(value.selectedHead) &&
+    isFiniteNumber(value.score) &&
+    isFiniteNumber(value.threshold) &&
+    typeof value.accepted === "boolean" &&
+    (value.trace === null || isRecord(value.trace)) &&
+    Array.isArray(value.results) &&
+    value.results.every(isRecord)
+  );
+}
+
+export function isSerializedEntityDecision(value: unknown): value is SerializedEntityDecision {
+  if (!isRecord(value)) return false;
+  const entityId = value.entityId;
+  return isSerializedAgentDecision(value) && typeof entityId === "string";
 }
 
 function selectBestResult(results: readonly AggregatedRuleResult[]): AggregatedRuleResult | null {
@@ -259,6 +285,18 @@ function normalizeEntityDecisionOptions(options: EntityDecisionOptions | readonl
 
 function isEntityIdList(options: EntityDecisionOptions | readonly string[]): options is readonly string[] {
   return Array.isArray(options);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function cloneContext(context: PredicateContext): PredicateContext {

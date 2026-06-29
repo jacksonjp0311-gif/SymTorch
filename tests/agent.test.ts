@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { HolographicMemory, RuleAgent, vectorSymbol } from "@symtorch/agent";
+import {
+  AGENT_DECISION_SCHEMA_VERSION,
+  HolographicMemory,
+  isSerializedAgentDecision,
+  isSerializedEntityDecision,
+  RuleAgent,
+  vectorSymbol
+} from "@symtorch/agent";
 import { EXPLANATION_SCHEMA_VERSION, FactPredicate, FuzzyRuleEngine, PredicateRegistry, RuleProgram } from "@symtorch/logic";
 
 describe("@symtorch/agent", () => {
@@ -51,11 +58,13 @@ describe("@symtorch/agent", () => {
     const roundTrip = JSON.parse(JSON.stringify(decision));
 
     expect(decision).toMatchObject({
+      schemaVersion: AGENT_DECISION_SCHEMA_VERSION,
       action: "escalate(X)",
       selectedHead: "escalate(X)",
       threshold: 0.5,
       accepted: true
     });
+    expect(isSerializedAgentDecision(decision)).toBe(true);
     expect(decision.score).toBeCloseTo(0.72, 5);
     expect(decision.trace?.schemaVersion).toBe(EXPLANATION_SCHEMA_VERSION);
     expect(decision.trace?.type).toBe("aggregate");
@@ -109,6 +118,7 @@ describe("@symtorch/agent", () => {
 
     expect(decisions.map((decision) => decision.entityId)).toEqual(["case-approved", "case-hot", "case-low"]);
     expect(decisions[0]).toMatchObject({
+      schemaVersion: AGENT_DECISION_SCHEMA_VERSION,
       entityId: "case-approved",
       action: "defer(X)",
       selectedHead: "defer(X)",
@@ -122,7 +132,24 @@ describe("@symtorch/agent", () => {
     });
     expect(decisions[1]?.trace?.schemaVersion).toBe(EXPLANATION_SCHEMA_VERSION);
     expect(decisions[1]?.results.map((result) => result.head)).toEqual(["escalate(X)", "defer(X)"]);
+    expect(decisions.every(isSerializedEntityDecision)).toBe(true);
     expect(roundTrip).toEqual(decisions);
+  });
+
+  it("rejects invalid serialized decision contracts", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.observe({ high_risk: 0.8 });
+    const decision = agent.decideTrace();
+    const entityDecision = { entityId: "case-hot", ...decision };
+
+    expect(isSerializedAgentDecision(decision)).toBe(true);
+    expect(isSerializedEntityDecision(entityDecision)).toBe(true);
+    expect(isSerializedAgentDecision({ ...decision, schemaVersion: "symtorch.agentDecision.v0" })).toBe(false);
+    expect(isSerializedAgentDecision({ ...decision, score: Number.NaN })).toBe(false);
+    expect(isSerializedEntityDecision(decision)).toBe(false);
   });
 
   it("supports explicit entity batches and preserves below-threshold traces", () => {

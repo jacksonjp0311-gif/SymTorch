@@ -37,6 +37,7 @@ See [Public API Surface](api-surface.md) for the currently supported exports and
 - CPU behavior is the correctness oracle.
 - WebGPU is an acceleration path, not a required runtime.
 - Public decision and explanation data must be JSON-safe.
+- Runtime contract schema versions must be listed in the release manifest and covered by tests.
 - Rule authoring APIs should support both throwing and non-throwing validation paths.
 - Tests should protect mathematical behavior and agent-facing contracts.
 
@@ -45,6 +46,7 @@ See [Public API Surface](api-surface.md) for the currently supported exports and
 - Browser policy playground.
 - Browser playground training panel.
 - Public API surface documentation.
+- Production-readiness contract manifest.
 - Typed domains and guarded grounding.
 - Broader gradient checks and tensor op coverage.
 - WebGPU kernels with CPU parity tests.

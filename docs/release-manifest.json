@@ -1,0 +1,29 @@
+{
+  "version": "0.5.0",
+  "status": "production-readiness-alpha",
+  "schemaVersions": {
+    "explanation": "symtorch.explanation.v1",
+    "agentDecision": "symtorch.agentDecision.v1",
+    "playgroundState": "symtorch.playground.v1",
+    "scenario": "symtorch.scenario.v1",
+    "trainingRun": "symtorch.trainingRun.v1"
+  },
+  "validationGates": [
+    "pnpm install --frozen-lockfile",
+    "pnpm typecheck",
+    "pnpm test",
+    "pnpm playground:test",
+    "pnpm build",
+    "pnpm playground:build",
+    "pnpm exec tsx scripts/smoke-browser-playground.ts",
+    "pnpm playground:e2e",
+    "pnpm demo:all"
+  ],
+  "nonClaims": [
+    "not a full PyTorch replacement",
+    "not a full Prolog or Datalog engine",
+    "not a production authorization system",
+    "not a high-performance GPU tensor runtime yet",
+    "not an npm stability guarantee"
+  ]
+}

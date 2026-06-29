@@ -1,6 +1,15 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.4.0` is the vector-symbolic memory alpha line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.5.0` is the production-readiness alpha line, not a production stability claim.
+
+## v0.5.0 Production Readiness Alpha
+
+- Added the `symtorch.agentDecision.v1` schema version for serialized agent decisions.
+- Added structural validators for serialized agent and entity decisions.
+- Added a machine-readable release manifest for schema versions, validation gates, and non-claims.
+- Added production-readiness documentation with explicit operational boundaries.
+- Added manifest tests that keep package version and runtime schema constants aligned.
+- Bumped private workspace package versions to `0.5.0`.
 
 ## v0.4.0 Vector-Symbolic Memory Alpha
 
