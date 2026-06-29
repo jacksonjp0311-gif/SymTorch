@@ -19,6 +19,8 @@ readable rule
 - `@symtorch/agent`: working memory, serialized decisions, entity batches, filtering, and decision ledger.
 - `@symtorch/webgpu`: WebGPU capability detection and future accelerated backend work.
 
+See [Public API Surface](api-surface.md) for the currently supported exports and experimental boundaries.
+
 ## Runtime Flow
 
 1. A developer writes a readable rule such as `escalate(X) :- high_risk(X), not approved(X).`

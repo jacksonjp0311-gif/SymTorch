@@ -193,6 +193,7 @@ examples/
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Public API surface](docs/api-surface.md)
 - [30-second demo](docs/demo.md)
 - [Limitations](docs/limitations.md)
 - [Changelog](CHANGELOG.md)

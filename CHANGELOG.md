@@ -2,6 +2,12 @@
 
 SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
 
+## v0.1.12 Public API Surface Seal
+
+- Added `docs/api-surface.md`.
+- Documented supported and experimental exports for each package.
+- Linked public API boundaries from README and architecture docs.
+
 ## v0.1.11 Release Hygiene Seal
 
 - Added public release hygiene docs.
