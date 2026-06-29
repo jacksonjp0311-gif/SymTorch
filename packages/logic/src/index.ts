@@ -380,6 +380,36 @@ export class RuleTrainer {
   }
 }
 
+export function renderRuleExplanation(explanation: RuleExplanation): string {
+  const lines = [
+    `${explanation.head}: ${formatScore(explanation.score)}`,
+    `rule: ${explanation.rule}`
+  ];
+  for (const predicate of explanation.predicates) {
+    const kind = predicate.kind ? ` ${predicate.kind}` : "";
+    const detail = predicate.detail ? ` ${formatDetail(predicate.detail)}` : "";
+    lines.push(
+      `- ${predicate.name}${kind}: value=${formatScore(predicate.value)} contribution=${formatScore(predicate.contribution)}${detail}`
+    );
+  }
+  return lines.join("\n");
+}
+
+export function renderAggregatedExplanation(explanation: AggregatedRuleExplanation): string {
+  const lines = [
+    `${explanation.head}: ${formatScore(explanation.score)} from ${explanation.ruleCount} rule${explanation.ruleCount === 1 ? "" : "s"}`
+  ];
+  for (const rule of explanation.rules) {
+    lines.push(indent(renderRuleExplanation(rule), "  "));
+  }
+  return lines.join("\n");
+}
+
+export function decisionCard(result: RuleResult | AggregatedRuleResult): string {
+  if (isAggregatedExplanation(result.explanation)) return renderAggregatedExplanation(result.explanation);
+  return renderRuleExplanation(result.explanation);
+}
+
 export function parseProgram(source: string): RuleAst[] {
   return source
     .split(".")
@@ -474,4 +504,24 @@ function readFeatureTensor(context: PredicateContext, key: string, expectedLengt
     throw new Error(`Predicate context key "${key}" must contain ${expectedLength} numbers.`);
   }
   return tensor(value as number[], { shape: [1, expectedLength] });
+}
+
+function formatScore(value: number): string {
+  return value.toFixed(4);
+}
+
+function isAggregatedExplanation(explanation: RuleExplanation | AggregatedRuleExplanation): explanation is AggregatedRuleExplanation {
+  return "rules" in explanation;
+}
+
+function formatDetail(detail: Record<string, number | string>): string {
+  const entries = Object.entries(detail).map(([key, value]) => `${key}=${typeof value === "number" ? formatScore(value) : value}`);
+  return entries.length > 0 ? `(${entries.join(", ")})` : "";
+}
+
+function indent(value: string, prefix: string): string {
+  return value
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
 }

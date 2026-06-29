@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, PredicateRegistry, RuleProgram, RuleTrainer, ThresholdPredicate } from "@symtorch/logic";
+import { decisionCard, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleProgram, RuleTrainer, ThresholdPredicate } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -66,6 +66,23 @@ describe("@symtorch/logic", () => {
       "escalate(X) :- customer_vip(X)."
     ]);
     expect(defer?.score.item()).toBeCloseTo(0.2, 5);
+  });
+
+  it("renders rule and aggregate explanations as decision cards", () => {
+    const program = new RuleProgram(`
+      escalate(X) :- high_risk(X).
+      escalate(X) :- customer_vip(X).
+    `);
+    const registry = new PredicateRegistry()
+      .register(new FactPredicate("high_risk"))
+      .register(new FactPredicate("customer_vip"));
+    const engine = new FuzzyRuleEngine(registry);
+    const single = engine.evaluate(program.rules[0]!, { high_risk: 0.4 });
+    const aggregate = engine.evaluateProgramGrouped(program, { high_risk: 0.4, customer_vip: 0.5 })[0]!;
+
+    expect(renderRuleExplanation(single.explanation)).toContain("rule: escalate(X) :- high_risk(X).");
+    expect(renderAggregatedExplanation(aggregate.explanation)).toContain("from 2 rules");
+    expect(decisionCard(aggregate)).toContain("customer_vip(X)");
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {

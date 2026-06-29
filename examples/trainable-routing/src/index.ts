@@ -1,5 +1,5 @@
 import { tensor } from "@symtorch/core";
-import { FuzzyRuleEngine, PredicateRegistry, RuleProgram, RuleTrainer, ThresholdPredicate } from "@symtorch/logic";
+import { decisionCard, FuzzyRuleEngine, PredicateRegistry, RuleProgram, RuleTrainer, ThresholdPredicate } from "@symtorch/logic";
 
 const program = new RuleProgram(`
   escalate(X) :- high_risk(X), not approved(X).
@@ -41,4 +41,5 @@ console.log("after", {
   lowRisk: Number(score({ risk: 0.25, approved: 0.05 }).toFixed(3)),
   highRisk: Number(score({ risk: 0.8, approved: 0.05 }).toFixed(3))
 });
+console.log(decisionCard({ score: trainer.predict({ risk: 0.82, approved: 0.08 }).score, explanation }));
 console.log(JSON.stringify(explanation, null, 2));
