@@ -5,8 +5,10 @@ import {
   createFactRegistry,
   createPlaygroundState,
   defaultScenario,
+  exportPlaygroundScenario,
   exportPlaygroundState,
   parsePlaygroundState,
+  parsePlaygroundScenario,
   playgroundScenarios,
   scenarioById,
   trainHighRiskRule,
@@ -39,6 +41,7 @@ const record = mustElement<HTMLButtonElement>("record");
 const resetRule = mustElement<HTMLButtonElement>("resetRule");
 const train = mustElement<HTMLButtonElement>("train");
 const exportState = mustElement<HTMLButtonElement>("exportState");
+const exportScenario = mustElement<HTMLButtonElement>("exportScenario");
 const importState = mustElement<HTMLButtonElement>("importState");
 const stateBuffer = mustElement<HTMLTextAreaElement>("stateBuffer");
 const stateStatus = mustElement<HTMLElement>("stateStatus");
@@ -58,6 +61,7 @@ evaluate.addEventListener("click", evaluatePolicy);
 record.addEventListener("click", recordLedger);
 train.addEventListener("click", trainHighRisk);
 exportState.addEventListener("click", exportCurrentState);
+exportScenario.addEventListener("click", exportCurrentScenario);
 importState.addEventListener("click", importBufferedState);
 ruleSource.addEventListener("input", persistState);
 resetRule.addEventListener("click", () => {
@@ -139,26 +143,64 @@ function exportCurrentState(): void {
   stateStatus.textContent = "Exported current playground state.";
 }
 
+function exportCurrentScenario(): void {
+  const scenario = scenarioById(scenarioId) ?? defaultScenario();
+  stateBuffer.value = exportPlaygroundScenario({
+    ...scenario,
+    ruleSource: ruleSource.value,
+    cases: cases.map((item) => ({ ...item })),
+    trainingExamples: trainingExamples.map((item) => ({ ...item })),
+    trainedThreshold
+  });
+  stateStatus.textContent = "Exported scenario contract.";
+}
+
 function importBufferedState(): void {
   const imported = parsePlaygroundState(stateBuffer.value);
-  if (!imported) {
-    stateStatus.textContent = "Import failed: expected symtorch.playground.v1 JSON.";
+  if (imported) {
+    loadImportedState(imported);
+    stateStatus.textContent = "Imported playground state.";
     return;
   }
 
-  ruleSource.value = imported.ruleSource;
+  const scenario = parsePlaygroundScenario(stateBuffer.value);
+  if (scenario.ok) {
+    loadScenario(scenario.scenario);
+    stateStatus.textContent = "Imported scenario contract.";
+    return;
+  }
+
+  stateStatus.textContent = `Import failed: ${scenario.diagnostics.map((item) => `${item.path} ${item.message}`).join(" ")}`;
+}
+
+function loadImportedState(imported: NonNullable<ReturnType<typeof parsePlaygroundState>>): void {
   scenarioId = imported.scenarioId;
   scenarioSelect.value = scenarioId;
+  ruleSource.value = imported.ruleSource;
   cases.splice(0, cases.length, ...imported.cases);
   trainingExamples.splice(0, trainingExamples.length, ...imported.trainingExamples);
   trainedThreshold = imported.trainedThreshold;
   trainingSummary = "Imported state.";
+  refreshAfterLoad();
+}
+
+function loadScenario(scenario: ReturnType<typeof defaultScenario>): void {
+  scenarioId = scenario.id;
+  scenarioSelect.value = scenarioId;
+  ruleSource.value = scenario.ruleSource;
+  cases.splice(0, cases.length, ...scenario.cases.map((item) => ({ ...item })));
+  trainingExamples.splice(0, trainingExamples.length, ...scenario.trainingExamples.map((item) => ({ ...item })));
+  trainedThreshold = scenario.trainedThreshold;
+  trainingSummary = "Imported scenario.";
+  refreshAfterLoad();
+}
+
+function refreshAfterLoad(): void {
   persistState();
   renderScenarioHeader();
   renderFacts();
   renderTrainingExamples();
   evaluatePolicy();
-  stateStatus.textContent = "Imported playground state.";
 }
 
 function renderTrainingStats(): void {

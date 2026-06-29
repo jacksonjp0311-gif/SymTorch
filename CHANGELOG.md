@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch currently uses "seal" checkpoints as internal engineering milestones. Package versions remain `0.1.0` until an npm-facing release is cut.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.2.0` is the first policy-runtime alpha line, not a production stability claim.
+
+## v0.2.0 Policy Runtime Alpha
+
+- Added the `symtorch.scenario.v1` scenario contract.
+- Added scenario contract export, parse, and validation helpers.
+- Added browser import support for standalone scenario JSON.
+- Added bundled scenario contract diagnostics and tests.
+- Bumped the private workspace package versions to `0.2.0`.
 
 ## v0.1.23 Agent Policy Scenario Seal
 

@@ -24,6 +24,7 @@ export type TrainingExample = {
 };
 
 export type PlaygroundScenario = {
+  schemaVersion: typeof SCENARIO_SCHEMA_VERSION;
   id: string;
   title: string;
   description: string;
@@ -32,6 +33,15 @@ export type PlaygroundScenario = {
   trainingExamples: TrainingExample[];
   trainedThreshold: number;
 };
+
+export type ScenarioValidationDiagnostic = {
+  path: string;
+  message: string;
+};
+
+export type ScenarioValidationResult =
+  | { ok: true; scenario: PlaygroundScenario; diagnostics: [] }
+  | { ok: false; scenario: null; diagnostics: ScenarioValidationDiagnostic[] };
 
 export type TrainingResult = {
   beforeThreshold: number;
@@ -54,6 +64,7 @@ export type BrowserPlaygroundState = {
 };
 
 export const PLAYGROUND_STATE_VERSION = "symtorch.playground.v1";
+export const SCENARIO_SCHEMA_VERSION = "symtorch.scenario.v1";
 export const DEFAULT_SCENARIO_ID = "case-escalation";
 
 export const defaultRule = `escalate(X) :- high_risk(X), not approved(X).
@@ -61,6 +72,7 @@ defer(X) :- approved(X).`;
 
 export const playgroundScenarios: readonly PlaygroundScenario[] = [
   {
+    schemaVersion: SCENARIO_SCHEMA_VERSION,
     id: DEFAULT_SCENARIO_ID,
     title: "Case Escalation",
     description: "Escalate risky unapproved cases while deferring approved ones.",
@@ -70,6 +82,7 @@ export const playgroundScenarios: readonly PlaygroundScenario[] = [
     trainedThreshold: 0.9
   },
   {
+    schemaVersion: SCENARIO_SCHEMA_VERSION,
     id: "fraud-review",
     title: "Fraud Review",
     description: "Route suspicious unapproved transactions to review and clear approved transactions.",
@@ -91,6 +104,7 @@ clear(X) :- approved(X).`,
     trainedThreshold: 0.88
   },
   {
+    schemaVersion: SCENARIO_SCHEMA_VERSION,
     id: "support-routing",
     title: "Support Routing",
     description: "Send high-risk unresolved support issues to specialist review.",
@@ -119,6 +133,64 @@ export function defaultScenario(): PlaygroundScenario {
 
 export function scenarioById(id: string): PlaygroundScenario | null {
   return playgroundScenarios.find((scenario) => scenario.id === id) ?? null;
+}
+
+export function exportPlaygroundScenario(scenario: PlaygroundScenario): string {
+  return JSON.stringify(cloneScenario(scenario), null, 2);
+}
+
+export function parsePlaygroundScenario(serialized: string | null): ScenarioValidationResult {
+  if (!serialized) {
+    return scenarioError("$", "Expected scenario JSON.");
+  }
+  try {
+    return validatePlaygroundScenario(JSON.parse(serialized));
+  } catch {
+    return scenarioError("$", "Expected valid JSON.");
+  }
+}
+
+export function validatePlaygroundScenario(value: unknown): ScenarioValidationResult {
+  const diagnostics: ScenarioValidationDiagnostic[] = [];
+  if (!isRecord(value)) return scenarioError("$", "Expected an object.");
+  if (value.schemaVersion !== SCENARIO_SCHEMA_VERSION) {
+    diagnostics.push({ path: "$.schemaVersion", message: `Expected ${SCENARIO_SCHEMA_VERSION}.` });
+  }
+  const id = readString(value, "id", diagnostics);
+  const title = readString(value, "title", diagnostics);
+  const description = readString(value, "description", diagnostics);
+  const ruleSource = readString(value, "ruleSource", diagnostics);
+  const trainedThreshold = readNumber(value, "trainedThreshold", diagnostics);
+  const cases = readCases(value.cases, diagnostics);
+  const trainingExamples = readTrainingExamples(value.trainingExamples, diagnostics);
+
+  if (ruleSource) {
+    const validation = validateRuleSource(ruleSource);
+    if (!validation.ok) {
+      for (const diagnostic of validation.diagnostics) {
+        diagnostics.push({ path: "$.ruleSource", message: diagnostic.message });
+      }
+    }
+  }
+
+  if (diagnostics.length > 0 || !id || !title || !description || !ruleSource || trainedThreshold === null || !cases || !trainingExamples) {
+    return { ok: false, scenario: null, diagnostics };
+  }
+
+  return {
+    ok: true,
+    diagnostics: [],
+    scenario: {
+      schemaVersion: SCENARIO_SCHEMA_VERSION,
+      id,
+      title,
+      description,
+      ruleSource,
+      cases,
+      trainingExamples,
+      trainedThreshold: clamp01(trainedThreshold)
+    }
+  };
 }
 
 export function defaultCases(): CaseFacts[] {
@@ -221,6 +293,56 @@ function cloneScenario(scenario: PlaygroundScenario): PlaygroundScenario {
     cases: scenario.cases.map((item) => ({ ...item })),
     trainingExamples: scenario.trainingExamples.map((item) => ({ ...item }))
   };
+}
+
+function scenarioError(path: string, message: string): ScenarioValidationResult {
+  return {
+    ok: false,
+    scenario: null,
+    diagnostics: [{ path, message }]
+  };
+}
+
+function readString(value: Record<string, unknown>, key: string, diagnostics: ScenarioValidationDiagnostic[]): string | null {
+  const item = value[key];
+  if (typeof item !== "string" || item.trim() === "") {
+    diagnostics.push({ path: `$.${key}`, message: "Expected a non-empty string." });
+    return null;
+  }
+  return item;
+}
+
+function readNumber(value: Record<string, unknown>, key: string, diagnostics: ScenarioValidationDiagnostic[]): number | null {
+  const item = value[key];
+  if (typeof item !== "number" || !Number.isFinite(item)) {
+    diagnostics.push({ path: `$.${key}`, message: "Expected a finite number." });
+    return null;
+  }
+  return item;
+}
+
+function readCases(value: unknown, diagnostics: ScenarioValidationDiagnostic[]): CaseFacts[] | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    diagnostics.push({ path: "$.cases", message: "Expected at least one case." });
+    return null;
+  }
+  const cases = value.map(normalizeCase);
+  cases.forEach((item, index) => {
+    if (!item) diagnostics.push({ path: `$.cases[${index}]`, message: "Expected entityId, high_risk, and approved." });
+  });
+  return cases.some((item) => item === null) ? null : cases as CaseFacts[];
+}
+
+function readTrainingExamples(value: unknown, diagnostics: ScenarioValidationDiagnostic[]): TrainingExample[] | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    diagnostics.push({ path: "$.trainingExamples", message: "Expected at least one training example." });
+    return null;
+  }
+  const examples = value.map(normalizeTrainingExample);
+  examples.forEach((item, index) => {
+    if (!item) diagnostics.push({ path: `$.trainingExamples[${index}]`, message: "Expected risk, approved, and label." });
+  });
+  return examples.some((item) => item === null) ? null : examples as TrainingExample[];
 }
 
 export function trainHighRiskRule(

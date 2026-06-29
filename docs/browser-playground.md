@@ -40,6 +40,7 @@ The first screen is the actual tool, not a landing page. It supports:
 - inspecting JSON-safe traces and ledger replay data
 - preserving rule edits, facts, and trained threshold across refreshes
 - importing and exporting versioned playground state JSON
+- importing and exporting standalone `symtorch.scenario.v1` scenario contracts
 
 Current scope:
 
@@ -49,11 +50,12 @@ Current scope:
 - Uses a trainable `ThresholdPredicate` in the training panel.
 - Uses a small editable in-memory training dataset.
 - Persists playground state in browser local storage.
-- Imports and exports rules, facts, training examples, and threshold state with the `symtorch.playground.v1` schema.
+- Imports and exports rules, facts, training examples, and threshold state with the `symtorch.playground.v1` state schema.
+- Imports and exports portable scenario definitions with the `symtorch.scenario.v1` contract.
 - Does not persist ledger entries outside memory.
 - CI verifies the production build and a Vite preview smoke test.
 - CI verifies browser interactions with Playwright.
 
 Next browser step:
 
-- Add end-to-end browser interaction tests once the UI surface stabilizes.
+- Add policy replay against saved ledgers.

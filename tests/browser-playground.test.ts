@@ -9,10 +9,14 @@ import {
   defaultRule,
   defaultScenario,
   defaultTrainingExamples,
+  exportPlaygroundScenario,
   exportPlaygroundState,
   parsePlaygroundState,
+  parsePlaygroundScenario,
   playgroundScenarios,
+  SCENARIO_SCHEMA_VERSION,
   trainHighRiskRule,
+  validatePlaygroundScenario,
   validateRuleSource
 } from "../examples/browser-playground/src/app-model";
 
@@ -33,10 +37,12 @@ describe("browser playground model", () => {
 
     for (const scenario of playgroundScenarios) {
       const validation = validateRuleSource(scenario.ruleSource, createFactRegistry());
+      const scenarioValidation = validatePlaygroundScenario(scenario);
       const agent = buildAgent(new RuleProgram(scenario.ruleSource), scenario.cases);
       const decisions = agent.decideEntitiesTrace();
 
       expect(validation.ok).toBe(true);
+      expect(scenarioValidation.ok).toBe(true);
       expect(scenario.cases.length).toBeGreaterThanOrEqual(4);
       expect(scenario.trainingExamples.length).toBeGreaterThanOrEqual(5);
       expect(decisions[0]?.score).toBeGreaterThan(0);
@@ -110,5 +116,37 @@ describe("browser playground model", () => {
     expect(parsed?.ruleSource).toBe(defaultRule);
     expect(parsed?.trainedThreshold).toBe(0.5);
     expect(parsed?.trainingExamples).toHaveLength(5);
+  });
+
+  it("exports and parses standalone scenario contracts", () => {
+    const scenario = defaultScenario();
+    const exported = exportPlaygroundScenario(scenario);
+    const parsed = parsePlaygroundScenario(exported);
+
+    expect(exported).toContain(SCENARIO_SCHEMA_VERSION);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.scenario).toEqual(scenario);
+    }
+  });
+
+  it("reports scenario contract diagnostics", () => {
+    const invalid = validatePlaygroundScenario({
+      schemaVersion: SCENARIO_SCHEMA_VERSION,
+      id: "",
+      title: "Broken",
+      description: "Missing useful pieces.",
+      ruleSource: "broken(X) :- missing(X).",
+      cases: [{ entityId: "case", high_risk: "bad", approved: 0.2 }],
+      trainingExamples: [],
+      trainedThreshold: Number.NaN
+    });
+
+    expect(invalid.ok).toBe(false);
+    expect(invalid.diagnostics.map((item) => item.path)).toContain("$.id");
+    expect(invalid.diagnostics.map((item) => item.path)).toContain("$.trainedThreshold");
+    expect(invalid.diagnostics.map((item) => item.path)).toContain("$.cases[0]");
+    expect(invalid.diagnostics.map((item) => item.path)).toContain("$.trainingExamples");
+    expect(invalid.diagnostics.some((item) => item.path === "$.ruleSource" && item.message.includes("missing"))).toBe(true);
   });
 });

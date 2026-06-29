@@ -15,20 +15,29 @@ test("browser playground trains, exports, imports, and records decisions", async
   await expect(page.locator("#trainingStats")).toContainText("threshold:");
   await expect(page.locator("#traceOutput")).toContainText("high_risk");
 
-  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
   const exported = await page.locator("#stateBuffer").inputValue();
   expect(exported).toContain("symtorch.playground.v1");
   expect(exported).toContain("fraud-review");
   expect(exported).toContain("trainingExamples");
 
+  await page.getByRole("button", { name: "Export Scenario" }).click();
+  const exportedScenario = await page.locator("#stateBuffer").inputValue();
+  expect(exportedScenario).toContain("symtorch.scenario.v1");
+  expect(exportedScenario).toContain("Fraud Review");
+
   await page.locator("#ruleSource").fill("escalate(X) :- missing_predicate(X).");
   await page.getByRole("button", { name: "Evaluate" }).click();
   await expect(page.locator("#diagnostics")).toContainText("missing_predicate");
 
+  await page.locator("#stateBuffer").fill(exportedScenario);
+  await page.getByRole("button", { name: "Import" }).click();
+  await expect(page.locator("#stateStatus")).toContainText("Imported scenario contract.");
+  await expect(page.locator("#diagnostics")).toContainText("Rule validation: PASS");
+
   await page.locator("#stateBuffer").fill(exported);
   await page.getByRole("button", { name: "Import" }).click();
   await expect(page.locator("#stateStatus")).toContainText("Imported playground state.");
-  await expect(page.locator("#diagnostics")).toContainText("Rule validation: PASS");
 
   await page.getByRole("button", { name: "Record Top 2" }).click();
   await expect(page.locator("#traceOutput")).toContainText("decision-1");
