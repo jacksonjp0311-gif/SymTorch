@@ -28,6 +28,40 @@ export type EntityDecisionOptions = {
   topK?: number;
 };
 
+export type DecisionLedgerEntry = {
+  id: string;
+  createdAt: string;
+  kind: "agent" | "entity";
+  context: PredicateContext;
+  decision: SerializedAgentDecision | SerializedEntityDecision;
+};
+
+export class DecisionLedger {
+  private readonly entries: DecisionLedgerEntry[] = [];
+  private nextId = 1;
+
+  append(entry: Omit<DecisionLedgerEntry, "id" | "createdAt">, createdAt = new Date()): DecisionLedgerEntry {
+    const record: DecisionLedgerEntry = {
+      id: `decision-${this.nextId++}`,
+      createdAt: createdAt.toISOString(),
+      kind: entry.kind,
+      context: cloneContext(entry.context),
+      decision: cloneJson(entry.decision)
+    };
+    this.entries.push(record);
+    return cloneJson(record);
+  }
+
+  all(): DecisionLedgerEntry[] {
+    return this.entries.map((entry) => cloneJson(entry));
+  }
+
+  clear(): void {
+    this.entries.length = 0;
+    this.nextId = 1;
+  }
+}
+
 export class WorkingMemory {
   private readonly facts = new FactStore();
 
@@ -54,6 +88,7 @@ export class WorkingMemory {
 
 export class RuleAgent {
   readonly memory = new WorkingMemory();
+  readonly ledger = new DecisionLedger();
 
   constructor(
     private readonly program: RuleProgram,
@@ -93,6 +128,31 @@ export class RuleAgent {
     if (normalized.acceptedOnly) decisions = decisions.filter((decision) => decision.accepted);
     if (normalized.topK !== undefined) decisions = decisions.slice(0, normalized.topK);
     return decisions;
+  }
+
+  recordDecision(createdAt?: Date): DecisionLedgerEntry {
+    return this.ledger.append({
+      kind: "agent",
+      context: this.memory.snapshot(),
+      decision: this.decideTrace()
+    }, createdAt);
+  }
+
+  recordEntityDecision(entityId: string, createdAt?: Date): DecisionLedgerEntry {
+    return this.ledger.append({
+      kind: "entity",
+      context: this.memory.entitySnapshot(entityId),
+      decision: this.decideEntityTrace(entityId)
+    }, createdAt);
+  }
+
+  recordEntityDecisions(options: EntityDecisionOptions | readonly string[] = {}, createdAt?: Date): DecisionLedgerEntry[] {
+    const decisions = this.decideEntitiesTrace(options);
+    return decisions.map((decision) => this.ledger.append({
+      kind: "entity",
+      context: this.memory.entitySnapshot(decision.entityId),
+      decision
+    }, createdAt));
   }
 
   private decideFromContext(context: PredicateContext): AgentDecision {
@@ -137,4 +197,12 @@ function normalizeEntityDecisionOptions(options: EntityDecisionOptions | readonl
 
 function isEntityIdList(options: EntityDecisionOptions | readonly string[]): options is readonly string[] {
   return Array.isArray(options);
+}
+
+function cloneContext(context: PredicateContext): PredicateContext {
+  return cloneJson(context) as PredicateContext;
+}
+
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }

@@ -165,4 +165,55 @@ describe("@symtorch/agent", () => {
     expect(filtered.every((decision) => decision.accepted)).toBe(true);
     expect(explicit.map((decision) => decision.entityId)).toEqual(["case-a"]);
   });
+
+  it("records single decisions in an append-only ledger", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.observe({ high_risk: 0.8 });
+    const first = agent.recordDecision(new Date("2026-06-29T12:00:00.000Z"));
+    agent.observe({ high_risk: 0.1 });
+    const second = agent.recordDecision(new Date("2026-06-29T12:01:00.000Z"));
+
+    expect(first).toMatchObject({
+      id: "decision-1",
+      createdAt: "2026-06-29T12:00:00.000Z",
+      kind: "agent",
+      context: { high_risk: 0.8 }
+    });
+    expect(first.decision.action).toBe("escalate(X)");
+    expect(second.id).toBe("decision-2");
+    expect(second.decision.action).toBe("no_action");
+    expect(agent.ledger.all().map((entry) => entry.id)).toEqual(["decision-1", "decision-2"]);
+    expect(agent.ledger.all()[0]?.context).toEqual({ high_risk: 0.8 });
+  });
+
+  it("records ranked entity decisions with replayable snapshots", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.memory.observeEntity("case-low", { high_risk: 0.2 });
+    agent.memory.observeEntity("case-hot", { high_risk: 0.9 });
+
+    const entries = agent.recordEntityDecisions({ acceptedOnly: true }, new Date("2026-06-29T13:00:00.000Z"));
+    agent.memory.observeEntity("case-hot", { high_risk: 0.1 });
+    const replay = agent.ledger.all();
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      id: "decision-1",
+      createdAt: "2026-06-29T13:00:00.000Z",
+      kind: "entity",
+      context: { entity: "case-hot", high_risk: 0.9 }
+    });
+    expect(entries[0]?.decision).toMatchObject({
+      entityId: "case-hot",
+      action: "escalate(X)",
+      accepted: true
+    });
+    expect(replay[0]?.context).toEqual({ entity: "case-hot", high_risk: 0.9 });
+    expect(JSON.parse(JSON.stringify(replay))).toEqual(replay);
+  });
 });
