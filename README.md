@@ -12,6 +12,7 @@ The project starts with a correct eager CPU tensor/autograd core, then layers on
 - `nn.Module`, `Parameter`, `Linear`, `Sequential`, `SGD`, `Adam`, and `mseLoss`.
 - A compact Prolog-like rule compiler for differentiable fuzzy rules with explanation traces.
 - Trainable fixed, threshold, and linear predicates for neuro-symbolic rules.
+- `RuleTrainer` for fitting differentiable rules against labeled examples.
 - WebGPU package shell with capability detection and backend-planning docs.
 
 ## Install

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { FuzzyRuleEngine, LinearPredicate, PredicateRegistry, RuleProgram, ThresholdPredicate } from "@symtorch/logic";
+import { FuzzyRuleEngine, LinearPredicate, PredicateRegistry, RuleProgram, RuleTrainer, ThresholdPredicate } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -80,5 +80,28 @@ describe("@symtorch/logic", () => {
 
     expect(engine.evaluate(program.rules[0]!, { features: [0.95, 0.8] }).score.item()).toBeGreaterThan(0.7);
     expect(engine.evaluate(program.rules[0]!, { features: [0.05, 0.1] }).score.item()).toBeLessThan(0.35);
+  });
+
+  it("trains rules through RuleTrainer", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X), not approved(X).");
+    const highRisk = new ThresholdPredicate("high_risk", "risk", 0.85, 10);
+    const registry = new PredicateRegistry()
+      .register(highRisk)
+      .fixed("approved", (_call, context) => tensor(typeof context.approved === "number" ? context.approved : 0));
+    const engine = new FuzzyRuleEngine(registry);
+    const trainer = new RuleTrainer(engine, program.rules[0]!, registry, { learningRate: 0.2 });
+
+    const result = trainer.fit([
+      { risk: 0.2, approved: 0.05, label: 0 },
+      { risk: 0.4, approved: 0.1, label: 0 },
+      { risk: 0.75, approved: 0.05, label: 1 },
+      { risk: 0.92, approved: 0.1, label: 1 },
+      { risk: 0.9, approved: 0.95, label: 0 }
+    ], { epochs: 80 });
+
+    expect(result.history).toHaveLength(80);
+    expect(result.finalLoss).toBeLessThan(result.history[0]!.loss);
+    expect(highRisk.threshold.item()).toBeLessThan(0.85);
+    expect(trainer.predict({ risk: 0.82, approved: 0.05 }).score.item()).toBeGreaterThan(0.75);
   });
 });

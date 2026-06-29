@@ -1,6 +1,5 @@
 import { tensor } from "@symtorch/core";
-import { FuzzyRuleEngine, PredicateRegistry, RuleProgram, ThresholdPredicate } from "@symtorch/logic";
-import { mseLoss, SGD } from "@symtorch/nn";
+import { FuzzyRuleEngine, PredicateRegistry, RuleProgram, RuleTrainer, ThresholdPredicate } from "@symtorch/logic";
 
 const program = new RuleProgram(`
   escalate(X) :- high_risk(X), not approved(X).
@@ -12,7 +11,7 @@ const registry = new PredicateRegistry()
   .fixed("approved", (_call, context) => tensor(typeof context.approved === "number" ? context.approved : 0));
 
 const engine = new FuzzyRuleEngine(registry);
-const optim = new SGD(registry.parameters(), 0.2);
+const trainer = new RuleTrainer(engine, program.rules[0]!, registry, { learningRate: 0.2 });
 
 const cases = [
   { risk: 0.15, approved: 0.05, label: 0 },
@@ -32,20 +31,13 @@ console.log("before", {
   highRisk: Number(score({ risk: 0.8, approved: 0.05 }).toFixed(3))
 });
 
-for (let epoch = 0; epoch < 100; epoch++) {
-  for (const row of cases) {
-    optim.zeroGrad();
-    const result = engine.evaluate(program.rules[0]!, row);
-    const loss = mseLoss(result.score, tensor(row.label));
-    loss.backward();
-    optim.step();
-  }
-}
+const training = trainer.fit(cases, { epochs: 100 });
 
-const explanation = engine.evaluate(program.rules[0]!, { risk: 0.82, approved: 0.08 }).explanation;
+const explanation = trainer.predict({ risk: 0.82, approved: 0.08 }).explanation;
 
 console.log("after", {
   threshold: Number(highRisk.threshold.item().toFixed(3)),
+  finalLoss: Number(training.finalLoss.toFixed(4)),
   lowRisk: Number(score({ risk: 0.25, approved: 0.05 }).toFixed(3)),
   highRisk: Number(score({ risk: 0.8, approved: 0.05 }).toFixed(3))
 });

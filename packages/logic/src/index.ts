@@ -1,5 +1,5 @@
 import { add, matmul, mul, sigmoid, sub, Tensor, tensor } from "@symtorch/core";
-import { Parameter } from "@symtorch/nn";
+import { mseLoss, Optimizer, Parameter, SGD } from "@symtorch/nn";
 
 export type Term = {
   kind: "variable" | "constant";
@@ -54,6 +54,26 @@ export type PredicateTrace = {
 export type RuleResult = {
   score: Tensor;
   explanation: RuleExplanation;
+};
+
+export type LabeledRuleExample = PredicateContext & {
+  label: number;
+};
+
+export type RuleTrainerOptions = {
+  learningRate?: number;
+  epochs?: number;
+  optimizer?: Optimizer;
+};
+
+export type RuleTrainerHistoryItem = {
+  epoch: number;
+  loss: number;
+};
+
+export type RuleTrainerResult = {
+  history: RuleTrainerHistoryItem[];
+  finalLoss: number;
 };
 
 export class RuleProgram {
@@ -214,6 +234,47 @@ export class LinearPredicate implements Predicate {
       featureCount: this.featureCount,
       bias: this.bias.item()
     };
+  }
+}
+
+export class RuleTrainer {
+  private readonly optimizer: Optimizer;
+
+  constructor(
+    readonly engine: FuzzyRuleEngine,
+    readonly rule: RuleAst,
+    readonly registry: PredicateRegistry,
+    options: RuleTrainerOptions = {}
+  ) {
+    this.optimizer = options.optimizer ?? new SGD(registry.parameters(), options.learningRate ?? 0.1);
+  }
+
+  fit(examples: readonly LabeledRuleExample[], options: RuleTrainerOptions = {}): RuleTrainerResult {
+    if (examples.length === 0) throw new Error("RuleTrainer.fit requires at least one example.");
+    const epochs = options.epochs ?? 50;
+    const history: RuleTrainerHistoryItem[] = [];
+
+    for (let epoch = 0; epoch < epochs; epoch++) {
+      let totalLoss = 0;
+      for (const example of examples) {
+        this.optimizer.zeroGrad();
+        const result = this.engine.evaluate(this.rule, example);
+        const loss = mseLoss(result.score, tensor(example.label));
+        totalLoss += loss.item();
+        loss.backward();
+        this.optimizer.step();
+      }
+      history.push({ epoch, loss: totalLoss / examples.length });
+    }
+
+    return {
+      history,
+      finalLoss: history[history.length - 1]?.loss ?? Number.NaN
+    };
+  }
+
+  predict(context: PredicateContext): RuleResult {
+    return this.engine.evaluate(this.rule, context);
   }
 }
 
