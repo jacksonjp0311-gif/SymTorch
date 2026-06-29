@@ -106,6 +106,19 @@ console.log(result.score.item());
 console.log(result.explanation);
 ```
 
+## Rule Authoring Validation
+
+```ts
+import { validateProgram } from "@symtorch/logic";
+
+const validation = validateProgram("escalate(X) :- high-risk(X).");
+
+if (!validation.ok) {
+  console.log(validation.error.line, validation.error.column);
+  console.log(validation.error.message);
+}
+```
+
 ## Monorepo Layout
 
 ```text
@@ -170,3 +183,5 @@ SymTorch is early, active, and intentionally foundation-first. The current imple
 **v0.1.6 Decision Ledger Seal:** agents now include an append-only in-memory ledger for JSON-safe decision records with timestamps, context snapshots, and replayable traces.
 
 **v0.1.7 Rule Parser Diagnostics Seal:** malformed rules now fail with structured parser diagnostics, including line, column, snippets, and caret pointers for faster rule authoring.
+
+**v0.1.8 Rule Authoring Helpers Seal:** `validateProgram()` now gives editors and LLM rule-refinement loops a non-throwing path for checking rules and surfacing diagnostics.

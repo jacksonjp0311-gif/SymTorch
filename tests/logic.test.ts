@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, parseProgram, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate } from "@symtorch/logic";
+import { decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, parseProgram, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate, validateProgram } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -192,6 +192,29 @@ describe("@symtorch/logic", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RuleParseError);
       expect((error as RuleParseError).message).toContain("Unclosed parenthesis");
+    }
+  });
+
+  it("validates rule programs without throwing for authoring loops", () => {
+    const valid = validateProgram(`
+      escalate(X) :- high_risk(X), not approved(X).
+      defer(X) :- approved(X).
+    `);
+    const invalid = validateProgram(`
+      escalate(X) :- high-risk(X).
+    `);
+
+    expect(valid.ok).toBe(true);
+    if (valid.ok) {
+      expect(valid.rules).toHaveLength(2);
+      expect(valid.rules[0]?.source).toBe("escalate(X) :- high_risk(X), not approved(X).");
+    }
+
+    expect(invalid.ok).toBe(false);
+    if (!invalid.ok) {
+      expect(invalid.error).toBeInstanceOf(RuleParseError);
+      expect(invalid.error.line).toBe(2);
+      expect(invalid.error.message).toContain("Invalid predicate call");
     }
   });
 

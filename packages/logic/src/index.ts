@@ -33,6 +33,10 @@ export class RuleParseError extends Error {
   }
 }
 
+export type RuleValidationResult =
+  | { ok: true; rules: RuleAst[] }
+  | { ok: false; error: RuleParseError };
+
 export type PredicateContext = Record<string, unknown>;
 export type PredicateResolver = (call: PredicateCall, context: PredicateContext) => Tensor;
 
@@ -518,6 +522,15 @@ export function serializeExplanation(explanation: RuleExplanation | AggregatedRu
 
 export function parseProgram(source: string): RuleAst[] {
   return splitRuleSources(source).map((rule) => parseRuleAt(rule.text, rule.start, source));
+}
+
+export function validateProgram(source: string): RuleValidationResult {
+  try {
+    return { ok: true, rules: parseProgram(source) };
+  } catch (error) {
+    if (error instanceof RuleParseError) return { ok: false, error };
+    throw error;
+  }
 }
 
 export function parseRule(source: string): RuleAst {
