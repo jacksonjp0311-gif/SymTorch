@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { FuzzyRuleEngine, LinearPredicate, PredicateRegistry, RuleProgram, RuleTrainer, ThresholdPredicate } from "@symtorch/logic";
+import { FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, PredicateRegistry, RuleProgram, RuleTrainer, ThresholdPredicate } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -25,6 +25,20 @@ describe("@symtorch/logic", () => {
     expect(result.explanation.predicates[0]?.kind).toBe("learnable");
     expect(result.explanation.predicates[0]?.detail?.threshold).toBeTypeOf("number");
     expect(registry.parameters()).toHaveLength(1);
+  });
+
+  it("builds rule contexts from fact stores and fact predicates", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X), not approved(X).");
+    const facts = new FactStore()
+      .setEntity("case-1", { high_risk: 0.9, approved: 0.2 })
+      .setEntity("case-2", { high_risk: 0.3, approved: 0.1 });
+    const registry = new PredicateRegistry()
+      .register(new FactPredicate("high_risk"))
+      .register(new FactPredicate("approved"));
+    const engine = new FuzzyRuleEngine(registry);
+
+    expect(engine.evaluate(program.rules[0]!, facts.entityContext("case-1")).score.item()).toBeCloseTo(0.72, 5);
+    expect(engine.evaluate(program.rules[0]!, facts.entityContext("case-2")).score.item()).toBeCloseTo(0.27, 5);
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {

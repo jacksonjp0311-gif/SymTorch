@@ -1,4 +1,4 @@
-import type { FuzzyRuleEngine, PredicateContext, RuleProgram, RuleResult } from "@symtorch/logic";
+import { FactStore, type FuzzyRuleEngine, type PredicateContext, type RuleProgram, type RuleResult } from "@symtorch/logic";
 
 export type Observation = Record<string, unknown>;
 
@@ -8,14 +8,22 @@ export type AgentDecision = {
 };
 
 export class WorkingMemory {
-  private readonly state = new Map<string, unknown>();
+  private readonly facts = new FactStore();
 
   observe(observation: Observation): void {
-    for (const [key, value] of Object.entries(observation)) this.state.set(key, value);
+    this.facts.observe(observation);
+  }
+
+  observeEntity(entityId: string, observation: Observation): void {
+    this.facts.setEntity(entityId, observation);
   }
 
   snapshot(): PredicateContext {
-    return Object.fromEntries(this.state.entries());
+    return this.facts.context();
+  }
+
+  entitySnapshot(entityId: string): PredicateContext {
+    return this.facts.entityContext(entityId);
   }
 }
 
@@ -42,4 +50,3 @@ export class RuleAgent {
     return { action, results };
   }
 }
-

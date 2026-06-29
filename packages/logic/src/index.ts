@@ -84,6 +84,50 @@ export class RuleProgram {
   }
 }
 
+export class FactStore {
+  private readonly facts = new Map<string, unknown>();
+
+  constructor(initial?: PredicateContext) {
+    if (initial) this.observe(initial);
+  }
+
+  set(key: string, value: unknown): this {
+    this.facts.set(key, value);
+    return this;
+  }
+
+  get<T = unknown>(key: string): T | undefined {
+    return this.facts.get(key) as T | undefined;
+  }
+
+  observe(facts: PredicateContext): this {
+    for (const [key, value] of Object.entries(facts)) this.set(key, value);
+    return this;
+  }
+
+  setEntity(entityId: string, facts: PredicateContext): this {
+    for (const [key, value] of Object.entries(facts)) this.set(`${entityId}.${key}`, value);
+    return this;
+  }
+
+  context(extra: PredicateContext = {}): PredicateContext {
+    return { ...Object.fromEntries(this.facts.entries()), ...extra };
+  }
+
+  entityContext(entityId: string, extra: PredicateContext = {}): PredicateContext {
+    const prefix = `${entityId}.`;
+    const scoped: PredicateContext = { entity: entityId };
+    for (const [key, value] of this.facts.entries()) {
+      if (key.startsWith(prefix)) scoped[key.slice(prefix.length)] = value;
+    }
+    return { ...scoped, ...extra };
+  }
+
+  clear(): void {
+    this.facts.clear();
+  }
+}
+
 export class FuzzyRuleEngine {
   constructor(private readonly resolver: PredicateResolver | PredicateRegistry) {}
 
@@ -166,6 +210,27 @@ export class FixedPredicate implements Predicate {
 
   parameters(): Parameter[] {
     return [];
+  }
+}
+
+export class FactPredicate implements Predicate {
+  readonly kind = "fixed";
+
+  constructor(readonly name: string, readonly key = name) {}
+
+  evaluate(_call: PredicateCall, context: PredicateContext): Tensor {
+    const value = context[this.key];
+    if (value instanceof Tensor) return value;
+    if (typeof value !== "number") throw new Error(`FactPredicate "${this.name}" expected numeric context key "${this.key}".`);
+    return tensor(value);
+  }
+
+  parameters(): Parameter[] {
+    return [];
+  }
+
+  describe(): Record<string, number | string> {
+    return { key: this.key };
   }
 }
 

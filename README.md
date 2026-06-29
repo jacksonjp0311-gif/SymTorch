@@ -13,6 +13,7 @@ The project starts with a correct eager CPU tensor/autograd core, then layers on
 - A compact Prolog-like rule compiler for differentiable fuzzy rules with explanation traces.
 - Trainable fixed, threshold, and linear predicates for neuro-symbolic rules.
 - `RuleTrainer` for fitting differentiable rules against labeled examples.
+- `FactStore` working memory for observations, entity-scoped facts, and agent contexts.
 - WebGPU package shell with capability detection and backend-planning docs.
 
 ## Install
