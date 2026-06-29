@@ -36,6 +36,7 @@ Use it for:
 - `RuleTrainer` for fitting differentiable rules against labeled examples.
 - `FactStore` working memory for observations and entity-scoped facts.
 - Same-head rule aggregation with per-rule explanations.
+- Entity batch evaluation and ranking over fact stores.
 - Agent loop primitives for observation -> decision -> explanation.
 - WebGPU package shell with runtime detection and backend planning.
 
@@ -54,6 +55,7 @@ Run the demos:
 pnpm example:linear
 pnpm example:routing
 pnpm example:trainable-routing
+pnpm example:batch-routing
 ```
 
 ## Trainable Rule Example
@@ -141,4 +143,3 @@ Long term:
 ## Status
 
 SymTorch is early, active, and intentionally foundation-first. The current implementation is useful for small differentiable-rule experiments and agent-policy prototypes, while the tensor and backend layers continue to harden.
-

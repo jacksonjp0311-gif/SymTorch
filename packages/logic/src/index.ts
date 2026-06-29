@@ -69,6 +69,16 @@ export type AggregatedRuleResult = {
   explanation: AggregatedRuleExplanation;
 };
 
+export type EntityRuleResult = {
+  entityId: string;
+  results: AggregatedRuleResult[];
+};
+
+export type RankedEntityResult = {
+  entityId: string;
+  result: AggregatedRuleResult;
+};
+
 export type LabeledRuleExample = PredicateContext & {
   label: number;
 };
@@ -121,6 +131,15 @@ export class FactStore {
   setEntity(entityId: string, facts: PredicateContext): this {
     for (const [key, value] of Object.entries(facts)) this.set(`${entityId}.${key}`, value);
     return this;
+  }
+
+  entityIds(): string[] {
+    const ids = new Set<string>();
+    for (const key of this.facts.keys()) {
+      const dot = key.indexOf(".");
+      if (dot > 0) ids.add(key.slice(0, dot));
+    }
+    return Array.from(ids).sort();
   }
 
   context(extra: PredicateContext = {}): PredicateContext {
@@ -199,6 +218,23 @@ export class FuzzyRuleEngine {
         }
       };
     });
+  }
+
+  evaluateEntities(program: RuleProgram, facts: FactStore, entityIds = facts.entityIds()): EntityRuleResult[] {
+    return entityIds.map((entityId) => ({
+      entityId,
+      results: this.evaluateProgramGrouped(program, facts.entityContext(entityId))
+    }));
+  }
+
+  rankEntitiesByHead(program: RuleProgram, facts: FactStore, head: string, entityIds = facts.entityIds()): RankedEntityResult[] {
+    return this.evaluateEntities(program, facts, entityIds)
+      .map((entity) => {
+        const result = entity.results.find((candidate) => candidate.head === head);
+        return result ? { entityId: entity.entityId, result } : null;
+      })
+      .filter((item): item is RankedEntityResult => item !== null)
+      .sort((a, b) => b.result.score.item() - a.result.score.item());
   }
 
   private resolve(call: PredicateCall, context: PredicateContext): PredicateResolution {

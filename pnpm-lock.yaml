@@ -24,6 +24,15 @@ importers:
         specifier: ^3.2.4
         version: 3.2.6(@types/node@20.19.43)(tsx@4.22.4)
 
+  examples/batch-routing:
+    dependencies:
+      '@symtorch/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@symtorch/logic':
+        specifier: workspace:*
+        version: link:../../packages/logic
+
   examples/linear-regression:
     dependencies:
       '@symtorch/core':

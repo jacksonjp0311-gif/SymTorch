@@ -11,7 +11,8 @@
     "typecheck": "tsc -b --pretty false",
     "example:linear": "tsx examples/linear-regression/src/index.ts",
     "example:routing": "tsx examples/neuro-symbolic-routing/src/index.ts",
-    "example:trainable-routing": "tsx examples/trainable-routing/src/index.ts"
+    "example:trainable-routing": "tsx examples/trainable-routing/src/index.ts",
+    "example:batch-routing": "tsx examples/batch-routing/src/index.ts"
   },
   "devDependencies": {
     "@types/node": "^20.19.0",

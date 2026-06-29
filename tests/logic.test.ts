@@ -39,6 +39,7 @@ describe("@symtorch/logic", () => {
 
     expect(engine.evaluate(program.rules[0]!, facts.entityContext("case-1")).score.item()).toBeCloseTo(0.72, 5);
     expect(engine.evaluate(program.rules[0]!, facts.entityContext("case-2")).score.item()).toBeCloseTo(0.27, 5);
+    expect(facts.entityIds()).toEqual(["case-1", "case-2"]);
   });
 
   it("aggregates multiple rules with the same head using probabilistic OR", () => {
@@ -66,6 +67,32 @@ describe("@symtorch/logic", () => {
       "escalate(X) :- customer_vip(X)."
     ]);
     expect(defer?.score.item()).toBeCloseTo(0.2, 5);
+  });
+
+  it("evaluates and ranks entity batches by rule head", () => {
+    const program = new RuleProgram(`
+      escalate(X) :- high_risk(X), not approved(X).
+      escalate(X) :- customer_vip(X).
+      defer(X) :- approved(X).
+    `);
+    const facts = new FactStore()
+      .setEntity("case-low", { high_risk: 0.2, approved: 0.1, customer_vip: 0.1 })
+      .setEntity("case-approved", { high_risk: 0.9, approved: 0.95, customer_vip: 0.1 })
+      .setEntity("case-hot", { high_risk: 0.9, approved: 0.1, customer_vip: 0.2 })
+      .setEntity("case-vip", { high_risk: 0.3, approved: 0.1, customer_vip: 0.8 });
+    const registry = new PredicateRegistry()
+      .register(new FactPredicate("high_risk"))
+      .register(new FactPredicate("approved"))
+      .register(new FactPredicate("customer_vip"));
+    const engine = new FuzzyRuleEngine(registry);
+
+    const evaluated = engine.evaluateEntities(program, facts);
+    const ranked = engine.rankEntitiesByHead(program, facts, "escalate(X)");
+
+    expect(evaluated).toHaveLength(4);
+    expect(evaluated[0]?.results.some((result) => result.head === "escalate(X)")).toBe(true);
+    expect(ranked.map((item) => item.entityId)).toEqual(["case-vip", "case-hot", "case-low", "case-approved"]);
+    expect(ranked[0]?.result.score.item()).toBeGreaterThan(0.85);
   });
 
   it("renders rule and aggregate explanations as decision cards", () => {

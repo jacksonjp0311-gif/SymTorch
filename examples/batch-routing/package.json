@@ -1,0 +1,11 @@
+{
+  "name": "@symtorch/example-batch-routing",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@symtorch/core": "workspace:*",
+    "@symtorch/logic": "workspace:*"
+  }
+}
+
