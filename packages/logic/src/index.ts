@@ -1,4 +1,5 @@
-import { mul, sub, Tensor, tensor } from "@symtorch/core";
+import { add, matmul, mul, sigmoid, sub, Tensor, tensor } from "@symtorch/core";
+import { Parameter } from "@symtorch/nn";
 
 export type Term = {
   kind: "variable" | "constant";
@@ -20,6 +21,20 @@ export type RuleAst = {
 export type PredicateContext = Record<string, unknown>;
 export type PredicateResolver = (call: PredicateCall, context: PredicateContext) => Tensor;
 
+export type PredicateResolution = {
+  score: Tensor;
+  kind: "fixed" | "learnable";
+  detail?: Record<string, number | string>;
+};
+
+export interface Predicate {
+  readonly name: string;
+  readonly kind: "fixed" | "learnable";
+  evaluate(call: PredicateCall, context: PredicateContext): Tensor;
+  parameters(): Parameter[];
+  describe?(): Record<string, number | string>;
+}
+
 export type RuleExplanation = {
   rule: string;
   head: string;
@@ -32,6 +47,8 @@ export type PredicateTrace = {
   negated: boolean;
   value: number;
   contribution: number;
+  kind?: "fixed" | "learnable";
+  detail?: Record<string, number | string>;
 };
 
 export type RuleResult = {
@@ -48,21 +65,25 @@ export class RuleProgram {
 }
 
 export class FuzzyRuleEngine {
-  constructor(private readonly resolver: PredicateResolver) {}
+  constructor(private readonly resolver: PredicateResolver | PredicateRegistry) {}
 
   evaluate(rule: RuleAst, context: PredicateContext = {}): RuleResult {
     let score = tensor(1);
     const traces: PredicateTrace[] = [];
     for (const call of rule.body) {
-      const raw = this.resolver(call, context);
+      const resolved = this.resolve(call, context);
+      const raw = resolved.score;
       const value = call.negated ? sub(1, raw) : raw;
       score = mul(score, value);
-      traces.push({
+      const trace: PredicateTrace = {
         name: formatPredicate(call),
         negated: call.negated,
         value: raw.item(),
-        contribution: value.item()
-      });
+        contribution: value.item(),
+        kind: resolved.kind
+      };
+      if (resolved.detail) trace.detail = resolved.detail;
+      traces.push(trace);
     }
     return {
       score,
@@ -77,6 +98,122 @@ export class FuzzyRuleEngine {
 
   evaluateProgram(program: RuleProgram, context: PredicateContext = {}): RuleResult[] {
     return program.rules.map((rule) => this.evaluate(rule, context));
+  }
+
+  private resolve(call: PredicateCall, context: PredicateContext): PredicateResolution {
+    if (this.resolver instanceof PredicateRegistry) return this.resolver.resolve(call, context);
+    return { score: this.resolver(call, context), kind: "fixed" };
+  }
+}
+
+export class PredicateRegistry {
+  private readonly predicates = new Map<string, Predicate>();
+
+  register(predicate: Predicate): this {
+    this.predicates.set(predicate.name, predicate);
+    return this;
+  }
+
+  fixed(name: string, resolver: PredicateResolver): this {
+    return this.register(new FixedPredicate(name, resolver));
+  }
+
+  resolve(call: PredicateCall, context: PredicateContext): PredicateResolution {
+    const predicate = this.predicates.get(call.name);
+    if (!predicate) throw new Error(`No predicate registered for "${call.name}".`);
+    const resolution: PredicateResolution = {
+      score: predicate.evaluate(call, context),
+      kind: predicate.kind
+    };
+    const detail = predicate.describe?.();
+    if (detail) resolution.detail = detail;
+    return resolution;
+  }
+
+  parameters(): Parameter[] {
+    return Array.from(this.predicates.values()).flatMap((predicate) => predicate.parameters());
+  }
+}
+
+export class FixedPredicate implements Predicate {
+  readonly kind = "fixed";
+
+  constructor(readonly name: string, private readonly resolver: PredicateResolver) {}
+
+  evaluate(call: PredicateCall, context: PredicateContext): Tensor {
+    return this.resolver(call, context);
+  }
+
+  parameters(): Parameter[] {
+    return [];
+  }
+}
+
+export class ThresholdPredicate implements Predicate {
+  readonly kind = "learnable";
+  readonly threshold: Parameter;
+
+  constructor(
+    readonly name: string,
+    readonly valueKey: string,
+    initialThreshold = 0.5,
+    readonly slope = 8
+  ) {
+    this.threshold = new Parameter([initialThreshold], []);
+  }
+
+  evaluate(_call: PredicateCall, context: PredicateContext): Tensor {
+    const value = readScalar(context, this.valueKey);
+    return sigmoid(mul(sub(tensor(value), this.threshold), this.slope));
+  }
+
+  parameters(): Parameter[] {
+    return [this.threshold];
+  }
+
+  describe(): Record<string, number | string> {
+    return {
+      valueKey: this.valueKey,
+      threshold: this.threshold.item(),
+      slope: this.slope
+    };
+  }
+}
+
+export class LinearPredicate implements Predicate {
+  readonly kind = "learnable";
+  readonly weight: Parameter;
+  readonly bias: Parameter;
+
+  constructor(
+    readonly name: string,
+    readonly featureKey: string,
+    readonly featureCount: number,
+    initialWeights?: readonly number[],
+    initialBias = 0
+  ) {
+    if (initialWeights && initialWeights.length !== featureCount) {
+      throw new Error(`LinearPredicate expected ${featureCount} initial weights, got ${initialWeights.length}.`);
+    }
+    this.weight = new Parameter(initialWeights ?? Array.from({ length: featureCount }, () => 0), [featureCount, 1]);
+    this.bias = new Parameter([initialBias], []);
+  }
+
+  evaluate(_call: PredicateCall, context: PredicateContext): Tensor {
+    const features = readFeatureTensor(context, this.featureKey, this.featureCount);
+    return sigmoid(add(matmul(features, this.weight), this.bias));
+  }
+
+  parameters(): Parameter[] {
+    return [this.weight, this.bias];
+  }
+
+  describe(): Record<string, number | string> {
+    return {
+      featureKey: this.featureKey,
+      featureCount: this.featureCount,
+      bias: this.bias.item()
+    };
   }
 }
 
@@ -154,4 +291,24 @@ function splitTopLevel(text: string): string[] {
   }
   parts.push(text.slice(start).trim());
   return parts.filter(Boolean);
+}
+
+function readScalar(context: PredicateContext, key: string): number {
+  const value = context[key];
+  if (typeof value !== "number") throw new Error(`Predicate context key "${key}" must be a number.`);
+  return value;
+}
+
+function readFeatureTensor(context: PredicateContext, key: string, expectedLength: number): Tensor {
+  const value = context[key];
+  if (value instanceof Tensor) {
+    if (value.shape.length === 1 && value.shape[0] === expectedLength) return value.reshape([1, expectedLength]);
+    if (value.shape.length === 2 && value.shape[0] === 1 && value.shape[1] === expectedLength) return value;
+    throw new Error(`Predicate context tensor "${key}" must have shape [${expectedLength}] or [1, ${expectedLength}].`);
+  }
+  if (!Array.isArray(value)) throw new Error(`Predicate context key "${key}" must be a number array or Tensor.`);
+  if (value.length !== expectedLength || !value.every((item) => typeof item === "number")) {
+    throw new Error(`Predicate context key "${key}" must contain ${expectedLength} numbers.`);
+  }
+  return tensor(value as number[], { shape: [1, expectedLength] });
 }

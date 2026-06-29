@@ -45,6 +45,18 @@ importers:
         specifier: workspace:*
         version: link:../../packages/logic
 
+  examples/trainable-routing:
+    dependencies:
+      '@symtorch/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@symtorch/logic':
+        specifier: workspace:*
+        version: link:../../packages/logic
+      '@symtorch/nn':
+        specifier: workspace:*
+        version: link:../../packages/nn
+
   packages/agent:
     dependencies:
       '@symtorch/logic':
@@ -58,6 +70,9 @@ importers:
       '@symtorch/core':
         specifier: workspace:*
         version: link:../core
+      '@symtorch/nn':
+        specifier: workspace:*
+        version: link:../nn
 
   packages/nn:
     dependencies:

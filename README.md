@@ -11,6 +11,7 @@ The project starts with a correct eager CPU tensor/autograd core, then layers on
 - PyTorch-like creation and ops: `tensor`, `zeros`, `ones`, `randn`, `add`, `sub`, `mul`, `div`, `matmul`, `sum`, `mean`, `relu`, `sigmoid`, `log`, `exp`, `softmax`, `logsumexp`, `reshape`, `transpose`.
 - `nn.Module`, `Parameter`, `Linear`, `Sequential`, `SGD`, `Adam`, and `mseLoss`.
 - A compact Prolog-like rule compiler for differentiable fuzzy rules with explanation traces.
+- Trainable fixed, threshold, and linear predicates for neuro-symbolic rules.
 - WebGPU package shell with capability detection and backend-planning docs.
 
 ## Install
@@ -26,9 +27,9 @@ pnpm test
 ```powershell
 pnpm example:linear
 pnpm example:routing
+pnpm example:trainable-routing
 ```
 
 ## Vision
 
 SymTorch is built for neuro-symbolic agents: humans write readable rules, SymTorch compiles them into differentiable tensor programs, and training adjusts learnable predicates while preserving traces that explain why a decision fired.
-

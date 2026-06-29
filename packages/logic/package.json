@@ -11,7 +11,7 @@
     }
   },
   "dependencies": {
-    "@symtorch/core": "workspace:*"
+    "@symtorch/core": "workspace:*",
+    "@symtorch/nn": "workspace:*"
   }
 }
-

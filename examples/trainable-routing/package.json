@@ -1,0 +1,12 @@
+{
+  "name": "@symtorch/example-trainable-routing",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@symtorch/core": "workspace:*",
+    "@symtorch/logic": "workspace:*",
+    "@symtorch/nn": "workspace:*"
+  }
+}
+
