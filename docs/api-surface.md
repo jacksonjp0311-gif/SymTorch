@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.15.0` WebGPU mean composition line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.16.0` WebGPU stable log-sum-exp line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -126,6 +126,7 @@ Supported:
 - `WEBGPU_SUB_WGSL`, `WEBGPU_MUL_WGSL`, `WEBGPU_DIV_WGSL`, `WEBGPU_NEG_WGSL`
 - `WEBGPU_ABS_WGSL`, `WEBGPU_EXP_WGSL`, `WEBGPU_LOG_WGSL`, `WEBGPU_RELU_WGSL`, `WEBGPU_SIGMOID_WGSL`, `WEBGPU_SQRT_WGSL`, `WEBGPU_TANH_WGSL`
 - `WEBGPU_SUM_ALL_WGSL`
+- `WEBGPU_LOG_SUM_EXP_ALL_WGSL`
 - `detectWebGPU`
 - `requestWebGPUDevice`
 - `WebGPUContext`
@@ -138,6 +139,7 @@ Supported:
 - `absTensor`, `expTensor`, `logTensor`, `reluTensor`, `sigmoidTensor`, `sqrtTensor`, `tanhTensor`
 - `sumAllTensor`
 - `meanAllTensor`
+- `logSumExpAllTensor`
 - `BufferPool`
 
 Experimental:
@@ -146,8 +148,8 @@ Experimental:
 
 Notes:
 
-- WebGPU support is currently capability detection, buffer pooling, explicit tensor upload/readback, a same-shape elementwise kernel set, scalar `sumAll`, and composed `meanAll`.
-- Same-shape elementwise `add`, `sub`, `mul`, `div`, `neg`, `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh` have prototype kernels. `sumAll` is the first reduction prototype; `meanAll` composes `sumAll` with scalar division. Broadcasting, axis reductions, wider tensor kernels, and core dispatch integration are future work.
+- WebGPU support is currently capability detection, buffer pooling, explicit tensor upload/readback, a same-shape elementwise kernel set, scalar `sumAll`, composed `meanAll`, and stable scalar `logSumExpAll`.
+- Same-shape elementwise `add`, `sub`, `mul`, `div`, `neg`, `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh` have prototype kernels. `sumAll` is the first reduction prototype; `meanAll` composes `sumAll` with scalar division; `logSumExpAll` is a scalar stability primitive for future softmax/loss work. Broadcasting, axis reductions, wider tensor kernels, and core dispatch integration are future work.
 - The browser parity gate exercises the explicit kernel set when WebGPU is available and skips otherwise.
 
 ## Internal By Convention

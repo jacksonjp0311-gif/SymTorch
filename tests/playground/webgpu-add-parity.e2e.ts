@@ -5,6 +5,7 @@ import {
   WEBGPU_DEFAULT_TOLERANCE,
   WEBGPU_DIV_WGSL,
   WEBGPU_EXP_WGSL,
+  WEBGPU_LOG_SUM_EXP_ALL_WGSL,
   WEBGPU_LOG_WGSL,
   WEBGPU_MUL_WGSL,
   WEBGPU_NEG_WGSL,
@@ -44,7 +45,8 @@ test("webgpu explicit kernels match CPU oracles when WebGPU is available", async
     { name: "sqrt", kind: "unary-positive", shader: WEBGPU_SQRT_WGSL },
     { name: "tanh", kind: "unary", shader: WEBGPU_TANH_WGSL },
     { name: "sumAll", kind: "reduction", shader: WEBGPU_SUM_ALL_WGSL },
-    { name: "meanAll", kind: "reduction", shader: WEBGPU_SUM_ALL_WGSL }
+    { name: "meanAll", kind: "reduction", shader: WEBGPU_SUM_ALL_WGSL },
+    { name: "logSumExpAll", kind: "reduction", shader: WEBGPU_LOG_SUM_EXP_ALL_WGSL }
   ] as const;
 
   for (const kernel of cases) {
@@ -122,6 +124,10 @@ test("webgpu explicit kernels match CPU oracles when WebGPU is available", async
     function expectedValues(name: string, left: Float32Array, right: Float32Array): number[] {
       if (name === "sumAll") return [Array.from(left).reduce((total, value) => total + value, 0)];
       if (name === "meanAll") return [Array.from(left).reduce((total, value) => total + value, 0) / left.length];
+      if (name === "logSumExpAll") {
+        const max = Math.max(...Array.from(left));
+        return [Math.log(Array.from(left).reduce((total, value) => total + Math.exp(value - max), 0)) + max];
+      }
       return Array.from(left, (value, index) => {
         const b = right[index] ?? 0;
         if (name === "add") return value + b;

@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.15.0` is the WebGPU mean composition line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, and an environment-aware browser parity gate needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.16.0` is the WebGPU stable log-sum-exp line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, and an environment-aware browser parity gate needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -20,11 +20,12 @@ SymTorch `0.15.0` is the WebGPU mean composition line. This does not mean the pr
 - Same-shape WebGPU elementwise kernel prototypes.
 - Scalar WebGPU `sumAll` reduction prototype.
 - Composed scalar WebGPU `meanAll`.
+- Stable scalar WebGPU `logSumExpAll`.
 - Browser parity gate for the explicit kernel set when WebGPU is available.
 
 ## What Is Still Not Production-Ready
 
-- WebGPU kernels are still narrow: same-shape `float32` elementwise, scalar `sumAll`, and composed `meanAll` only.
+- WebGPU kernels are still narrow: same-shape `float32` elementwise, scalar `sumAll`, composed `meanAll`, and scalar `logSumExpAll` only.
 - WebGPU is a registered placeholder backend, not an execution backend.
 - The decision ledger is in-memory only, with a versioned snapshot/load boundary for storage adapters.
 - Rule evaluation does not yet implement full unification, joins, quantifiers, or relational grounding.

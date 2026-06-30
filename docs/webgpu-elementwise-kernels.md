@@ -1,6 +1,6 @@
 # WebGPU Explicit Kernel Set
 
-SymTorch `0.15.0` expands the explicit WebGPU kernel set.
+SymTorch `0.16.0` expands the explicit WebGPU kernel set.
 
 Supported prototype kernels:
 
@@ -18,6 +18,7 @@ Supported prototype kernels:
 - `tanh`
 - `sumAll`
 - `meanAll`
+- `logSumExpAll`
 
 All kernels are intentionally narrow:
 
@@ -25,6 +26,7 @@ All kernels are intentionally narrow:
 - same-shape tensors for elementwise kernels
 - scalar output for `sumAll`
 - scalar output for composed `meanAll`
+- scalar output for stable `logSumExpAll`
 - explicit upload/readback through `@symtorch/webgpu`
 - not wired into `@symtorch/core` tensor dispatch yet
 
@@ -40,6 +42,7 @@ const activated = context.relu(left);
 const probabilities = context.sigmoid(left);
 const total = context.sumAll(left);
 const average = context.meanAll(left);
+const normalizer = context.logSumExpAll(left);
 ```
 
 ## Current Gate

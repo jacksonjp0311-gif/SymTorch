@@ -1,6 +1,6 @@
 {
-  "version": "0.15.0",
-  "status": "webgpu-mean-composition-kernel",
+  "version": "0.16.0",
+  "status": "webgpu-stable-logsumexp-kernel",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

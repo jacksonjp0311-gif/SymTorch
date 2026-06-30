@@ -85,4 +85,6 @@ The `0.14.0` line adds scalar `sumAll`, the first reduction kernel. It is intent
 
 The `0.15.0` line adds scalar storage and `meanAll` by composing `sumAll` with scalar division. This is the first sign of reusable GPU math composition rather than one shader per operation.
 
-The next missing piece is either same-shape core dispatch integration or stable scalar `logsumexp`.
+The `0.16.0` line adds stable scalar `logSumExpAll`. This is the first numerical-stability primitive on the WebGPU path toward softmax and loss kernels.
+
+The next missing piece is either same-shape core dispatch integration or scalar softmax normalization helpers.

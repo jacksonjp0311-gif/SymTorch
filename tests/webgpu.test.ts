@@ -5,6 +5,7 @@ import {
   createWebGPUContext,
   divTensors,
   expTensor,
+  logSumExpAllTensor,
   logTensor,
   meanAllTensor,
   mulTensors,
@@ -147,6 +148,17 @@ describe("@symtorch/webgpu", () => {
     await expectStorageClose(context, result, [14 / 6]);
     await expectStorageClose(context, meanAllTensor(device as unknown as GPUDevice, matrix), [14 / 6]);
   });
+
+  it("runs stable log-sum-exp-all against CPU oracles", async () => {
+    const device = new FakeGPUDevice();
+    const context = createWebGPUContext(device as unknown as GPUDevice);
+    const values = context.uploadTensor([-2, 0, 1.5, 4], [4]);
+    const large = context.uploadTensor([1000, 1001, 999], [3]);
+
+    await expectStorageClose(context, context.logSumExpAll(values), [stableLogSumExp([-2, 0, 1.5, 4])]);
+    await expectStorageClose(context, logSumExpAllTensor(device as unknown as GPUDevice, values), [stableLogSumExp([-2, 0, 1.5, 4])]);
+    await expectStorageClose(context, context.logSumExpAll(large), [Math.fround(stableLogSumExp([1000, 1001, 999]))]);
+  });
 });
 
 async function expectStorage(context: ReturnType<typeof createWebGPUContext>, storage: ReturnType<typeof addTensors>, expected: number[]): Promise<void> {
@@ -167,6 +179,11 @@ async function expectStorageClose(
 
 function sigmoid(value: number): number {
   return 1 / (1 + Math.exp(-value));
+}
+
+function stableLogSumExp(values: number[]): number {
+  const max = Math.max(...values);
+  return Math.log(values.reduce((total, value) => total + Math.exp(value - max), 0)) + max;
 }
 
 class FakeGPUDevice {
@@ -258,6 +275,12 @@ class FakeGPUComputePassEncoder {
       const input = new Float32Array(this.bindGroup.bufferAt(0).bytes);
       const out = new Float32Array(this.bindGroup.bufferAt(1).bytes);
       out[0] = Array.from(input).reduce((total, value) => total + value, 0);
+      return;
+    }
+    if (this.pipeline.code.includes("input[i] - maxValue")) {
+      const input = new Float32Array(this.bindGroup.bufferAt(0).bytes);
+      const out = new Float32Array(this.bindGroup.bufferAt(1).bytes);
+      out[0] = stableLogSumExp(Array.from(input));
       return;
     }
     if (this.pipeline.code.includes("var<storage, read> input")) {

@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.15.0` is the WebGPU mean composition line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.16.0` is the WebGPU stable log-sum-exp line, not a production stability claim.
+
+## v0.16.0 WebGPU Stable LogSumExp
+
+- Added stable scalar `logSumExpAll` support with `WEBGPU_LOG_SUM_EXP_ALL_WGSL`.
+- Added `logSumExpAllTensor()` and `WebGPUContext.logSumExpAll()`.
+- Tested normal and large-value inputs against CPU stable log-sum-exp oracles.
+- Expanded browser parity coverage for the exported log-sum-exp shader.
+- Bumped private workspace package versions to `0.16.0`.
 
 ## v0.15.0 WebGPU Mean Composition
 
