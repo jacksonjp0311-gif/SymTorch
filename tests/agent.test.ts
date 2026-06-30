@@ -257,6 +257,39 @@ describe("@symtorch/agent", () => {
     expect(JSON.parse(JSON.stringify(replay))).toEqual(replay);
   });
 
+  it("emits decision and ledger observer events", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const events: unknown[] = [];
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5, {
+      observer: {
+        onDecision: (event) => events.push(event),
+        onLedgerAppend: (event) => events.push(event)
+      }
+    });
+
+    agent.memory.observeEntity("case-hot", { high_risk: 0.9 });
+    agent.recordEntityDecision("case-hot", new Date("2026-06-29T15:00:00.000Z"));
+
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      kind: "agent.decision",
+      entityId: "case-hot",
+      action: "escalate(X)",
+      selectedHead: "escalate(X)",
+      accepted: true,
+      resultCount: 1
+    });
+    expect(events[1]).toMatchObject({
+      kind: "ledger.append",
+      entryId: "decision-1",
+      decisionKind: "entity",
+      action: "escalate(X)",
+      accepted: true,
+      contextKeys: ["entity", "high_risk"]
+    });
+  });
+
   it("serializes and restores versioned decision ledger snapshots", () => {
     const program = new RuleProgram("escalate(X) :- high_risk(X).");
     const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
@@ -359,6 +392,40 @@ describe("@symtorch/agent", () => {
     const actionReport = verifyDecisionLedgerReplay(actionDrifted, replay, { atol: 1.0 });
     expect(actionReport.ok).toBe(false);
     expect(actionReport.mismatches[0]?.reason).toBe("decision mismatch");
+  });
+
+  it("emits replay observer summaries", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.memory.observeEntity("case-hot", { high_risk: 0.9 });
+    agent.recordEntityDecision("case-hot", new Date("2026-06-29T14:00:00.000Z"));
+    const snapshot = serializeDecisionLedger(agent.ledger);
+    const replay = (entry: DecisionLedgerEntry): SerializedAgentDecision | SerializedEntityDecision => {
+      const replayAgent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+      if (entry.kind === "entity" && "entityId" in entry.decision) {
+        replayAgent.memory.observeEntity(entry.decision.entityId, entry.context);
+        return replayAgent.decideEntityTrace(entry.decision.entityId);
+      }
+      replayAgent.observe(entry.context);
+      return replayAgent.decideTrace();
+    };
+    const events: unknown[] = [];
+
+    const report = verifyDecisionLedgerReplay(snapshot, replay, {
+      observer: {
+        onReplay: (event) => events.push(event)
+      }
+    });
+
+    expect(report.ok).toBe(true);
+    expect(events).toEqual([{
+      kind: "ledger.replay",
+      ok: true,
+      checked: 1,
+      mismatchCount: 0
+    }]);
   });
 
   it("persists decision ledger snapshots through the node file sink", async () => {

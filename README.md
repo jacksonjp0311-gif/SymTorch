@@ -99,6 +99,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Entity batch evaluation and ranking over fact stores.
 - Agent loop primitives for observation -> decision -> serialized explanation, including entity batches.
 - Versioned decision ledger snapshots for replay and persistence adapters.
+- Dependency-free observer hooks for rule evaluation, decisions, ledger appends, and replay summaries.
 - Holographic memory primitive for binding, superposing, and recalling vector symbols.
 - Browser policy workbench with scenario selection, trainable predicates, import/export, smoke tests, and Playwright E2E coverage.
 - Versioned `symtorch.scenario.v1` contracts for JSON-safe policy scenarios.
@@ -219,6 +220,7 @@ examples/
 - [Persistence adapter alpha](docs/persistence.md)
 - [Decision ledger persistence and replay](docs/decision-ledger-persistence.md)
 - [Policy replay CLI](docs/policy-replay-cli.md)
+- [Observability hooks](docs/observability.md)
 - [Backend abstraction alpha](docs/backend-abstraction.md)
 - [GPU backend plan](docs/gpu-backend-plan.md)
 - [WebGPU residency prototype](docs/webgpu-residency.md)
@@ -263,6 +265,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.19.0` workspace line is the policy replay CLI line: persisted decision ledgers can be replayed from the command line, checked with explicit floating-point tolerances, and used as a CI gate for policy drift while the WebGPU line remains explicit and CPU-oracled.
+SymTorch is early, active, and intentionally foundation-first. The `0.20.0` workspace line is the observability hooks line: rule evaluation, agent decisions, ledger appends, and replay checks can emit structured operator events while the WebGPU line remains explicit and CPU-oracled.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

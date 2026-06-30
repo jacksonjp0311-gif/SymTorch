@@ -155,6 +155,33 @@ export type RankedEntityResult = {
   result: AggregatedRuleResult;
 };
 
+export type RuleEvaluationEvent = {
+  kind: "rule.evaluate";
+  rule: string;
+  head: string;
+  score: number;
+  predicateCount: number;
+  contextKeys: string[];
+  durationMs: number;
+};
+
+export type ProgramEvaluationEvent = {
+  kind: "program.evaluate";
+  ruleCount: number;
+  groupCount: number;
+  contextKeys: string[];
+  durationMs: number;
+};
+
+export type LogicObserver = {
+  onRuleEvaluate?(event: RuleEvaluationEvent): void;
+  onProgramEvaluate?(event: ProgramEvaluationEvent): void;
+};
+
+export type FuzzyRuleEngineOptions = {
+  observer?: LogicObserver;
+};
+
 export type LabeledRuleExample = PredicateContext & {
   label: number;
 };
@@ -237,9 +264,13 @@ export class FactStore {
 }
 
 export class FuzzyRuleEngine {
-  constructor(private readonly resolver: PredicateResolver | PredicateRegistry) {}
+  constructor(
+    private readonly resolver: PredicateResolver | PredicateRegistry,
+    private readonly options: FuzzyRuleEngineOptions = {}
+  ) {}
 
   evaluate(rule: RuleAst, context: PredicateContext = {}): RuleResult {
+    const startedAt = nowMs();
     let score = tensor(1);
     const traces: PredicateTrace[] = [];
     for (const call of rule.body) {
@@ -257,7 +288,7 @@ export class FuzzyRuleEngine {
       if (resolved.detail) trace.detail = resolved.detail;
       traces.push(trace);
     }
-    return {
+    const result = {
       score,
       explanation: {
         rule: rule.source,
@@ -266,6 +297,16 @@ export class FuzzyRuleEngine {
         predicates: traces
       }
     };
+    this.options.observer?.onRuleEvaluate?.({
+      kind: "rule.evaluate",
+      rule: result.explanation.rule,
+      head: result.explanation.head,
+      score: result.explanation.score,
+      predicateCount: traces.length,
+      contextKeys: stableKeys(context),
+      durationMs: nowMs() - startedAt
+    });
+    return result;
   }
 
   evaluateProgram(program: RuleProgram, context: PredicateContext = {}): RuleResult[] {
@@ -273,6 +314,7 @@ export class FuzzyRuleEngine {
   }
 
   evaluateProgramGrouped(program: RuleProgram, context: PredicateContext = {}): AggregatedRuleResult[] {
+    const startedAt = nowMs();
     const groups = new Map<string, RuleResult[]>();
     for (const rule of program.rules) {
       const result = this.evaluate(rule, context);
@@ -281,7 +323,7 @@ export class FuzzyRuleEngine {
       groups.set(result.explanation.head, group);
     }
 
-    return Array.from(groups.entries()).map(([head, results]) => {
+    const aggregated = Array.from(groups.entries()).map(([head, results]) => {
       const score = results.reduce((acc, result) => probabilisticOr(acc, result.score), tensor(0));
       return {
         head,
@@ -294,6 +336,14 @@ export class FuzzyRuleEngine {
         }
       };
     });
+    this.options.observer?.onProgramEvaluate?.({
+      kind: "program.evaluate",
+      ruleCount: program.rules.length,
+      groupCount: aggregated.length,
+      contextKeys: stableKeys(context),
+      durationMs: nowMs() - startedAt
+    });
+    return aggregated;
   }
 
   evaluateEntities(program: RuleProgram, facts: FactStore, entityIds = facts.entityIds()): EntityRuleResult[] {
@@ -828,6 +878,14 @@ function serializePredicateTrace(trace: PredicateTrace): SerializedPredicateTrac
 
 function stableDetail(detail: Record<string, number | string>): Record<string, number | string> {
   return Object.fromEntries(Object.entries(detail).sort(([left], [right]) => left.localeCompare(right)));
+}
+
+function stableKeys(context: PredicateContext): string[] {
+  return Object.keys(context).sort();
+}
+
+function nowMs(): number {
+  return typeof performance === "undefined" ? Date.now() : performance.now();
 }
 
 function formatDetail(detail: Record<string, number | string>): string {

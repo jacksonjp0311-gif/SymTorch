@@ -33,7 +33,7 @@ describe("production readiness manifest", () => {
     const rootPackage = readJson<{ version: string }>("../package.json");
 
     expect(manifest.version).toBe(rootPackage.version);
-    expect(manifest.status).toBe("policy-replay-cli");
+    expect(manifest.status).toBe("observability-hooks");
     expect(manifest.schemaVersions).toEqual({
       explanation: EXPLANATION_SCHEMA_VERSION,
       agentDecision: AGENT_DECISION_SCHEMA_VERSION,

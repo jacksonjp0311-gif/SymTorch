@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.19.0` policy replay CLI line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.20.0` observability hooks line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -65,6 +65,7 @@ Supported:
 - Predicate contracts: `Predicate`, `PredicateContext`, `PredicateResolver`, `PredicateResolution`
 - Predicates and registry: `PredicateRegistry`, `FixedPredicate`, `FactPredicate`, `ThresholdPredicate`, `LinearPredicate`
 - Evaluation: `FuzzyRuleEngine`, `RuleResult`, `AggregatedRuleResult`, `EntityRuleResult`, `RankedEntityResult`
+- Observability: `LogicObserver`, `FuzzyRuleEngineOptions`, `RuleEvaluationEvent`, `ProgramEvaluationEvent`
 - Training: `LabeledRuleExample`, `RuleTrainerOptions`, `RuleTrainerHistoryItem`, `RuleTrainerResult`, `RuleTrainer`
 - Explanations: `EXPLANATION_SCHEMA_VERSION`, `ExplanationSchemaVersion`, `RuleExplanation`, `PredicateTrace`, `AggregatedRuleExplanation`, `SerializedPredicateTrace`, `SerializedRuleExplanation`, `SerializedAggregatedRuleExplanation`, `SerializedExplanation`
 - Rendering and serialization: `renderRuleExplanation`, `renderAggregatedExplanation`, `decisionCard`, `decisionTrace`, `serializeExplanation`
@@ -98,6 +99,11 @@ Supported:
 - `DecisionReplayReport`
 - `DecisionReplayMismatch`
 - `DecisionReplayTolerance`
+- `AgentObserver`
+- `AgentDecisionEvent`
+- `DecisionLedgerAppendEvent`
+- `DecisionReplayEvent`
+- `RuleAgentOptions`
 - `EntityDecisionOptions`
 - `DecisionLedgerEntry`
 - `DecisionLedger`
@@ -127,6 +133,8 @@ Notes:
 - `DecisionLedger` is in-memory, but snapshots can be persisted through `DecisionLedgerSink` adapters.
 - `FileDecisionLedgerSink` is Node-only and intentionally exported from `@symtorch/agent/node` so browser bundles do not pull in `node:fs`.
 - `verifyDecisionLedgerReplay()` now accepts an optional `tolerance` parameter with `atol` and `rtol` thresholds for detecting float drift after predicate retraining. Without tolerance, replay requires exact JSON match as before.
+- `RuleAgent` accepts optional observer hooks for serialized decisions and ledger appends.
+- `verifyDecisionLedgerReplay()` accepts an optional replay observer through the tolerance/options object.
 - `HolographicMemory` is an experimental vector-symbolic memory primitive. It supports differentiable binding and approximate recall, not guaranteed cleanup memory.
 
 ## `@symtorch/webgpu`

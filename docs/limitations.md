@@ -32,6 +32,8 @@ The `0.18.0` replay tolerance line adds configurable `atol` and `rtol` threshold
 
 The `0.19.0` policy replay CLI adds a command-line drift gate for fact-predicate policies. It does not load arbitrary policy modules, manage policy versions, sandbox untrusted rule source, or provide a policy registry.
 
+The `0.20.0` observability hooks line adds synchronous operator events for rule evaluation, agent decisions, ledger appends, and replay summaries. It does not provide a metrics backend, distributed tracing implementation, durable audit log, or hook isolation; hook errors currently propagate to the caller.
+
 ## Current Best Use Cases
 
 - Explainable agent policy prototypes.

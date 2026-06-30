@@ -95,6 +95,49 @@ describe("@symtorch/logic", () => {
     expect(ranked[0]?.result.score.item()).toBeGreaterThan(0.85);
   });
 
+  it("emits rule and program evaluation observer events", () => {
+    const program = new RuleProgram(`
+      escalate(X) :- high_risk(X), not approved(X).
+      defer(X) :- approved(X).
+    `);
+    const registry = new PredicateRegistry()
+      .register(new FactPredicate("high_risk"))
+      .register(new FactPredicate("approved"));
+    const events: unknown[] = [];
+    const engine = new FuzzyRuleEngine(registry, {
+      observer: {
+        onRuleEvaluate: (event) => events.push(event),
+        onProgramEvaluate: (event) => events.push(event)
+      }
+    });
+
+    engine.evaluateProgramGrouped(program, { high_risk: 0.9, approved: 0.2 });
+
+    expect(events).toHaveLength(3);
+    expect(events[0]).toMatchObject({
+      kind: "rule.evaluate",
+      rule: "escalate(X) :- high_risk(X), not approved(X).",
+      head: "escalate(X)",
+      predicateCount: 2,
+      contextKeys: ["approved", "high_risk"]
+    });
+    expect(events[1]).toMatchObject({
+      kind: "rule.evaluate",
+      rule: "defer(X) :- approved(X).",
+      head: "defer(X)",
+      predicateCount: 1,
+      contextKeys: ["approved", "high_risk"]
+    });
+    expect(events[2]).toMatchObject({
+      kind: "program.evaluate",
+      ruleCount: 2,
+      groupCount: 2,
+      contextKeys: ["approved", "high_risk"]
+    });
+    expect((events[0] as { durationMs: number }).durationMs).toBeGreaterThanOrEqual(0);
+    expect((events[2] as { durationMs: number }).durationMs).toBeGreaterThanOrEqual(0);
+  });
+
   it("renders rule and aggregate explanations as decision cards", () => {
     const program = new RuleProgram(`
       escalate(X) :- high_risk(X).

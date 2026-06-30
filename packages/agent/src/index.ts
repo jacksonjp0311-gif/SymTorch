@@ -70,9 +70,47 @@ export type DecisionReplayFn = (
   entry: DecisionLedgerEntry
 ) => SerializedAgentDecision | SerializedEntityDecision;
 
+export type AgentDecisionEvent = {
+  kind: "agent.decision";
+  entityId?: string;
+  action: string;
+  selectedHead: string | null;
+  score: number;
+  threshold: number;
+  accepted: boolean;
+  resultCount: number;
+};
+
+export type DecisionLedgerAppendEvent = {
+  kind: "ledger.append";
+  entryId: string;
+  decisionKind: DecisionLedgerEntry["kind"];
+  action: string;
+  accepted: boolean;
+  contextKeys: string[];
+};
+
+export type DecisionReplayEvent = {
+  kind: "ledger.replay";
+  ok: boolean;
+  checked: number;
+  mismatchCount: number;
+};
+
+export type AgentObserver = {
+  onDecision?(event: AgentDecisionEvent): void;
+  onLedgerAppend?(event: DecisionLedgerAppendEvent): void;
+  onReplay?(event: DecisionReplayEvent): void;
+};
+
+export type RuleAgentOptions = {
+  observer?: AgentObserver;
+};
+
 export type DecisionReplayTolerance = {
   atol?: number;
   rtol?: number;
+  observer?: Pick<AgentObserver, "onReplay">;
 };
 
 export class DecisionLedger {
@@ -209,7 +247,8 @@ export class RuleAgent {
   constructor(
     private readonly program: RuleProgram,
     private readonly engine: FuzzyRuleEngine,
-    private readonly threshold = 0.5
+    private readonly threshold = 0.5,
+    private readonly options: RuleAgentOptions = {}
   ) {}
 
   observe(observation: Observation): void {
@@ -221,14 +260,18 @@ export class RuleAgent {
   }
 
   decideTrace(): SerializedAgentDecision {
-    return this.serializeDecision(this.decide());
+    const decision = this.serializeDecision(this.decide());
+    this.emitDecision(decision);
+    return decision;
   }
 
   decideEntityTrace(entityId: string): SerializedEntityDecision {
-    return {
+    const decision = {
       entityId,
       ...this.serializeDecision(this.decideFromContext(this.memory.entitySnapshot(entityId)))
     };
+    this.emitDecision(decision);
+    return decision;
   }
 
   decideEntitiesTrace(options: EntityDecisionOptions | readonly string[] = {}): SerializedEntityDecision[] {
@@ -247,28 +290,36 @@ export class RuleAgent {
   }
 
   recordDecision(createdAt?: Date): DecisionLedgerEntry {
-    return this.ledger.append({
+    const entry = this.ledger.append({
       kind: "agent",
       context: this.memory.snapshot(),
       decision: this.decideTrace()
     }, createdAt);
+    this.emitLedgerAppend(entry);
+    return entry;
   }
 
   recordEntityDecision(entityId: string, createdAt?: Date): DecisionLedgerEntry {
-    return this.ledger.append({
+    const entry = this.ledger.append({
       kind: "entity",
       context: this.memory.entitySnapshot(entityId),
       decision: this.decideEntityTrace(entityId)
     }, createdAt);
+    this.emitLedgerAppend(entry);
+    return entry;
   }
 
   recordEntityDecisions(options: EntityDecisionOptions | readonly string[] = {}, createdAt?: Date): DecisionLedgerEntry[] {
     const decisions = this.decideEntitiesTrace(options);
-    return decisions.map((decision) => this.ledger.append({
-      kind: "entity",
-      context: this.memory.entitySnapshot(decision.entityId),
-      decision
-    }, createdAt));
+    return decisions.map((decision) => {
+      const entry = this.ledger.append({
+        kind: "entity",
+        context: this.memory.entitySnapshot(decision.entityId),
+        decision
+      }, createdAt);
+      this.emitLedgerAppend(entry);
+      return entry;
+    });
   }
 
   private decideFromContext(context: PredicateContext): AgentDecision {
@@ -292,6 +343,31 @@ export class RuleAgent {
       trace: best ? decisionTrace(best) : null,
       results: decision.results.map((result) => decisionTrace(result))
     };
+  }
+
+  private emitDecision(decision: SerializedAgentDecision | SerializedEntityDecision): void {
+    const event: AgentDecisionEvent = {
+      kind: "agent.decision",
+      action: decision.action,
+      selectedHead: decision.selectedHead,
+      score: decision.score,
+      threshold: decision.threshold,
+      accepted: decision.accepted,
+      resultCount: decision.results.length
+    };
+    if ("entityId" in decision) event.entityId = decision.entityId;
+    this.options.observer?.onDecision?.(event);
+  }
+
+  private emitLedgerAppend(entry: DecisionLedgerEntry): void {
+    this.options.observer?.onLedgerAppend?.({
+      kind: "ledger.append",
+      entryId: entry.id,
+      decisionKind: entry.kind,
+      action: entry.decision.action,
+      accepted: entry.decision.accepted,
+      contextKeys: stableKeys(entry.context)
+    });
   }
 }
 
@@ -356,11 +432,18 @@ export function verifyDecisionLedgerReplay(
       });
     }
   }
-  return {
+  const report = {
     ok: mismatches.length === 0,
     checked: snapshot.entries.length,
     mismatches
   };
+  tolerance?.observer?.onReplay?.({
+    kind: "ledger.replay",
+    ok: report.ok,
+    checked: report.checked,
+    mismatchCount: report.mismatches.length
+  });
+  return report;
 }
 
 function decisionsMatch(
@@ -444,6 +527,10 @@ function nextLedgerId(entries: readonly DecisionLedgerEntry[]): number {
 
 function cloneContext(context: PredicateContext): PredicateContext {
   return cloneJson(context) as PredicateContext;
+}
+
+function stableKeys(context: PredicateContext): string[] {
+  return Object.keys(context).sort();
 }
 
 function cloneJson<T>(value: T): T {

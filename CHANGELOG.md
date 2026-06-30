@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.19.0` is the policy replay CLI line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.20.0` is the observability hooks line, not a production stability claim.
+
+## v0.20.0 Observability Hooks
+
+- Added dependency-free logic observer hooks for rule and grouped program evaluation.
+- Added agent observer hooks for serialized decisions and ledger appends.
+- Added replay observer summaries for `verifyDecisionLedgerReplay()`.
+- Added tests for event payload shape, stable context keys, and replay summaries.
+- Added observability documentation and bumped private workspace package versions to `0.20.0`.
 
 ## v0.19.0 Policy Replay CLI
 
