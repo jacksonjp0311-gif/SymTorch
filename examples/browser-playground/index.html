@@ -59,6 +59,13 @@
             <div id="decisionList"></div>
           </section>
 
+          <section class="panel health">
+            <div class="panel-title">
+              <h2>Policy Health</h2>
+            </div>
+            <div id="policyHealth" class="health-grid"></div>
+          </section>
+
           <section class="panel trace">
             <div class="panel-title">
               <h2>Trace</h2>
@@ -72,11 +79,12 @@
               <div class="button-row">
                 <button id="exportState" type="button">Export</button>
                 <button id="exportScenario" type="button">Export Scenario</button>
+                <button id="exportBundle" type="button">Export Bundle</button>
                 <button id="importState" type="button">Import</button>
               </div>
             </div>
             <textarea id="stateBuffer" spellcheck="false"></textarea>
-            <div id="stateStatus" class="hint">Import accepts saved playground state or a `symtorch.scenario.v1` scenario contract.</div>
+            <div id="stateStatus" class="hint">Import accepts saved playground state, a `symtorch.scenario.v1` scenario, or a `symtorch.policyBundle.v1` policy bundle.</div>
           </section>
         </div>
       </section>

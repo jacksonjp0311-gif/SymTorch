@@ -1,6 +1,6 @@
 # Policy Bundle Runtime
 
-SymTorch `0.22.0` turns policy bundles into executable runtime artifacts.
+SymTorch `0.23.0` turns policy bundles into executable runtime artifacts and lets the browser workbench use the same bundle-backed path.
 
 The flow is now:
 
@@ -56,6 +56,7 @@ The result is a JSON-safe agent decision with a versioned explanation trace.
 
 ```powershell
 pnpm demo:policy
+pnpm demo:golden-policy
 ```
 
 The demo creates a bundle, verifies it, loads it, evaluates a case, records a ledger entry, and verifies replay.

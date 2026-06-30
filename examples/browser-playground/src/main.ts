@@ -1,18 +1,30 @@
-import { RuleAgent } from "@symtorch/agent";
-import { RuleProgram } from "@symtorch/logic";
 import {
-  buildAgent,
+  serializeDecisionLedger,
+  verifyDecisionLedgerReplay,
+  type DecisionLedgerEntry,
+  type SerializedAgentDecision,
+  type SerializedEntityDecision
+} from "@symtorch/agent";
+import type { SerializedPolicyBundle } from "@symtorch/logic";
+import {
+  buildPolicyBundleAgent,
   createFactRegistry,
+  createPlaygroundPolicyBundle,
+  createPolicyHealth,
   createPlaygroundState,
   createTrainingRun,
   defaultScenario,
+  exportPlaygroundPolicyBundle,
   exportPlaygroundScenario,
   exportPlaygroundState,
+  parsePlaygroundPolicyBundle,
   parsePlaygroundState,
   parsePlaygroundScenario,
   playgroundScenarios,
   scenarioById,
+  scenarioIdFromPolicyBundle,
   summarizeTrainingRun,
+  thresholdFromPolicyBundle,
   type TrainingRun,
   trainHighRiskRule,
   validateRuleSource
@@ -41,12 +53,14 @@ const traceOutput = mustElement<HTMLElement>("traceOutput");
 const trainingExamplesView = mustElement<HTMLElement>("trainingExamples");
 const trainingStats = mustElement<HTMLElement>("trainingStats");
 const trainingHistory = mustElement<HTMLElement>("trainingHistory");
+const policyHealth = mustElement<HTMLElement>("policyHealth");
 const evaluate = mustElement<HTMLButtonElement>("evaluate");
 const record = mustElement<HTMLButtonElement>("record");
 const resetRule = mustElement<HTMLButtonElement>("resetRule");
 const train = mustElement<HTMLButtonElement>("train");
 const exportState = mustElement<HTMLButtonElement>("exportState");
 const exportScenario = mustElement<HTMLButtonElement>("exportScenario");
+const exportBundle = mustElement<HTMLButtonElement>("exportBundle");
 const importState = mustElement<HTMLButtonElement>("importState");
 const stateBuffer = mustElement<HTMLTextAreaElement>("stateBuffer");
 const stateStatus = mustElement<HTMLElement>("stateStatus");
@@ -67,6 +81,7 @@ record.addEventListener("click", recordLedger);
 train.addEventListener("click", trainHighRisk);
 exportState.addEventListener("click", exportCurrentState);
 exportScenario.addEventListener("click", exportCurrentScenario);
+exportBundle.addEventListener("click", exportCurrentPolicyBundle);
 importState.addEventListener("click", importBufferedState);
 ruleSource.addEventListener("input", persistState);
 resetRule.addEventListener("click", () => {
@@ -100,30 +115,43 @@ function loadSelectedScenario(): void {
   evaluatePolicy();
 }
 
-function evaluatePolicy(): RuleAgent | null {
+type EvaluationResult = {
+  bundle: SerializedPolicyBundle;
+  agent: ReturnType<typeof buildPolicyBundleAgent>;
+  decisions: ReturnType<ReturnType<typeof buildPolicyBundleAgent>["decideEntitiesTrace"]>;
+};
+
+function evaluatePolicy(replayOk: boolean | null = null): EvaluationResult | null {
   persistState();
   const validation = validateRuleSource(ruleSource.value, registry);
   if (!validation.ok) {
     diagnostics.textContent = validation.diagnostics.map((item) => item.message).join("\n");
     decisionList.innerHTML = "";
     traceOutput.textContent = JSON.stringify(validation.diagnostics, null, 2);
+    policyHealth.innerHTML = "";
     return null;
   }
 
   diagnostics.textContent = "Rule validation: PASS";
-  const agent = buildAgent(new RuleProgram(ruleSource.value), cases, registry);
+  const bundle = createPlaygroundPolicyBundle(scenarioId, ruleSource.value, trainedThreshold);
+  const agent = buildPolicyBundleAgent(bundle, cases);
   const decisions = agent.decideEntitiesTrace();
   decisionList.innerHTML = decisions.map(renderDecision).join("");
   traceOutput.textContent = JSON.stringify(decisions[0] ?? null, null, 2);
+  renderPolicyHealth(createPolicyHealth(bundle, decisions[0] ?? null, replayOk));
   renderTrainingStats();
-  return agent;
+  return { bundle, agent, decisions };
 }
 
 function recordLedger(): void {
-  const agent = evaluatePolicy();
-  if (!agent) return;
+  const result = evaluatePolicy();
+  if (!result) return;
+  const { bundle, agent } = result;
   agent.recordEntityDecisions({ acceptedOnly: true, topK: 2 }, new Date("2026-06-29T00:00:00.000Z"));
-  traceOutput.textContent = JSON.stringify(agent.ledger.all(), null, 2);
+  const snapshot = serializeDecisionLedger(agent.ledger);
+  const replayReport = verifyDecisionLedgerReplay(snapshot, (entry) => replayDecision(bundle, entry), { atol: 1e-6 });
+  traceOutput.textContent = JSON.stringify({ ledger: snapshot, replay: replayReport }, null, 2);
+  renderPolicyHealth(createPolicyHealth(bundle, result.decisions[0] ?? null, replayReport.ok));
 }
 
 function trainHighRisk(): void {
@@ -160,7 +188,20 @@ function exportCurrentScenario(): void {
   stateStatus.textContent = "Exported scenario contract.";
 }
 
+function exportCurrentPolicyBundle(): void {
+  stateBuffer.value = exportPlaygroundPolicyBundle(scenarioId, ruleSource.value, trainedThreshold);
+  stateStatus.textContent = "Exported policy bundle.";
+  evaluatePolicy();
+}
+
 function importBufferedState(): void {
+  const bundle = parsePlaygroundPolicyBundle(stateBuffer.value);
+  if (bundle.ok) {
+    loadPolicyBundleIntoWorkbench(bundle.bundle);
+    stateStatus.textContent = "Imported policy bundle.";
+    return;
+  }
+
   const imported = parsePlaygroundState(stateBuffer.value);
   if (imported) {
     loadImportedState(imported);
@@ -175,7 +216,9 @@ function importBufferedState(): void {
     return;
   }
 
-  stateStatus.textContent = `Import failed: ${scenario.diagnostics.map((item) => `${item.path} ${item.message}`).join(" ")}`;
+  const bundleDiagnostics = bundle.diagnostics.map((item) => `${item.path} ${item.message}`).join(" ");
+  const scenarioDiagnostics = scenario.diagnostics.map((item) => `${item.path} ${item.message}`).join(" ");
+  stateStatus.textContent = `Import failed: ${scenarioDiagnostics || bundleDiagnostics}`;
 }
 
 function loadImportedState(imported: NonNullable<ReturnType<typeof parsePlaygroundState>>): void {
@@ -202,12 +245,49 @@ function loadScenario(scenario: ReturnType<typeof defaultScenario>): void {
   refreshAfterLoad();
 }
 
+function loadPolicyBundleIntoWorkbench(bundle: SerializedPolicyBundle): void {
+  const importedScenarioId = scenarioIdFromPolicyBundle(bundle);
+  scenarioId = importedScenarioId && scenarioById(importedScenarioId) ? importedScenarioId : scenarioId;
+  scenarioSelect.value = scenarioId;
+  ruleSource.value = bundle.rules;
+  trainedThreshold = thresholdFromPolicyBundle(bundle) ?? trainedThreshold;
+  lastTrainingRun = null;
+  trainingSummary = summarizeTrainingRun(lastTrainingRun);
+  refreshAfterLoad();
+}
+
 function refreshAfterLoad(): void {
   persistState();
   renderScenarioHeader();
   renderFacts();
   renderTrainingExamples();
   evaluatePolicy();
+}
+
+function renderPolicyHealth(health: ReturnType<typeof createPolicyHealth>): void {
+  policyHealth.innerHTML = [
+    renderHealthItem("Schema", health.schemaVersion),
+    renderHealthItem("Hash", health.hash),
+    renderHealthItem("Verified", health.hashVerified ? "PASS" : "FAIL"),
+    renderHealthItem("Rules", String(health.ruleCount)),
+    renderHealthItem("Predicates", String(health.predicateCount)),
+    renderHealthItem("Decision", health.lastDecisionStatus),
+    renderHealthItem("Replay", health.replayStatus)
+  ].join("");
+}
+
+function renderHealthItem(label: string, value: string): string {
+  return `<div class="health-item"><span>${label}</span><strong>${value}</strong></div>`;
+}
+
+function replayDecision(bundle: SerializedPolicyBundle, entry: DecisionLedgerEntry): SerializedAgentDecision | SerializedEntityDecision {
+  const replayAgent = buildPolicyBundleAgent(bundle, []);
+  if (entry.kind === "entity" && "entityId" in entry.decision) {
+    replayAgent.memory.observeEntity(entry.decision.entityId, entry.context);
+    return replayAgent.decideEntityTrace(entry.decision.entityId);
+  }
+  replayAgent.observe(entry.context);
+  return replayAgent.decideTrace();
 }
 
 function renderTrainingStats(): void {

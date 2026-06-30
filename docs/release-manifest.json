@@ -1,6 +1,6 @@
 {
-  "version": "0.22.0",
-  "status": "policy-bundle-runtime",
+  "version": "0.23.0",
+  "status": "policy-workbench-runtime",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

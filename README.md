@@ -102,6 +102,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Versioned decision ledger snapshots for replay and persistence adapters.
 - Versioned policy bundle contracts with deterministic integrity hashes.
 - Executable policy bundle runtime that materializes predicates and creates `RuleAgent` instances.
+- Browser policy bundle import/export with hash verification and bundle-backed decisions.
 - Append-oriented Node ledger persistence for newline-delimited decision entries.
 - Dependency-free observer hooks for rule evaluation, decisions, ledger appends, and replay summaries.
 - Holographic memory primitive for binding, superposing, and recalling vector symbols.
@@ -135,6 +136,7 @@ pnpm demo:gradients
 pnpm demo:rule
 pnpm demo:ledger
 pnpm demo:policy
+pnpm demo:golden-policy
 pnpm demo:all
 ```
 
@@ -272,6 +274,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.22.0` workspace line is the policy bundle runtime line: versioned policy bundles can now be verified, materialized into predicates and rule engines, executed through `RuleAgent`, recorded to ledgers, and replay checked while the WebGPU line remains explicit and CPU-oracled.
+SymTorch is early, active, and intentionally foundation-first. The `0.23.0` workspace line is the policy workbench runtime line: the browser workbench can now export/import hashed policy bundles, materialize them through the same `createPolicyAgent()` runtime as Node, evaluate decisions, record ledger entries, and replay-check them while the WebGPU line remains explicit and CPU-oracled.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

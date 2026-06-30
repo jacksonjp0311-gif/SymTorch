@@ -1,14 +1,20 @@
-import { RuleAgent } from "@symtorch/agent";
+import { createPolicyAgent, RuleAgent, type SerializedEntityDecision } from "@symtorch/agent";
 import { tensor } from "@symtorch/core";
 import {
+  createPolicyBundle,
   FactPredicate,
   FuzzyRuleEngine,
+  isSerializedPolicyBundle,
+  loadPolicyBundle,
+  POLICY_BUNDLE_SCHEMA_VERSION,
   type PredicateRegistry,
   PredicateRegistry as Registry,
   RuleProgram,
   RuleTrainer,
+  type SerializedPolicyBundle,
   ThresholdPredicate,
-  validateProgram
+  validateProgram,
+  verifyPolicyBundleHash
 } from "@symtorch/logic";
 
 export type CaseFacts = {
@@ -42,6 +48,20 @@ export type ScenarioValidationDiagnostic = {
 export type ScenarioValidationResult =
   | { ok: true; scenario: PlaygroundScenario; diagnostics: [] }
   | { ok: false; scenario: null; diagnostics: ScenarioValidationDiagnostic[] };
+
+export type PolicyBundleValidationResult =
+  | { ok: true; bundle: SerializedPolicyBundle; diagnostics: [] }
+  | { ok: false; bundle: null; diagnostics: ScenarioValidationDiagnostic[] };
+
+export type PolicyHealth = {
+  schemaVersion: string;
+  hash: string;
+  hashVerified: boolean;
+  ruleCount: number;
+  predicateCount: number;
+  lastDecisionStatus: string;
+  replayStatus: "PASS" | "FAIL" | "NOT_RUN";
+};
 
 export type TrainingResult = {
   beforeThreshold: number;
@@ -250,6 +270,103 @@ export function buildAgent(program: RuleProgram, cases: readonly CaseFacts[], re
   return agent;
 }
 
+export function createPlaygroundPolicyBundle(
+  scenarioId: string,
+  ruleSource: string,
+  trainedThreshold: number
+): SerializedPolicyBundle {
+  const scenario = scenarioById(scenarioId);
+  return createPolicyBundle({
+    name: scenario?.title ?? "SymTorch Playground Policy",
+    version: "playground",
+    rules: ruleSource,
+    predicates: [
+      { kind: "threshold", name: "high_risk", valueKey: "high_risk", threshold: clamp01(trainedThreshold), slope: 10 },
+      { kind: "fact", name: "approved" }
+    ],
+    metadata: {
+      scenarioId,
+      source: "browser-playground"
+    }
+  });
+}
+
+export function exportPlaygroundPolicyBundle(
+  scenarioId: string,
+  ruleSource: string,
+  trainedThreshold: number
+): string {
+  return JSON.stringify(createPlaygroundPolicyBundle(scenarioId, ruleSource, trainedThreshold), null, 2);
+}
+
+export function parsePlaygroundPolicyBundle(serialized: string | null): PolicyBundleValidationResult {
+  if (!serialized) {
+    return policyBundleError("$", "Expected policy bundle JSON.");
+  }
+  try {
+    const value = JSON.parse(serialized) as unknown;
+    if (!isSerializedPolicyBundle(value)) {
+      return policyBundleError("$", `Expected ${POLICY_BUNDLE_SCHEMA_VERSION} bundle with a valid hash.`);
+    }
+    return { ok: true, bundle: value, diagnostics: [] };
+  } catch {
+    return policyBundleError("$", "Expected valid JSON.");
+  }
+}
+
+export function buildPolicyBundleAgent(bundle: SerializedPolicyBundle, cases: readonly CaseFacts[]): RuleAgent {
+  const agent = createPolicyAgent(bundle, {
+    threshold: 0.5,
+    limits: {
+      maxRuleSourceLength: 10_000,
+      maxEntitiesPerBatch: 100
+    }
+  });
+  for (const item of cases) {
+    agent.memory.observeEntity(item.entityId, {
+      high_risk: item.high_risk,
+      approved: item.approved
+    });
+  }
+  return agent;
+}
+
+export function createPolicyHealth(
+  bundle: SerializedPolicyBundle,
+  lastDecision: SerializedEntityDecision | null = null,
+  replayOk: boolean | null = null
+): PolicyHealth {
+  const hashVerified = verifyPolicyBundleHash(bundle);
+  let ruleCount = 0;
+  let predicateCount = bundle.predicates.length;
+  if (hashVerified) {
+    const loaded = loadPolicyBundle(bundle);
+    ruleCount = loaded.program.rules.length;
+    predicateCount = bundle.predicates.length;
+  }
+  return {
+    schemaVersion: bundle.schemaVersion,
+    hash: bundle.hash,
+    hashVerified,
+    ruleCount,
+    predicateCount,
+    lastDecisionStatus: lastDecision
+      ? `${lastDecision.accepted ? "ACCEPTED" : "REJECTED"} ${lastDecision.action} ${lastDecision.score.toFixed(4)}`
+      : "NOT_RUN",
+    replayStatus: replayOk === null ? "NOT_RUN" : replayOk ? "PASS" : "FAIL"
+  };
+}
+
+export function thresholdFromPolicyBundle(bundle: SerializedPolicyBundle): number | null {
+  const predicate = bundle.predicates.find((item) => item.kind === "threshold" && item.name === "high_risk");
+  return predicate?.kind === "threshold" ? clamp01(predicate.threshold) : null;
+}
+
+export function scenarioIdFromPolicyBundle(bundle: SerializedPolicyBundle): string | null {
+  const scenarioId = bundle.metadata.scenarioId;
+  return typeof scenarioId === "string" && scenarioId.trim() !== "" ? scenarioId : null;
+}
+
 export function validateRuleSource(source: string, registry = createFactRegistry()): ReturnType<typeof validateProgram> {
   return validateProgram(source, { registry });
 }
@@ -328,6 +445,14 @@ function scenarioError(path: string, message: string): ScenarioValidationResult 
   return {
     ok: false,
     scenario: null,
+    diagnostics: [{ path, message }]
+  };
+}
+
+function policyBundleError(path: string, message: string): PolicyBundleValidationResult {
+  return {
+    ok: false,
+    bundle: null,
     diagnostics: [{ path, message }]
   };
 }

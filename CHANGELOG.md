@@ -1,6 +1,16 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.22.0` is the policy bundle runtime line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.23.0` is the policy workbench runtime line, not a production stability claim.
+
+## v0.23.0 Policy Workbench Runtime
+
+- Routed browser playground decisions through policy bundles and `createPolicyAgent()`.
+- Added browser policy bundle export/import for `symtorch.policyBundle.v1`.
+- Added a policy health panel with schema, hash, verification, rule count, predicate count, decision status, and replay status.
+- Added a checked-in golden escalation policy at `examples/policies/escalation.policy.json`.
+- Added `pnpm demo:golden-policy` to load the golden bundle, run decisions, record ledger entries, and replay-check them.
+- Added tests for bundle import/export, tamper rejection, materialized-runtime parity, and browser bundle round-trip.
+- Bumped private workspace package versions to `0.23.0`.
 
 ## v0.22.0 Policy Bundle Runtime
 

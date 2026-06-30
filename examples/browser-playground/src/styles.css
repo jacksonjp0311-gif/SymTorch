@@ -169,6 +169,35 @@ pre {
   text-overflow: ellipsis;
 }
 
+.health-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.health-item {
+  background: #f7f9fc;
+  border: 1px solid #d7dee7;
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  min-height: 64px;
+  padding: 10px;
+}
+
+.health-item span {
+  color: #526070;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.health-item strong {
+  color: #18202a;
+  font: 0.85rem ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
 .hint {
   color: #526070;
   font-size: 0.9rem;
@@ -224,6 +253,10 @@ input {
   .case-row,
   .training-row,
   .decision {
+    grid-template-columns: 1fr;
+  }
+
+  .health-grid {
     grid-template-columns: 1fr;
   }
 }

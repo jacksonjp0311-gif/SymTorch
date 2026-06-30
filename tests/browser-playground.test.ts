@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { RuleProgram } from "@symtorch/logic";
+import { readFileSync } from "node:fs";
+import { FuzzyRuleEngine, loadPolicyBundle, RuleProgram } from "@symtorch/logic";
+import { RuleAgent } from "@symtorch/agent";
 import {
   buildAgent,
+  buildPolicyBundleAgent,
   createFactRegistry,
+  createPlaygroundPolicyBundle,
+  createPolicyHealth,
   createPlaygroundState,
   createTrainingRun,
   DEFAULT_SCENARIO_ID,
@@ -10,13 +15,17 @@ import {
   defaultRule,
   defaultScenario,
   defaultTrainingExamples,
+  exportPlaygroundPolicyBundle,
   exportPlaygroundScenario,
   exportPlaygroundState,
+  parsePlaygroundPolicyBundle,
   parsePlaygroundState,
   parsePlaygroundScenario,
   playgroundScenarios,
+  scenarioIdFromPolicyBundle,
   SCENARIO_SCHEMA_VERSION,
   summarizeTrainingRun,
+  thresholdFromPolicyBundle,
   trainHighRiskRule,
   TRAINING_RUN_SCHEMA_VERSION,
   validatePlaygroundScenario,
@@ -146,6 +155,58 @@ describe("browser playground model", () => {
     if (parsed.ok) {
       expect(parsed.scenario).toEqual(scenario);
     }
+  });
+
+  it("exports, parses, and health-checks policy bundles", () => {
+    const exported = exportPlaygroundPolicyBundle(DEFAULT_SCENARIO_ID, defaultRule, 0.42);
+    const parsed = parsePlaygroundPolicyBundle(exported);
+
+    expect(exported).toContain("symtorch.policyBundle.v1");
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("expected policy bundle");
+
+    const health = createPolicyHealth(parsed.bundle);
+    expect(health.schemaVersion).toBe("symtorch.policyBundle.v1");
+    expect(health.hashVerified).toBe(true);
+    expect(health.ruleCount).toBe(2);
+    expect(health.predicateCount).toBe(2);
+    expect(thresholdFromPolicyBundle(parsed.bundle)).toBe(0.42);
+    expect(scenarioIdFromPolicyBundle(parsed.bundle)).toBe(DEFAULT_SCENARIO_ID);
+  });
+
+  it("rejects tampered policy bundle imports", () => {
+    const bundle = createPlaygroundPolicyBundle(DEFAULT_SCENARIO_ID, defaultRule, 0.5);
+    const tampered = JSON.stringify({ ...bundle, rules: "escalate(X) :- approved(X)." });
+    const parsed = parsePlaygroundPolicyBundle(tampered);
+
+    expect(parsed.ok).toBe(false);
+    expect(parsed.diagnostics[0]?.message).toContain("valid hash");
+  });
+
+  it("runs workbench decisions through the bundle materialization path", () => {
+    const bundle = createPlaygroundPolicyBundle(DEFAULT_SCENARIO_ID, defaultRule, 0.7);
+    const bundleAgent = buildPolicyBundleAgent(bundle, defaultCases());
+    const loaded = loadPolicyBundle(bundle);
+    const directAgent = new RuleAgent(loaded.program, new FuzzyRuleEngine(loaded.registry), 0.5);
+
+    for (const item of defaultCases()) {
+      directAgent.memory.observeEntity(item.entityId, {
+        high_risk: item.high_risk,
+        approved: item.approved
+      });
+    }
+
+    expect(bundleAgent.decideEntitiesTrace()).toEqual(directAgent.decideEntitiesTrace());
+  });
+
+  it("ships a valid golden escalation policy bundle", () => {
+    const serialized = readFileSync(new URL("../examples/policies/escalation.policy.json", import.meta.url), "utf8");
+    const parsed = parsePlaygroundPolicyBundle(serialized);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("expected golden policy bundle");
+    expect(parsed.bundle.name).toBe("Escalation Policy");
+    expect(loadPolicyBundle(parsed.bundle).program.rules).toHaveLength(2);
   });
 
   it("reports scenario contract diagnostics", () => {

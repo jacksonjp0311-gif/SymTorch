@@ -6,6 +6,8 @@ test("browser playground trains, exports, imports, and records decisions", async
   await expect(page.getByRole("heading", { name: "Case Escalation" })).toBeVisible();
   await expect(page.locator("#diagnostics")).toContainText("Rule validation: PASS");
   await expect(page.locator("#decisionList")).toContainText("case-hot");
+  await expect(page.locator("#policyHealth")).toContainText("symtorch.policyBundle.v1");
+  await expect(page.locator("#policyHealth")).toContainText("PASS");
 
   await page.locator("#scenarioSelect").selectOption("fraud-review");
   await expect(page.getByRole("heading", { name: "Fraud Review" })).toBeVisible();
@@ -29,9 +31,20 @@ test("browser playground trains, exports, imports, and records decisions", async
   expect(exportedScenario).toContain("symtorch.scenario.v1");
   expect(exportedScenario).toContain("Fraud Review");
 
+  await page.getByRole("button", { name: "Export Bundle" }).click();
+  const exportedBundle = await page.locator("#stateBuffer").inputValue();
+  expect(exportedBundle).toContain("symtorch.policyBundle.v1");
+  expect(exportedBundle).toContain("\"hash\"");
+
   await page.locator("#ruleSource").fill("escalate(X) :- missing_predicate(X).");
   await page.getByRole("button", { name: "Evaluate" }).click();
   await expect(page.locator("#diagnostics")).toContainText("missing_predicate");
+
+  await page.locator("#stateBuffer").fill(exportedBundle);
+  await page.getByRole("button", { name: "Import" }).click();
+  await expect(page.locator("#stateStatus")).toContainText("Imported policy bundle.");
+  await expect(page.locator("#diagnostics")).toContainText("Rule validation: PASS");
+  await expect(page.locator("#policyHealth")).toContainText("PASS");
 
   await page.locator("#stateBuffer").fill(exportedScenario);
   await page.getByRole("button", { name: "Import" }).click();
@@ -46,4 +59,6 @@ test("browser playground trains, exports, imports, and records decisions", async
   await page.getByRole("button", { name: "Record Top 2" }).click();
   await expect(page.locator("#traceOutput")).toContainText("decision-1");
   await expect(page.locator("#traceOutput")).toContainText("txn-hot");
+  await expect(page.locator("#traceOutput")).toContainText("\"ok\": true");
+  await expect(page.locator("#policyHealth")).toContainText("Replay");
 });
