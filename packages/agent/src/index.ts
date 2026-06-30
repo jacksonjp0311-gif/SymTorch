@@ -10,6 +10,8 @@ export type AgentDecision = {
 
 export const AGENT_DECISION_SCHEMA_VERSION = "symtorch.agentDecision.v1" as const;
 export type AgentDecisionSchemaVersion = typeof AGENT_DECISION_SCHEMA_VERSION;
+export const DECISION_LEDGER_SCHEMA_VERSION = "symtorch.decisionLedger.v1" as const;
+export type DecisionLedgerSchemaVersion = typeof DECISION_LEDGER_SCHEMA_VERSION;
 
 export type SerializedAgentDecision = {
   schemaVersion: AgentDecisionSchemaVersion;
@@ -41,6 +43,16 @@ export type DecisionLedgerEntry = {
   decision: SerializedAgentDecision | SerializedEntityDecision;
 };
 
+export type SerializedDecisionLedger = {
+  schemaVersion: DecisionLedgerSchemaVersion;
+  entries: DecisionLedgerEntry[];
+};
+
+export type DecisionLedgerSink = {
+  write(snapshot: SerializedDecisionLedger): void | Promise<void>;
+  read(): SerializedDecisionLedger | Promise<SerializedDecisionLedger>;
+};
+
 export class DecisionLedger {
   private readonly entries: DecisionLedgerEntry[] = [];
   private nextId = 1;
@@ -59,6 +71,22 @@ export class DecisionLedger {
 
   all(): DecisionLedgerEntry[] {
     return this.entries.map((entry) => cloneJson(entry));
+  }
+
+  snapshot(): SerializedDecisionLedger {
+    return {
+      schemaVersion: DECISION_LEDGER_SCHEMA_VERSION,
+      entries: this.all()
+    };
+  }
+
+  load(snapshot: SerializedDecisionLedger): void {
+    if (!isSerializedDecisionLedger(snapshot)) {
+      throw new Error(`Expected ${DECISION_LEDGER_SCHEMA_VERSION} snapshot.`);
+    }
+    this.entries.length = 0;
+    this.entries.push(...snapshot.entries.map((entry) => cloneJson(entry)));
+    this.nextId = nextLedgerId(this.entries);
   }
 
   clear(): void {
@@ -266,6 +294,24 @@ export function isSerializedEntityDecision(value: unknown): value is SerializedE
   return isSerializedAgentDecision(value) && typeof entityId === "string";
 }
 
+export function isSerializedDecisionLedger(value: unknown): value is SerializedDecisionLedger {
+  return (
+    isRecord(value) &&
+    value.schemaVersion === DECISION_LEDGER_SCHEMA_VERSION &&
+    Array.isArray(value.entries) &&
+    value.entries.every(isDecisionLedgerEntry)
+  );
+}
+
+export function serializeDecisionLedger(ledger: DecisionLedger): SerializedDecisionLedger {
+  return ledger.snapshot();
+}
+
+export function loadDecisionLedger(ledger: DecisionLedger, snapshot: SerializedDecisionLedger): DecisionLedger {
+  ledger.load(snapshot);
+  return ledger;
+}
+
 function selectBestResult(results: readonly AggregatedRuleResult[]): AggregatedRuleResult | null {
   return results.reduce<AggregatedRuleResult | null>((winner, result) => {
     if (!winner || result.score.item() > winner.score.item()) return result;
@@ -297,6 +343,28 @@ function isNullableString(value: unknown): value is string | null {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function isDecisionLedgerEntry(value: unknown): value is DecisionLedgerEntry {
+  if (!isRecord(value)) return false;
+  const kind = value.kind;
+  const decision = value.decision;
+  return (
+    typeof value.id === "string" &&
+    typeof value.createdAt === "string" &&
+    (kind === "agent" || kind === "entity") &&
+    isRecord(value.context) &&
+    (kind === "entity" ? isSerializedEntityDecision(decision) : isSerializedAgentDecision(decision))
+  );
+}
+
+function nextLedgerId(entries: readonly DecisionLedgerEntry[]): number {
+  const maxId = entries.reduce((max, entry) => {
+    const match = /^decision-(\d+)$/.exec(entry.id);
+    const value = match?.[1] ? Number(match[1]) : 0;
+    return Number.isInteger(value) ? Math.max(max, value) : max;
+  }, 0);
+  return maxId + 1;
 }
 
 function cloneContext(context: PredicateContext): PredicateContext {

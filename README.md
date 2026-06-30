@@ -97,6 +97,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Versioned, JSON-safe agent decision contracts with structural validators.
 - Entity batch evaluation and ranking over fact stores.
 - Agent loop primitives for observation -> decision -> serialized explanation, including entity batches.
+- Versioned decision ledger snapshots for replay and persistence adapters.
 - Holographic memory primitive for binding, superposing, and recalling vector symbols.
 - Browser policy workbench with scenario selection, trainable predicates, import/export, smoke tests, and Playwright E2E coverage.
 - Versioned `symtorch.scenario.v1` contracts for JSON-safe policy scenarios.
@@ -214,6 +215,7 @@ examples/
 - [30-second demo](docs/demo.md)
 - [Browser playground prep](docs/browser-playground.md)
 - [Holographic memory](docs/holographic-memory.md)
+- [Persistence adapter alpha](docs/persistence.md)
 - [Production readiness alpha](docs/production-readiness.md)
 - [Limitations](docs/limitations.md)
 - [Changelog](CHANGELOG.md)
@@ -251,6 +253,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.5.0` workspace line is the production-readiness alpha: versioned runtime contracts, a release manifest, structural agent-decision validators, browser/workbench gates, and executable demos that make the current claims inspectable.
+SymTorch is early, active, and intentionally foundation-first. The `0.6.0` workspace line is the persistence-adapter alpha: versioned decision ledger snapshots, restore validation, continued runtime-contract discipline, browser/workbench gates, and executable demos that make the current claims inspectable.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

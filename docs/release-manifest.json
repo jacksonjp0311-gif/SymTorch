@@ -1,9 +1,10 @@
 {
-  "version": "0.5.0",
-  "status": "production-readiness-alpha",
+  "version": "0.6.0",
+  "status": "persistence-adapter-alpha",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",
+    "decisionLedger": "symtorch.decisionLedger.v1",
     "playgroundState": "symtorch.playground.v1",
     "scenario": "symtorch.scenario.v1",
     "trainingRun": "symtorch.trainingRun.v1"

@@ -1,11 +1,12 @@
 # Production Readiness Alpha
 
-SymTorch `0.5.0` is the production-readiness alpha line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, and operational documentation needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.6.0` is the persistence-adapter alpha line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, and replay boundaries needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
 - Versioned explanation traces via `symtorch.explanation.v1`.
 - Versioned agent decisions via `symtorch.agentDecision.v1`.
+- Versioned decision ledger snapshots via `symtorch.decisionLedger.v1`.
 - Versioned browser playground state via `symtorch.playground.v1`.
 - Versioned scenario contracts via `symtorch.scenario.v1`.
 - Versioned training runs via `symtorch.trainingRun.v1`.
@@ -17,7 +18,7 @@ SymTorch `0.5.0` is the production-readiness alpha line. This does not mean the 
 ## What Is Still Not Production-Ready
 
 - WebGPU tensor kernels are not implemented yet.
-- The decision ledger is in-memory only.
+- The decision ledger is in-memory only, with a versioned snapshot/load boundary for storage adapters.
 - Rule evaluation does not yet implement full unification, joins, quantifiers, or relational grounding.
 - There is no security sandbox for executing untrusted rule sources.
 - There are no persistence adapters, migration runners, or service-level observability hooks.
@@ -39,7 +40,7 @@ pnpm demo:all
 
 ## Release Manifest
 
-The machine-readable release manifest lives at [release-manifest.json](release-manifest.json). Tests assert that its version and schema strings match exported runtime constants. This keeps public-facing documentation, browser contracts, and agent contracts aligned as the system evolves.
+The machine-readable release manifest lives at [release-manifest.json](release-manifest.json). Tests assert that its version and schema strings match exported runtime constants. This keeps public-facing documentation, browser contracts, ledger contracts, and agent contracts aligned as the system evolves.
 
 ## Operator Guidance
 

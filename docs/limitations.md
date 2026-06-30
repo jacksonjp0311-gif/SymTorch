@@ -16,7 +16,7 @@ Today, predicate calls are resolved against a context through registered predica
 
 SymTorch can express explainable policies, but it is not a security or authorization framework. Do not use current rule scores as the only control for high-stakes access, finance, safety, or compliance decisions.
 
-The `0.5.0` line adds production-shaped contracts and validation gates. It does not add deployment hardening, sandboxing, compliance controls, or autonomous authority.
+The `0.6.0` line adds production-shaped contracts, validation gates, and versioned ledger replay boundaries. It does not add deployment hardening, sandboxing, compliance controls, or autonomous authority.
 
 ## Not A High-Performance GPU Runtime Yet
 

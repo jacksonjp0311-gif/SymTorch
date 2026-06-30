@@ -1,6 +1,15 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.5.0` is the production-readiness alpha line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.6.0` is the persistence-adapter alpha line, not a production stability claim.
+
+## v0.6.0 Persistence Adapter Alpha
+
+- Added the `symtorch.decisionLedger.v1` schema version for serialized ledger snapshots.
+- Added `DecisionLedger.snapshot()` and `DecisionLedger.load()` for replayable persistence boundaries.
+- Added `SerializedDecisionLedger`, `DecisionLedgerSink`, `serializeDecisionLedger()`, `loadDecisionLedger()`, and `isSerializedDecisionLedger()`.
+- Added ledger restore tests that preserve deterministic decision IDs after reload.
+- Raised the CI timeout to account for browser build, smoke, and Playwright gates.
+- Bumped private workspace package versions to `0.6.0`.
 
 ## v0.5.0 Production Readiness Alpha
 

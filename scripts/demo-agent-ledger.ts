@@ -1,4 +1,10 @@
-import { RuleAgent } from "@symtorch/agent";
+import {
+  DecisionLedger,
+  isSerializedDecisionLedger,
+  loadDecisionLedger,
+  RuleAgent,
+  serializeDecisionLedger
+} from "@symtorch/agent";
 import { FactPredicate, FuzzyRuleEngine, PredicateRegistry, RuleProgram } from "@symtorch/logic";
 
 const program = new RuleProgram(`
@@ -18,6 +24,8 @@ agent.memory.observeEntity("case-borderline", { high_risk: 0.55, approved: 0.2 }
 const ranked = agent.decideEntitiesTrace();
 const accepted = agent.decideEntitiesTrace({ acceptedOnly: true, topK: 2 });
 const entries = agent.recordEntityDecisions({ acceptedOnly: true, topK: 2 }, new Date("2026-06-29T00:00:00.000Z"));
+const snapshot = serializeDecisionLedger(agent.ledger);
+const restored = loadDecisionLedger(new DecisionLedger(), JSON.parse(JSON.stringify(snapshot)));
 
 console.log("SymTorch Agent Ledger Demo");
 console.log("ranked decisions:");
@@ -35,7 +43,17 @@ console.log(JSON.stringify(accepted.map(({ entityId, action, score }) => ({
 })), null, 2));
 console.log("ledger replay:");
 console.log(JSON.stringify(agent.ledger.all(), null, 2));
+console.log("ledger snapshot:");
+console.log(JSON.stringify(snapshot, null, 2));
+console.log("restored entries:");
+console.log(JSON.stringify(restored.all().map(({ id, decision }) => ({
+  id,
+  action: decision.action,
+  accepted: decision.accepted
+})), null, 2));
 
 if (accepted.length !== 2) throw new Error("Expected two accepted decisions.");
 if (entries.length !== 2) throw new Error("Expected two ledger entries.");
 if (agent.ledger.all()[0]?.id !== "decision-1") throw new Error("Expected deterministic ledger ids.");
+if (!isSerializedDecisionLedger(snapshot)) throw new Error("Expected a valid ledger snapshot.");
+if (JSON.stringify(restored.snapshot()) !== JSON.stringify(snapshot)) throw new Error("Expected restored ledger snapshot to round-trip.");

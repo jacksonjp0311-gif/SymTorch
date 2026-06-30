@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   AGENT_DECISION_SCHEMA_VERSION,
+  DECISION_LEDGER_SCHEMA_VERSION,
+  DecisionLedger,
   HolographicMemory,
   isSerializedAgentDecision,
+  isSerializedDecisionLedger,
   isSerializedEntityDecision,
+  loadDecisionLedger,
   RuleAgent,
+  serializeDecisionLedger,
   vectorSymbol
 } from "@symtorch/agent";
 import { EXPLANATION_SCHEMA_VERSION, FactPredicate, FuzzyRuleEngine, PredicateRegistry, RuleProgram } from "@symtorch/logic";
@@ -242,6 +247,50 @@ describe("@symtorch/agent", () => {
     });
     expect(replay[0]?.context).toEqual({ entity: "case-hot", high_risk: 0.9 });
     expect(JSON.parse(JSON.stringify(replay))).toEqual(replay);
+  });
+
+  it("serializes and restores versioned decision ledger snapshots", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.memory.observeEntity("case-hot", { high_risk: 0.9 });
+    agent.recordEntityDecision("case-hot", new Date("2026-06-29T14:00:00.000Z"));
+
+    const snapshot = serializeDecisionLedger(agent.ledger);
+    const restored = loadDecisionLedger(new DecisionLedger(), JSON.parse(JSON.stringify(snapshot)));
+
+    expect(snapshot.schemaVersion).toBe(DECISION_LEDGER_SCHEMA_VERSION);
+    expect(isSerializedDecisionLedger(snapshot)).toBe(true);
+    expect(restored.snapshot()).toEqual(snapshot);
+
+    restored.append({
+      kind: "agent",
+      context: { high_risk: 0.2 },
+      decision: {
+        schemaVersion: AGENT_DECISION_SCHEMA_VERSION,
+        action: "no_action",
+        selectedHead: "escalate(X)",
+        score: 0.2,
+        threshold: 0.5,
+        accepted: false,
+        trace: null,
+        results: []
+      }
+    }, new Date("2026-06-29T14:01:00.000Z"));
+
+    expect(restored.all().map((entry) => entry.id)).toEqual(["decision-1", "decision-2"]);
+  });
+
+  it("rejects invalid decision ledger snapshots", () => {
+    const ledger = new DecisionLedger();
+
+    expect(isSerializedDecisionLedger({ schemaVersion: "old", entries: [] })).toBe(false);
+    expect(isSerializedDecisionLedger({
+      schemaVersion: DECISION_LEDGER_SCHEMA_VERSION,
+      entries: [{ id: "decision-1", createdAt: "now", kind: "entity", context: {}, decision: { action: "bad" } }]
+    })).toBe(false);
+    expect(() => ledger.load({ schemaVersion: "old", entries: [] } as never)).toThrow(DECISION_LEDGER_SCHEMA_VERSION);
   });
 
   it("binds and recalls vector-symbolic memory traces", () => {

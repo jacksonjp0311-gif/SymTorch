@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.5.0` production-readiness alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.6.0` persistence-adapter alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -79,8 +79,12 @@ Supported:
 - `AgentDecision`
 - `AGENT_DECISION_SCHEMA_VERSION`
 - `AgentDecisionSchemaVersion`
+- `DECISION_LEDGER_SCHEMA_VERSION`
+- `DecisionLedgerSchemaVersion`
 - `SerializedAgentDecision`
 - `SerializedEntityDecision`
+- `SerializedDecisionLedger`
+- `DecisionLedgerSink`
 - `EntityDecisionOptions`
 - `DecisionLedgerEntry`
 - `DecisionLedger`
@@ -91,12 +95,16 @@ Supported:
 - `RuleAgent`
 - `isSerializedAgentDecision`
 - `isSerializedEntityDecision`
+- `isSerializedDecisionLedger`
+- `serializeDecisionLedger`
+- `loadDecisionLedger`
 
 Notes:
 
 - `RuleAgent.decide()` returns live tensor-backed results.
 - `RuleAgent.decideTrace()` and entity trace methods return JSON-safe decision contracts.
 - Serialized decisions are versioned as `symtorch.agentDecision.v1`.
+- Serialized ledger snapshots are versioned as `symtorch.decisionLedger.v1`.
 - `DecisionLedger` is in-memory only. It is an audit primitive, not persistent storage.
 - `HolographicMemory` is an experimental vector-symbolic memory primitive. It supports differentiable binding and approximate recall, not guaranteed cleanup memory.
 
