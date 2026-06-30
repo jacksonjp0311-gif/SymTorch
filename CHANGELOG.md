@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.18.0` is the batched matmul and replay tolerance line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.19.0` is the policy replay CLI line, not a production stability claim.
+
+## v0.19.0 Policy Replay CLI
+
+- Added `pnpm ledger:replay` for replaying persisted decision ledgers from the command line.
+- Supports explicit rule program text, fact-predicate registration, threshold, JSON output, `atol`, and `rtol`.
+- Exits nonzero on decision drift so replay checks can run in CI or release gates.
+- Added CLI tests for pass, fail, JSON output, and tolerance handling.
+- Bumped private workspace package versions to `0.19.0`.
 
 ## v0.18.0 Batched Matmul and Replay Tolerance
 

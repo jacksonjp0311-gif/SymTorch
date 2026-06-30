@@ -218,6 +218,7 @@ examples/
 - [Holographic memory](docs/holographic-memory.md)
 - [Persistence adapter alpha](docs/persistence.md)
 - [Decision ledger persistence and replay](docs/decision-ledger-persistence.md)
+- [Policy replay CLI](docs/policy-replay-cli.md)
 - [Backend abstraction alpha](docs/backend-abstraction.md)
 - [GPU backend plan](docs/gpu-backend-plan.md)
 - [WebGPU residency prototype](docs/webgpu-residency.md)
@@ -262,6 +263,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.17.0` workspace line is the ledger persistence and replay line: decision ledgers can be persisted through a Node file sink, replayed against current policy behavior, and checked for decision drift while the WebGPU line remains explicit and CPU-oracled.
+SymTorch is early, active, and intentionally foundation-first. The `0.19.0` workspace line is the policy replay CLI line: persisted decision ledgers can be replayed from the command line, checked with explicit floating-point tolerances, and used as a CI gate for policy drift while the WebGPU line remains explicit and CPU-oracled.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

@@ -1,6 +1,6 @@
 {
   "name": "symtorch-monorepo",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "private": true,
   "type": "module",
   "description": "SymTorch: differentiable tensors and neuro-symbolic agents for TypeScript.",
@@ -21,6 +21,7 @@
     "demo:ledger": "tsx scripts/demo-agent-ledger.ts",
     "demo:memory": "pnpm build && tsx scripts/demo-holographic-memory.ts",
     "demo:all": "pnpm demo:gradients && pnpm demo:rule && pnpm demo:ledger && pnpm demo:memory",
+    "ledger:replay": "tsx scripts/replay-ledger.ts",
     "playground:test": "vitest run tests/browser-playground.test.ts",
     "playground:browser": "vite --config examples/browser-playground/vite.config.ts",
     "playground:build": "vite build --config examples/browser-playground/vite.config.ts",

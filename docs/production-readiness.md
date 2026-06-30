@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.18.0` is the batched matmul and replay tolerance line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, replay verification with configurable tolerance, batched tensor operations, and a neural regularization layer needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.19.0` is the policy replay CLI line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, replay verification with configurable tolerance, batched tensor operations, neural regularization, and a command-line replay gate needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -15,6 +15,7 @@ SymTorch `0.18.0` is the batched matmul and replay tolerance line. This does not
 - Node filesystem ledger persistence through `FileDecisionLedgerSink`.
 - Decision replay verification for detecting policy drift against recorded ledger entries.
 - Configurable replay tolerance (`atol`, `rtol`) for float-drift detection after predicate retraining.
+- `pnpm ledger:replay` for CLI/CI policy drift checks against persisted ledgers.
 - Batched `matmul` with gradient support for rank-3+ tensors.
 - `Dropout` layer with inverted scaling for neural regularization.
 - Local browser build, smoke, and Playwright interaction gates.
@@ -36,6 +37,7 @@ SymTorch `0.18.0` is the batched matmul and replay tolerance line. This does not
 - Rule evaluation does not yet implement full unification, joins, quantifiers, or relational grounding.
 - There is no security sandbox for executing untrusted rule sources.
 - There are no persistence adapters beyond the Node file sink, no migration runners, or service-level observability hooks.
+- The policy replay CLI supports fact predicates only; it is not a policy registry or sandbox for untrusted rule source.
 - Package versions are private workspace checkpoints, not npm stability guarantees.
 - `Dropout` does not save or restore its training/eval mode across serialization boundaries.
 

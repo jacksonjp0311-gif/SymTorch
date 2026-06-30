@@ -30,6 +30,8 @@ The `0.17.0` ledger line adds a Node filesystem sink and replay verification, bu
 
 The `0.18.0` replay tolerance line adds configurable `atol` and `rtol` thresholds to `verifyDecisionLedgerReplay()`. This helps detect float drift after predicate retraining without false positives from rounding. It does not add selective replay, date-range filtering, or replay with partial context restoration.
 
+The `0.19.0` policy replay CLI adds a command-line drift gate for fact-predicate policies. It does not load arbitrary policy modules, manage policy versions, sandbox untrusted rule source, or provide a policy registry.
+
 ## Current Best Use Cases
 
 - Explainable agent policy prototypes.

@@ -9,11 +9,13 @@ pnpm demo:gradients
 pnpm demo:rule
 pnpm demo:ledger
 pnpm demo:all
+pnpm ledger:replay -- --ledger ./ledger.json --program "escalate(X) :- high_risk(X)." --predicates high_risk
 ```
 
 - `demo:gradients` checks finite-difference sanity for reductions, cross entropy, and LayerNorm.
 - `demo:rule` trains a readable fuzzy rule and prints a versioned explanation trace.
 - `demo:ledger` ranks entity decisions, filters accepted results, persists a ledger snapshot, and verifies replay.
+- `ledger:replay` turns a persisted ledger into a command-line drift gate.
 
 ```ts
 import { tensor } from "@symtorch/core";
