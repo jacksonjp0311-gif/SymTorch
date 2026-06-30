@@ -1,4 +1,4 @@
-import { add, exp, log, logSoftmax, matmul, mean, mul, pow, randn, relu, sigmoid, sqrt, sub, sum, Tensor, tensor, zeros } from "@symtorch/core";
+import { add, exp, log, logSoftmax, matmul, mean, mul, pow, randn, relu, sigmoid, sqrt, sub, sum, Tensor, tensor, zeros, mul as coreMul, div as coreDiv } from "@symtorch/core";
 
 export class Parameter extends Tensor {
   constructor(data: Tensor | readonly number[], shape?: readonly number[]) {
@@ -61,6 +61,33 @@ export class ReLU extends Module {
 export class Sigmoid extends Module {
   forward(input: Tensor): Tensor {
     return sigmoid(input);
+  }
+}
+
+export class Dropout extends Module {
+  private _training = false;
+
+  constructor(readonly p = 0.5) {
+    super();
+    if (p < 0 || p >= 1) throw new Error(`Dropout probability must be in [0, 1), received ${p}.`);
+  }
+
+  set training(value: boolean) {
+    this._training = value;
+  }
+
+  get training(): boolean {
+    return this._training;
+  }
+
+  forward(input: Tensor): Tensor {
+    if (!this._training || this.p === 0) return input;
+    const scale = 1 / (1 - this.p);
+    const mask = new Float32Array(input.size);
+    for (let i = 0; i < input.size; i++) {
+      mask[i] = Math.random() >= this.p ? scale : 0;
+    }
+    return mul(input, new Tensor(mask, input.shape));
   }
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mean, mul, logSoftmax, Tensor, tensor } from "@symtorch/core";
-import { binaryCrossEntropyWithLogits, crossEntropyLoss, LayerNorm } from "@symtorch/nn";
+import { binaryCrossEntropyWithLogits, crossEntropyLoss, Dropout, LayerNorm } from "@symtorch/nn";
 
 describe("@symtorch/nn", () => {
   it("computes cross entropy from logits using stable log-softmax", () => {
@@ -65,6 +65,57 @@ describe("@symtorch/nn", () => {
       [2, 3],
       (input) => mean(mul(layer.forward(input), tensor([0.2, -0.4, 0.6], { shape: [3] })))
     );
+  });
+
+  it("passes input through unchanged when Dropout is not training", () => {
+    const dropout = new Dropout(0.5);
+    dropout.training = false;
+    const input = tensor([1, 2, 3, 4], { shape: [4], requiresGrad: true });
+    const output = dropout.forward(input);
+    expect(output.toArray()).toEqual([1, 2, 3, 4]);
+  });
+
+  it("applies inverted dropout scaling in training mode", () => {
+    const dropout = new Dropout(0.5);
+    dropout.training = true;
+    const input = tensor([2, 2, 2, 2, 2, 2, 2, 2, 2, 2], { shape: [10], requiresGrad: true });
+    const output = dropout.forward(input);
+    const values = output.toArray();
+    const zeros = values.filter((v) => v === 0).length;
+    const scaled = values.filter((v) => v > 0);
+    expect(zeros).toBeGreaterThan(0);
+    expect(zeros).toBeLessThan(10);
+    for (const v of scaled) {
+      expect(v).toBeCloseTo(4, 0);
+    }
+  });
+
+  it("passes input through when Dropout probability is zero", () => {
+    const dropout = new Dropout(0);
+    dropout.training = true;
+    const input = tensor([1, 2, 3], { shape: [3], requiresGrad: true });
+    const output = dropout.forward(input);
+    expect(output.toArray()).toEqual([1, 2, 3]);
+  });
+
+  it("rejects invalid Dropout probability", () => {
+    expect(() => new Dropout(-0.1)).toThrow("[0, 1)");
+    expect(() => new Dropout(1)).toThrow("[0, 1)");
+  });
+
+  it("backpropagates through Dropout mask", () => {
+    const dropout = new Dropout(0.5);
+    dropout.training = true;
+    const input = tensor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], { shape: [10], requiresGrad: true });
+    const output = dropout.forward(input);
+    output.sum().backward();
+    const gradValues = input.grad?.toArray() ?? [];
+    const nonZeroGrad = gradValues.filter((v) => v !== 0);
+    expect(nonZeroGrad.length).toBeGreaterThan(0);
+    expect(nonZeroGrad.length).toBeLessThan(10);
+    for (const v of nonZeroGrad) {
+      expect(v).toBeCloseTo(2, 0);
+    }
   });
 });
 

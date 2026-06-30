@@ -463,22 +463,19 @@ export function max(x: Tensor): Tensor {
 }
 
 export function matmul(a: Tensor, b: Tensor): Tensor {
-  if (a.ndim !== 2 || b.ndim !== 2) throw new Error("matmul currently supports rank-2 tensors.");
-  const [m, k] = a.shape as [number, number];
-  const [k2, n] = b.shape as [number, number];
-  if (k !== k2) throw new Error(`matmul shape mismatch: [${a.shape.join(", ")}] x [${b.shape.join(", ")}].`);
-  const out = new Float32Array(m * n);
-  for (let i = 0; i < m; i++) {
-    for (let j = 0; j < n; j++) {
-      let acc = 0;
-      for (let p = 0; p < k; p++) acc += (a.data[i * k + p] ?? 0) * (b.data[p * n + j] ?? 0);
-      out[i * n + j] = acc;
-    }
+  if (a.ndim === 2 && b.ndim === 2) {
+    return matmul2D(a, b);
   }
-  return new Tensor(out, [m, n], {}, [
-    { parent: a, backward: (grad) => matmulNoGrad(grad, transposeNoGrad(b)) },
-    { parent: b, backward: (grad) => matmulNoGrad(transposeNoGrad(a), grad) }
-  ]);
+  if (a.ndim >= 2 && b.ndim === 2) {
+    return batchedMatmul(a, b);
+  }
+  if (a.ndim === 2 && b.ndim >= 2) {
+    return batchedMatmul(a, b);
+  }
+  if (a.ndim >= 2 && b.ndim >= 2) {
+    return batchedMatmul(a, b);
+  }
+  throw new Error("matmul requires at least rank-2 tensors.");
 }
 
 export function circularConvolve(a: Tensor, b: Tensor): Tensor {
@@ -533,6 +530,137 @@ export function softmax(x: Tensor, axis = x.ndim - 1): Tensor {
 
 export function logSoftmax(x: Tensor, axis = x.ndim - 1): Tensor {
   return sub(x, logsumexp(x, axis, true));
+}
+
+function matmul2D(a: Tensor, b: Tensor): Tensor {
+  const [m, k] = a.shape as [number, number];
+  const [k2, n] = b.shape as [number, number];
+  if (k !== k2) throw new Error(`matmul shape mismatch: [${a.shape.join(", ")}] x [${b.shape.join(", ")}].`);
+  const out = new Float32Array(m * n);
+  for (let i = 0; i < m; i++) {
+    for (let j = 0; j < n; j++) {
+      let acc = 0;
+      for (let p = 0; p < k; p++) acc += (a.data[i * k + p] ?? 0) * (b.data[p * n + j] ?? 0);
+      out[i * n + j] = acc;
+    }
+  }
+  return new Tensor(out, [m, n], {}, [
+    { parent: a, backward: (grad) => matmul(grad, transposeNoGrad(b)) },
+    { parent: b, backward: (grad) => matmul(transposeNoGrad(a), grad) }
+  ]);
+}
+
+function batchedMatmul(a: Tensor, b: Tensor): Tensor {
+  const [aBatch, aM, aK] = matmulShapes(a.shape, b.shape);
+  const [, bK, bN] = matmulShapes(b.shape, a.shape);
+  if (aK !== bK) {
+    throw new Error(`matmul shape mismatch: [${a.shape.join(", ")}] x [${b.shape.join(", ")}].`);
+  }
+
+  const batch = aBatch;
+  const m = aM;
+  const k = aK;
+  const n = bN;
+  const out = new Float32Array(batch * m * n);
+
+  for (let bi = 0; bi < batch; bi++) {
+    const aOff = bi * m * k;
+    const bOff = bi * k * n;
+    const oOff = bi * m * n;
+    for (let i = 0; i < m; i++) {
+      for (let j = 0; j < n; j++) {
+        let acc = 0;
+        for (let p = 0; p < k; p++) {
+          acc += (a.data[aOff + i * k + p] ?? 0) * (b.data[bOff + p * n + j] ?? 0);
+        }
+        out[oOff + i * n + j] = acc;
+      }
+    }
+  }
+
+  const outShape = a.ndim >= b.ndim
+    ? [...a.shape.slice(0, -2), m, n]
+    : [...b.shape.slice(0, -2), m, n];
+
+  return new Tensor(out, outShape, {}, [
+    {
+      parent: a,
+      backward: (grad) => {
+        const gradReshaped = reshapeToBatch(grad, batch, m, n);
+        const bReshaped = reshapeToBatch(b, batch, k, n);
+        const result = batchedMatmulNoGrad(gradReshaped, transposeLast2D(bReshaped));
+        const resultShape = a.ndim === 2 && b.ndim > 2
+          ? [k, m] as [number, number]
+          : a.ndim === 2
+            ? [k, m] as [number, number]
+            : [...a.shape.slice(0, -2), m, k];
+        return reshapeOrPass(result, resultShape);
+      }
+    },
+    {
+      parent: b,
+      backward: (grad) => {
+        const gradReshaped = reshapeToBatch(grad, batch, m, n);
+        const aReshaped = reshapeToBatch(a, batch, m, k);
+        const result = batchedMatmulNoGrad(transposeLast2D(aReshaped), gradReshaped);
+        const resultShape = b.ndim === 2 && a.ndim > 2
+          ? [k, n] as [number, number]
+          : b.ndim === 2
+            ? [k, n] as [number, number]
+            : [...b.shape.slice(0, -2), k, n];
+        return reshapeOrPass(result, resultShape);
+      }
+    }
+  ]);
+}
+
+function matmulShapes(aShape: readonly number[], bShape: readonly number[]): [number, number, number] {
+  const aM = aShape[aShape.length - 2] ?? 1;
+  const aK = aShape[aShape.length - 1] ?? 1;
+  const maxBatch = Math.max(aShape.length, bShape.length) - 2;
+  let batch = 1;
+  for (let i = 0; i < maxBatch; i++) {
+    const aDim = aShape[aShape.length - 3 - i] ?? 1;
+    const bDim = bShape[bShape.length - 3 - i] ?? 1;
+    batch *= Math.max(aDim, bDim);
+  }
+  return [batch, aM, aK];
+}
+
+function reshapeToBatch(x: Tensor, batch: number, m: number, n: number): Tensor {
+  if (x.shape.length === 3 && x.shape[0] === batch && x.shape[1] === m && x.shape[2] === n) {
+    return x.detach();
+  }
+  return new Tensor(x.data.slice(), [batch, m, n]);
+}
+
+function batchedMatmulNoGrad(a: Tensor, b: Tensor): Tensor {
+  if (a.ndim === 2 && b.ndim === 2) {
+    return matmul2D(a.detach(), b.detach()).detach();
+  }
+  return batchedMatmul(a.detach(), b.detach()).detach();
+}
+
+function transposeLast2D(x: Tensor): Tensor {
+  if (x.ndim === 3) {
+    const [batch, m, k] = x.shape as [number, number, number];
+    const out = new Float32Array(x.size);
+    for (let bi = 0; bi < batch; bi++) {
+      for (let i = 0; i < m; i++) {
+        for (let j = 0; j < k; j++) {
+          out[bi * k * m + j * m + i] = x.data[bi * m * k + i * k + j] ?? 0;
+        }
+      }
+    }
+    return new Tensor(out, [batch, k, m]);
+  }
+  return transposeNoGrad(x);
+}
+
+function reshapeOrPass(tensor: Tensor, targetShape: readonly number[]): Tensor {
+  if (sameShape(tensor.shape, targetShape)) return tensor;
+  if (sizeOf(tensor.shape) === sizeOf(targetShape)) return new Tensor(tensor.data.slice(), targetShape);
+  return tensor;
 }
 
 function binaryOp(
@@ -630,10 +758,6 @@ function binaryNoGrad(a: Tensor, b: Tensor, forward: (a: number, b: number) => n
     out[offsetOf(idx, shape)] = forward(valueAtBroadcast(a, idx, shape), valueAtBroadcast(b, idx, shape));
   });
   return new Tensor(out, shape);
-}
-
-function matmulNoGrad(a: Tensor, b: Tensor): Tensor {
-  return matmul(a.detach(), b.detach()).detach();
 }
 
 function circularConvolveNoGrad(a: Tensor, b: Tensor): Tensor {

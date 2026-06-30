@@ -4,7 +4,9 @@ SymTorch is early and foundation-first. The current repository is useful for sma
 
 ## Not A PyTorch Replacement
 
-SymTorch has a PyTorch-inspired eager tensor/autograd core, but it does not aim to match mature tensor libraries feature-for-feature today. Current execution is CPU-first, with WebGPU still at the backend-planning stage.
+SymTorch has a PyTorch-inspired eager tensor/autograd core, but it does not aim to match mature tensor libraries feature-by-feature today. Current execution is CPU-first, with WebGPU still at the backend-planning stage.
+
+The `0.18.0` line adds batched `matmul` support for rank-3 tensors and a `Dropout` layer. It does not add conv2d, pooling, embedding, attention, or parameter groups.
 
 ## Not Full Prolog Or Datalog
 
@@ -26,6 +28,8 @@ The `0.16.0` WebGPU line can upload tensor data into GPU buffers, run same-shape
 
 The `0.17.0` ledger line adds a Node filesystem sink and replay verification, but it is not a database, consensus log, authorization audit system, or retention policy. Applications still need their own storage durability, access control, privacy, and lifecycle rules.
 
+The `0.18.0` replay tolerance line adds configurable `atol` and `rtol` thresholds to `verifyDecisionLedgerReplay()`. This helps detect float drift after predicate retraining without false positives from rounding. It does not add selective replay, date-range filtering, or replay with partial context restoration.
+
 ## Current Best Use Cases
 
 - Explainable agent policy prototypes.
@@ -33,3 +37,4 @@ The `0.17.0` ledger line adds a Node filesystem sink and replay verification, bu
 - Browser or Node.js neuro-symbolic experiments.
 - LLM-assisted rule drafting and validation.
 - Small agent decision ledgers and entity ranking workflows.
+- Batched neural inference with dropout regularization.

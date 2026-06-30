@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.17.0` is the ledger persistence and replay line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, and replay verification needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.18.0` is the batched matmul and replay tolerance line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, replay verification with configurable tolerance, batched tensor operations, and a neural regularization layer needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -14,6 +14,9 @@ SymTorch `0.17.0` is the ledger persistence and replay line. This does not mean 
 - Entity decision batches and replayable in-memory ledger snapshots.
 - Node filesystem ledger persistence through `FileDecisionLedgerSink`.
 - Decision replay verification for detecting policy drift against recorded ledger entries.
+- Configurable replay tolerance (`atol`, `rtol`) for float-drift detection after predicate retraining.
+- Batched `matmul` with gradient support for rank-3+ tensors.
+- `Dropout` layer with inverted scaling for neural regularization.
 - Local browser build, smoke, and Playwright interaction gates.
 - Executable demos for gradients, trainable rules, agent ledgers, and holographic memory.
 - Backend descriptors for CPU and future WebGPU dispatch.
@@ -32,8 +35,9 @@ SymTorch `0.17.0` is the ledger persistence and replay line. This does not mean 
 - The decision ledger is still an in-memory runtime primitive; the file sink persists snapshots but is not a database or retention system.
 - Rule evaluation does not yet implement full unification, joins, quantifiers, or relational grounding.
 - There is no security sandbox for executing untrusted rule sources.
-- There are no persistence adapters, migration runners, or service-level observability hooks.
+- There are no persistence adapters beyond the Node file sink, no migration runners, or service-level observability hooks.
 - Package versions are private workspace checkpoints, not npm stability guarantees.
+- `Dropout` does not save or restore its training/eval mode across serialization boundaries.
 
 ## Required Local Gate
 

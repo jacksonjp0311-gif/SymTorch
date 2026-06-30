@@ -322,6 +322,45 @@ describe("@symtorch/agent", () => {
     });
   });
 
+  it("verifies decision replay with configured tolerance for float drift", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.memory.observeEntity("case-hot", { high_risk: 0.9 });
+    agent.recordEntityDecision("case-hot", new Date("2026-06-29T14:00:00.000Z"));
+    const snapshot = serializeDecisionLedger(agent.ledger);
+    const replay = (entry: DecisionLedgerEntry): SerializedAgentDecision | SerializedEntityDecision => {
+      const replayAgent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+      if (entry.kind === "entity" && "entityId" in entry.decision) {
+        replayAgent.memory.observeEntity(entry.decision.entityId, entry.context);
+        return replayAgent.decideEntityTrace(entry.decision.entityId);
+      }
+      replayAgent.observe(entry.context);
+      return replayAgent.decideTrace();
+    };
+
+    const exactReport = verifyDecisionLedgerReplay(snapshot, replay);
+    expect(exactReport.ok).toBe(true);
+
+    const drifted = JSON.parse(JSON.stringify(snapshot));
+    drifted.entries[0].decision.score = 0.905;
+
+    const strictReport = verifyDecisionLedgerReplay(drifted, replay);
+    expect(strictReport.ok).toBe(false);
+
+    const tolerantReport = verifyDecisionLedgerReplay(drifted, replay, { atol: 0.01 });
+    expect(tolerantReport.ok).toBe(true);
+    expect(tolerantReport.checked).toBe(1);
+    expect(tolerantReport.mismatches).toHaveLength(0);
+
+    const actionDrifted = JSON.parse(JSON.stringify(snapshot));
+    actionDrifted.entries[0].decision.action = "wrong_action";
+    const actionReport = verifyDecisionLedgerReplay(actionDrifted, replay, { atol: 1.0 });
+    expect(actionReport.ok).toBe(false);
+    expect(actionReport.mismatches[0]?.reason).toBe("decision mismatch");
+  });
+
   it("persists decision ledger snapshots through the node file sink", async () => {
     const dir = await mkdtemp(join(tmpdir(), "symtorch-ledger-"));
     try {

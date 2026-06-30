@@ -70,6 +70,11 @@ export type DecisionReplayFn = (
   entry: DecisionLedgerEntry
 ) => SerializedAgentDecision | SerializedEntityDecision;
 
+export type DecisionReplayTolerance = {
+  atol?: number;
+  rtol?: number;
+};
+
 export class DecisionLedger {
   private readonly entries: DecisionLedgerEntry[] = [];
   private nextId = 1;
@@ -331,15 +336,18 @@ export function loadDecisionLedger(ledger: DecisionLedger, snapshot: SerializedD
 
 export function verifyDecisionLedgerReplay(
   snapshot: SerializedDecisionLedger,
-  replay: DecisionReplayFn
+  replay: DecisionReplayFn,
+  tolerance?: DecisionReplayTolerance
 ): DecisionReplayReport {
   if (!isSerializedDecisionLedger(snapshot)) {
     throw new Error(`Expected ${DECISION_LEDGER_SCHEMA_VERSION} snapshot.`);
   }
+  const atol = tolerance?.atol ?? 0;
+  const rtol = tolerance?.rtol ?? 0;
   const mismatches: DecisionReplayMismatch[] = [];
   for (const entry of snapshot.entries) {
     const actual = replay(cloneJson(entry));
-    if (!sameJson(entry.decision, actual)) {
+    if (!decisionsMatch(entry.decision, actual, atol, rtol)) {
       mismatches.push({
         entryId: entry.id,
         reason: "decision mismatch",
@@ -353,6 +361,30 @@ export function verifyDecisionLedgerReplay(
     checked: snapshot.entries.length,
     mismatches
   };
+}
+
+function decisionsMatch(
+  expected: SerializedAgentDecision | SerializedEntityDecision,
+  actual: SerializedAgentDecision | SerializedEntityDecision,
+  atol: number,
+  rtol: number
+): boolean {
+  if (expected.action !== actual.action) return false;
+  if (expected.accepted !== actual.accepted) return false;
+  if (expected.selectedHead !== actual.selectedHead) return false;
+  if (!valuesClose(expected.score, actual.score, atol, rtol)) return false;
+  if (!valuesClose(expected.threshold, actual.threshold, atol, rtol)) return false;
+  return true;
+}
+
+function valuesClose(a: number, b: number, atol: number, rtol: number): boolean {
+  const diff = Math.abs(a - b);
+  if (diff <= atol) return true;
+  if (rtol > 0) {
+    const scale = Math.max(Math.abs(a), Math.abs(b));
+    if (diff <= rtol * scale) return true;
+  }
+  return false;
 }
 
 function selectBestResult(results: readonly AggregatedRuleResult[]): AggregatedRuleResult | null {
@@ -416,8 +448,4 @@ function cloneContext(context: PredicateContext): PredicateContext {
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function sameJson(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
 }

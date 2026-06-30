@@ -1,6 +1,20 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.17.0` is the ledger persistence and replay line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.18.0` is the batched matmul and replay tolerance line, not a production stability claim.
+
+## v0.18.0 Batched Matmul and Replay Tolerance
+
+- Added batched `matmul` support for rank-3 tensors in `@symtorch/core`.
+- Added `matmul2D` and `batchedMatmul` internal dispatch paths with full gradient support.
+- Added finite-difference gradient verification for batched matmul.
+- Added `Dropout` layer to `@symtorch/nn` with inverted scaling and training/eval mode.
+- Added `DecisionReplayTolerance` type and `tolerance` parameter to `verifyDecisionLedgerReplay()` in `@symtorch/agent`.
+- Replay tolerance supports `atol` (absolute) and `rtol` (relative) thresholds for detecting float drift after predicate retraining.
+- Expanded core tests with 6 new batched matmul test cases.
+- Expanded nn tests with 5 new Dropout test cases.
+- Expanded agent tests with 1 new replay tolerance test case.
+- Updated API surface documentation for all affected packages.
+- Bumped private workspace package versions to `0.18.0`.
 
 ## v0.17.0 Ledger Persistence and Replay
 

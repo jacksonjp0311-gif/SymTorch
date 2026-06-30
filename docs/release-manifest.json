@@ -1,6 +1,6 @@
 {
-  "version": "0.17.0",
-  "status": "ledger-persistence-replay",
+  "version": "0.18.0",
+  "status": "batched-matmul-replay-tolerance",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

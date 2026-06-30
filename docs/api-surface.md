@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.17.0` ledger persistence and replay line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.18.0` batched matmul and replay tolerance line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -21,7 +21,7 @@ Supported:
 - `exp`, `log`, `abs`, `pow`, `sqrt`, `tanh`, `clip`
 - `relu`, `sigmoid`
 - `sum`, `mean`, `max`
-- `matmul`, `transpose`, `reshape`
+- `matmul` (rank-2 and rank-3+), `transpose`, `reshape`
 - `circularConvolve`, `circularCorrelate`, `bind`, `unbind`
 - `logsumexp`, `softmax`, `logSoftmax`
 - `sizeOf`
@@ -30,6 +30,8 @@ Supported:
 Notes:
 
 - CPU execution is the correctness oracle.
+- `matmul` now supports rank-2 (matrix multiply) and rank-3+ (batched matrix multiply) inputs. Rank-1 inputs throw.
+- Batched matmul dispatches internally through `batchedMatmul` with full gradient support.
 - `Device` includes `"webgpu"`, but WebGPU tensor execution is not implemented yet.
 - The `webgpu` backend descriptor is a placeholder for future dispatch and parity gates.
 - WebGPU-placeholder tensors cannot be read synchronously; readback must stay explicit.
@@ -40,7 +42,7 @@ Supported:
 
 - `Parameter`
 - `Module`
-- `Linear`, `Sequential`, `ReLU`, `Sigmoid`, `LayerNorm`
+- `Linear`, `Sequential`, `ReLU`, `Sigmoid`, `Dropout`, `LayerNorm`
 - `mseLoss`
 - `binaryCrossEntropy`, `binaryCrossEntropyWithLogits`
 - `crossEntropyLoss`
@@ -48,6 +50,8 @@ Supported:
 
 Notes:
 
+- `Dropout` uses inverted scaling (`1 / (1 - p)`) during training. Set `dropout.training = false` for eval mode.
+- `Dropout` with `p = 0` passes input through unchanged.
 - Layers are intentionally minimal and eager.
 - The optimizer API is small and may expand as parameter groups and schedules are added.
 
@@ -93,6 +97,7 @@ Supported:
 - `DecisionReplayFn`
 - `DecisionReplayReport`
 - `DecisionReplayMismatch`
+- `DecisionReplayTolerance`
 - `EntityDecisionOptions`
 - `DecisionLedgerEntry`
 - `DecisionLedger`
@@ -121,7 +126,7 @@ Notes:
 - Serialized ledger snapshots are versioned as `symtorch.decisionLedger.v1`.
 - `DecisionLedger` is in-memory, but snapshots can be persisted through `DecisionLedgerSink` adapters.
 - `FileDecisionLedgerSink` is Node-only and intentionally exported from `@symtorch/agent/node` so browser bundles do not pull in `node:fs`.
-- `verifyDecisionLedgerReplay()` compares recorded decisions to replayed policy output and reports drift.
+- `verifyDecisionLedgerReplay()` now accepts an optional `tolerance` parameter with `atol` and `rtol` thresholds for detecting float drift after predicate retraining. Without tolerance, replay requires exact JSON match as before.
 - `HolographicMemory` is an experimental vector-symbolic memory primitive. It supports differentiable binding and approximate recall, not guaranteed cleanup memory.
 
 ## `@symtorch/webgpu`
