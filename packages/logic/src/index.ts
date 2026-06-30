@@ -205,8 +205,39 @@ export type LogicRuntimeLimits = {
   maxEntitiesPerEvaluation?: number;
 };
 
+export const DOMAIN_CONTRACT_SCHEMA_VERSION = "symtorch.domainContract.v1" as const;
+export type DomainContractSchemaVersion = typeof DOMAIN_CONTRACT_SCHEMA_VERSION;
+export type DomainFieldType = "number" | "string" | "boolean";
+
+export type DomainField = {
+  type: DomainFieldType;
+  required?: boolean;
+  min?: number;
+  max?: number;
+};
+
+export type DomainEntity = {
+  fields: Record<string, DomainField>;
+};
+
+export type DomainContract = {
+  schemaVersion: DomainContractSchemaVersion;
+  entities: Record<string, DomainEntity>;
+};
+
+export type DomainValidationDiagnostic = {
+  path: string;
+  message: string;
+};
+
+export type DomainValidationResult =
+  | { ok: true; diagnostics: [] }
+  | { ok: false; diagnostics: DomainValidationDiagnostic[] };
+
 export const POLICY_BUNDLE_SCHEMA_VERSION = "symtorch.policyBundle.v1" as const;
 export type PolicyBundleSchemaVersion = typeof POLICY_BUNDLE_SCHEMA_VERSION;
+export const POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION = "symtorch.policyBundleSignature.v1" as const;
+export type PolicyBundleSignatureSchemaVersion = typeof POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION;
 
 export type PolicyBundlePredicate =
   | { kind: "fact"; name: string; key?: string }
@@ -221,6 +252,17 @@ export type SerializedPolicyBundle = {
   predicates: PolicyBundlePredicate[];
   metadata: Record<string, string | number | boolean>;
   hash: string;
+};
+
+export type PolicyBundleSignature = {
+  schemaVersion: PolicyBundleSignatureSchemaVersion;
+  algorithm: "symtorch-dev-fnv1a32";
+  keyId: string;
+  signature: string;
+};
+
+export type SignedPolicyBundle = SerializedPolicyBundle & {
+  signature: PolicyBundleSignature;
 };
 
 export type PolicyBundleInput = Omit<SerializedPolicyBundle, "schemaVersion" | "hash">;
@@ -740,6 +782,66 @@ export function verifyPolicyBundleHash(bundle: SerializedPolicyBundle): boolean 
   })) === bundle.hash;
 }
 
+export function createDomainContract(entities: Record<string, DomainEntity>): DomainContract {
+  return {
+    schemaVersion: DOMAIN_CONTRACT_SCHEMA_VERSION,
+    entities
+  };
+}
+
+export function validateDomainContext(contract: DomainContract, entityName: string, context: PredicateContext): DomainValidationResult {
+  if (contract.schemaVersion !== DOMAIN_CONTRACT_SCHEMA_VERSION) {
+    return { ok: false, diagnostics: [{ path: "$.schemaVersion", message: `Expected ${DOMAIN_CONTRACT_SCHEMA_VERSION}.` }] };
+  }
+  const entity = contract.entities[entityName];
+  if (!entity) {
+    return { ok: false, diagnostics: [{ path: `$.entities.${entityName}`, message: "Expected a declared entity." }] };
+  }
+  const diagnostics: DomainValidationDiagnostic[] = [];
+  for (const [fieldName, field] of Object.entries(entity.fields)) {
+    const value = context[fieldName];
+    const path = `$.${entityName}.${fieldName}`;
+    if (value === undefined || value === null) {
+      if (field.required !== false) diagnostics.push({ path, message: "Expected a value." });
+      continue;
+    }
+    if (typeof value !== field.type) {
+      diagnostics.push({ path, message: `Expected ${field.type}.` });
+      continue;
+    }
+    if (field.type === "number") {
+      const numeric = value as number;
+      if (!Number.isFinite(numeric)) diagnostics.push({ path, message: "Expected a finite number." });
+      if (field.min !== undefined && numeric < field.min) diagnostics.push({ path, message: `Expected >= ${field.min}.` });
+      if (field.max !== undefined && numeric > field.max) diagnostics.push({ path, message: `Expected <= ${field.max}.` });
+    }
+  }
+  return diagnostics.length === 0 ? { ok: true, diagnostics: [] } : { ok: false, diagnostics };
+}
+
+export function signPolicyBundle(bundle: SerializedPolicyBundle, keyId: string, secret: string): SignedPolicyBundle {
+  if (!verifyPolicyBundleHash(bundle)) {
+    throw new RuleValidationError(`Expected ${POLICY_BUNDLE_SCHEMA_VERSION} bundle with a valid hash before signing.`);
+  }
+  return {
+    ...bundle,
+    signature: {
+      schemaVersion: POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION,
+      algorithm: "symtorch-dev-fnv1a32",
+      keyId,
+      signature: stableHash(`${bundle.hash}:${keyId}:${secret}`)
+    }
+  };
+}
+
+export function verifySignedPolicyBundle(bundle: SignedPolicyBundle, secrets: Record<string, string>): boolean {
+  if (!isSerializedPolicyBundle(bundle)) return false;
+  if (!isPolicyBundleSignature(bundle.signature)) return false;
+  const secret = secrets[bundle.signature.keyId];
+  if (secret === undefined) return false;
+  return bundle.signature.signature === stableHash(`${bundle.hash}:${bundle.signature.keyId}:${secret}`);
+}
+
 export function loadPolicyBundle(bundle: SerializedPolicyBundle, options: LoadPolicyBundleOptions = {}): LoadedPolicyBundle {
   if (!isSerializedPolicyBundle(bundle)) {
     throw new RuleValidationError(`Expected ${POLICY_BUNDLE_SCHEMA_VERSION} bundle with a valid hash.`);
@@ -1077,6 +1179,14 @@ function isPolicyBundlePredicate(value: unknown): value is PolicyBundlePredicate
       typeof value.bias === "number";
   }
   return false;
+}
+
+function isPolicyBundleSignature(value: unknown): value is PolicyBundleSignature {
+  return isRecord(value) &&
+    value.schemaVersion === POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION &&
+    value.algorithm === "symtorch-dev-fnv1a32" &&
+    typeof value.keyId === "string" &&
+    typeof value.signature === "string";
 }
 
 function predicateFromBundle(predicate: PolicyBundlePredicate): Predicate {

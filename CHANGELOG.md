@@ -1,6 +1,15 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.27.0` is the expected decision fixture line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.28.0` is the production foundations alpha line, not a production stability claim.
+
+## v0.28.0 Production Foundations Alpha
+
+- Added `symtorch.domainContract.v1` typed domain contracts for policy input validation.
+- Added local development policy bundle signing with `symtorch.policyBundleSignature.v1`.
+- Added production roadmap documentation for the ten hardening tracks.
+- Added tests for typed domain validation, signing, and tamper rejection.
+- Hardened the policy fixture and Dropout regression gates during the release.
+- Bumped private workspace package versions to `0.28.0`.
 
 ## v0.27.0 Expected Decision Fixtures
 

@@ -116,6 +116,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - `nn.Module`, `Parameter`, `Linear`, `LayerNorm`, `Sequential`, `SGD`, `Adam`, MSE, cross-entropy, and BCE-with-logits.
 - Prolog-like fuzzy rules with product-t-norm conjunction and probabilistic-OR aggregation.
 - Fixed, fact-backed, threshold, and linear predicates.
+- Typed domain contracts for policy input validation.
 - `RuleTrainer` for fitting differentiable rules against labeled examples.
 - `FactStore` working memory for observations and entity-scoped facts.
 - Same-head rule aggregation with per-rule explanations.
@@ -125,6 +126,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Agent loop primitives for observation -> decision -> serialized explanation, including entity batches.
 - Versioned decision ledger snapshots for replay and persistence adapters.
 - Versioned policy bundle contracts with deterministic integrity hashes.
+- Local development policy bundle signing alpha.
 - Executable policy bundle runtime that materializes predicates and creates `RuleAgent` instances.
 - Browser policy bundle import/export with hash verification and bundle-backed decisions.
 - Versioned browser policy libraries for saving, loading, exporting, and importing local bundles.
@@ -259,6 +261,7 @@ examples/
 - [Policy replay CLI](docs/policy-replay-cli.md)
 - [Observability hooks](docs/observability.md)
 - [Production hardening](docs/production-hardening.md)
+- [Production roadmap](docs/production-roadmap.md)
 - [Policy bundle runtime](docs/policy-bundle-runtime.md)
 - [Policy fixture suite](docs/policy-fixtures.md)
 - [Workbench migrations](docs/workbench-migrations.md)
@@ -308,6 +311,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.27.0` workspace line is the expected decision fixture line: checked-in policy bundles are now verified, materialized, executed, ledger-recorded, replay-checked, loaded through migration paths, and checked against expected decision ranks/actions/score ranges while the WebGPU line remains explicit and CPU-oracled.
+SymTorch is early, active, and intentionally foundation-first. The `0.28.0` workspace line is the production foundations alpha line: typed domain contracts, local bundle signing, expected decision fixtures, migrations, replay checks, and browser gates now form a stronger contract layer while durable storage, real cryptographic signing, sandboxing, and WebGPU backend dispatch remain explicit future work.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

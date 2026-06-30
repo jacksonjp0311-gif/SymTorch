@@ -1,6 +1,6 @@
 {
-  "version": "0.27.0",
-  "status": "expected-decision-fixtures",
+  "version": "0.28.0",
+  "status": "production-foundations-alpha",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",
@@ -9,7 +9,9 @@
     "scenario": "symtorch.scenario.v1",
     "trainingRun": "symtorch.trainingRun.v1",
     "policyBundle": "symtorch.policyBundle.v1",
-    "policyLibrary": "symtorch.policyLibrary.v1"
+    "policyLibrary": "symtorch.policyLibrary.v1",
+    "domainContract": "symtorch.domainContract.v1",
+    "policyBundleSignature": "symtorch.policyBundleSignature.v1"
   },
   "validationGates": [
     "pnpm install --frozen-lockfile",

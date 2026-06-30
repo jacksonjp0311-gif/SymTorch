@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ResourceLimitError, tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { createPolicyBundle, decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, isSerializedPolicyBundle, LinearPredicate, loadPolicyBundle, POLICY_BUNDLE_SCHEMA_VERSION, parseProgram, PredicateEvaluationError, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate, validateProgram, validatePrograms, verifyPolicyBundleHash } from "@symtorch/logic";
+import { createDomainContract, createPolicyBundle, decisionCard, decisionTrace, DOMAIN_CONTRACT_SCHEMA_VERSION, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, isSerializedPolicyBundle, LinearPredicate, loadPolicyBundle, POLICY_BUNDLE_SCHEMA_VERSION, POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION, parseProgram, PredicateEvaluationError, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, signPolicyBundle, ThresholdPredicate, validateDomainContext, validateProgram, validatePrograms, verifyPolicyBundleHash, verifySignedPolicyBundle } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -374,6 +374,41 @@ describe("@symtorch/logic", () => {
     });
 
     expect(() => loadPolicyBundle({ ...bundle, rules: "escalate(X) :- low_risk(X)." })).toThrow("valid hash");
+  });
+
+  it("validates typed domain contexts", () => {
+    const contract = createDomainContract({
+      case: {
+        fields: {
+          high_risk: { type: "number", min: 0, max: 1 },
+          approved: { type: "number", min: 0, max: 1 },
+          label: { type: "string", required: false }
+        }
+      }
+    });
+
+    expect(contract.schemaVersion).toBe(DOMAIN_CONTRACT_SCHEMA_VERSION);
+    expect(validateDomainContext(contract, "case", { high_risk: 0.8, approved: 0.1 }).ok).toBe(true);
+    const invalid = validateDomainContext(contract, "case", { high_risk: 2, approved: "no" });
+    expect(invalid.ok).toBe(false);
+    expect(invalid.diagnostics.map((item) => item.path)).toEqual(["$.case.high_risk", "$.case.approved"]);
+  });
+
+  it("signs policy bundles and rejects signature drift", () => {
+    const bundle = createPolicyBundle({
+      name: "Signed Policy",
+      version: "test",
+      rules: "escalate(X) :- high_risk(X).",
+      predicates: [{ kind: "fact", name: "high_risk" }],
+      metadata: { purpose: "test" }
+    });
+    const signed = signPolicyBundle(bundle, "local-dev", "secret");
+    const tampered = { ...signed, hash: "fnv1a32:00000000" };
+
+    expect(signed.signature.schemaVersion).toBe(POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION);
+    expect(verifySignedPolicyBundle(signed, { "local-dev": "secret" })).toBe(true);
+    expect(verifySignedPolicyBundle(signed, { "local-dev": "wrong" })).toBe(false);
+    expect(verifySignedPolicyBundle(tampered, { "local-dev": "secret" })).toBe(false);
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {
