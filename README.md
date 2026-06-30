@@ -261,6 +261,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.12.0` workspace line is the WebGPU same-shape elementwise kernel set: CPU remains the correctness oracle, explicit WebGPU kernels now cover `add`, `sub`, `mul`, `div`, and `neg`, and browser parity currently gates the add kernel when WebGPU is available.
+SymTorch is early, active, and intentionally foundation-first. The `0.13.0` workspace line is the WebGPU unary elementwise kernel set: CPU remains the correctness oracle, explicit WebGPU kernels now cover `add`, `sub`, `mul`, `div`, `neg`, `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh`, and browser parity now gates the elementwise set when WebGPU is available.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

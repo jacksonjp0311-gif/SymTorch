@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  absTensor,
   addTensors,
   createWebGPUContext,
   divTensors,
+  expTensor,
+  logTensor,
   mulTensors,
   negTensor,
+  reluTensor,
+  sigmoidTensor,
+  sqrtTensor,
   subTensors,
+  tanhTensor,
   uploadTensor,
   WEBGPU_ADD_WGSL,
   WEBGPU_DEFAULT_TOLERANCE
@@ -69,10 +76,49 @@ describe("@symtorch/webgpu", () => {
     await expectStorage(context, divTensors(device as unknown as GPUDevice, left, right), [2, -2, -3, 2]);
     await expectStorage(context, negTensor(device as unknown as GPUDevice, left), [-2, 4, -9, -8]);
   });
+
+  it("runs the unary activation and math kernel set against CPU oracles", async () => {
+    const device = new FakeGPUDevice();
+    const context = createWebGPUContext(device as unknown as GPUDevice);
+    const signed = context.uploadTensor([-2, -0.5, 0, 3], [4]);
+    const positive = context.uploadTensor([0.25, 1, 4, 9], [4]);
+
+    await expectStorage(context, context.abs(signed), [2, 0.5, 0, 3]);
+    await expectStorage(context, context.relu(signed), [0, 0, 0, 3]);
+    await expectStorageClose(context, context.sigmoid(signed), Array.from([-2, -0.5, 0, 3], sigmoid));
+    await expectStorageClose(context, context.exp(signed), Array.from([-2, -0.5, 0, 3], Math.exp));
+    await expectStorageClose(context, context.log(positive), Array.from([0.25, 1, 4, 9], Math.log));
+    await expectStorage(context, context.sqrt(positive), [0.5, 1, 2, 3]);
+    await expectStorageClose(context, context.tanh(signed), Array.from([-2, -0.5, 0, 3], Math.tanh));
+
+    await expectStorage(context, absTensor(device as unknown as GPUDevice, signed), [2, 0.5, 0, 3]);
+    await expectStorage(context, reluTensor(device as unknown as GPUDevice, signed), [0, 0, 0, 3]);
+    await expectStorageClose(context, sigmoidTensor(device as unknown as GPUDevice, signed), Array.from([-2, -0.5, 0, 3], sigmoid));
+    await expectStorageClose(context, expTensor(device as unknown as GPUDevice, signed), Array.from([-2, -0.5, 0, 3], Math.exp));
+    await expectStorageClose(context, logTensor(device as unknown as GPUDevice, positive), Array.from([0.25, 1, 4, 9], Math.log));
+    await expectStorage(context, sqrtTensor(device as unknown as GPUDevice, positive), [0.5, 1, 2, 3]);
+    await expectStorageClose(context, tanhTensor(device as unknown as GPUDevice, signed), Array.from([-2, -0.5, 0, 3], Math.tanh));
+  });
 });
 
 async function expectStorage(context: ReturnType<typeof createWebGPUContext>, storage: ReturnType<typeof addTensors>, expected: number[]): Promise<void> {
   await expect(context.readTensor(storage)).resolves.toEqual(new Float32Array(expected));
+}
+
+async function expectStorageClose(
+  context: ReturnType<typeof createWebGPUContext>,
+  storage: ReturnType<typeof addTensors>,
+  expected: number[]
+): Promise<void> {
+  const values = await context.readTensor(storage);
+  expect(Array.from(values)).toHaveLength(expected.length);
+  for (let i = 0; i < expected.length; i++) {
+    expect(values[i]).toBeCloseTo(expected[i] ?? 0, 6);
+  }
+}
+
+function sigmoid(value: number): number {
+  return 1 / (1 + Math.exp(-value));
 }
 
 class FakeGPUDevice {
@@ -160,10 +206,21 @@ class FakeGPUComputePassEncoder {
 
   dispatchWorkgroups(_x: number): void {
     if (!this.pipeline || !this.bindGroup) throw new Error("Fake compute pass expected a pipeline and bind group.");
-    if (this.pipeline.code.includes("-input[i]")) {
+    if (this.pipeline.code.includes("var<storage, read> input")) {
       const input = new Float32Array(this.bindGroup.bufferAt(0).bytes);
       const out = new Float32Array(this.bindGroup.bufferAt(1).bytes);
-      for (let i = 0; i < out.length; i++) out[i] = -(input[i] ?? 0);
+      for (let i = 0; i < out.length; i++) {
+        const value = input[i] ?? 0;
+        if (this.pipeline.code.includes("1.0 / (1.0 + exp(-input[i]))")) out[i] = sigmoid(value);
+        else if (this.pipeline.code.includes("-input[i]")) out[i] = -value;
+        else if (this.pipeline.code.includes("abs(input[i])")) out[i] = Math.abs(value);
+        else if (this.pipeline.code.includes("exp(input[i])")) out[i] = Math.exp(value);
+        else if (this.pipeline.code.includes("log(input[i])")) out[i] = Math.log(value);
+        else if (this.pipeline.code.includes("max(input[i], 0.0)")) out[i] = Math.max(value, 0);
+        else if (this.pipeline.code.includes("sqrt(input[i])")) out[i] = Math.sqrt(value);
+        else if (this.pipeline.code.includes("tanh(input[i])")) out[i] = Math.tanh(value);
+        else throw new Error("Fake compute pass received an unknown unary shader.");
+      }
       return;
     }
     const left = new Float32Array(this.bindGroup.bufferAt(0).bytes);

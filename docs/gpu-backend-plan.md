@@ -79,4 +79,6 @@ The `0.11.0` line adds a browser parity gate for the add kernel. It runs on real
 
 The `0.12.0` line expands the same-shape elementwise set to `add`, `sub`, `mul`, `div`, and `neg`.
 
-The next missing piece is broad browser parity for the full elementwise set or core dispatch integration for same-shape operations.
+The `0.13.0` line adds unary activation and math kernels: `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh`. Browser parity now covers the explicit elementwise set when WebGPU is available.
+
+The next missing piece is either same-shape core dispatch integration or the first reduction kernel.

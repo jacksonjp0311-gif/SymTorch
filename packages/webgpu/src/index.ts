@@ -42,18 +42,14 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 export const WEBGPU_SUB_WGSL = binaryElementwiseShader("left[i] - right[i]");
 export const WEBGPU_MUL_WGSL = binaryElementwiseShader("left[i] * right[i]");
 export const WEBGPU_DIV_WGSL = binaryElementwiseShader("left[i] / right[i]");
-export const WEBGPU_NEG_WGSL = `
-@group(0) @binding(0) var<storage, read> input: array<f32>;
-@group(0) @binding(1) var<storage, read_write> out: array<f32>;
-
-@compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-  let i = id.x;
-  if (i < arrayLength(&out)) {
-    out[i] = -input[i];
-  }
-}
-`;
+export const WEBGPU_NEG_WGSL = unaryElementwiseShader("-input[i]");
+export const WEBGPU_ABS_WGSL = unaryElementwiseShader("abs(input[i])");
+export const WEBGPU_EXP_WGSL = unaryElementwiseShader("exp(input[i])");
+export const WEBGPU_LOG_WGSL = unaryElementwiseShader("log(input[i])");
+export const WEBGPU_RELU_WGSL = unaryElementwiseShader("max(input[i], 0.0)");
+export const WEBGPU_SIGMOID_WGSL = unaryElementwiseShader("1.0 / (1.0 + exp(-input[i]))");
+export const WEBGPU_SQRT_WGSL = unaryElementwiseShader("sqrt(input[i])");
+export const WEBGPU_TANH_WGSL = unaryElementwiseShader("tanh(input[i])");
 
 export async function detectWebGPU(gpu: GPU | undefined = globalThis.navigator?.gpu): Promise<WebGPUStatus> {
   if (!gpu) return { available: false, reason: "navigator.gpu is not available in this runtime." };
@@ -108,6 +104,34 @@ export class WebGPUContext {
 
   neg(input: WebGPUTensorStorage): WebGPUTensorStorage {
     return negTensor(this.device, input, this.pool);
+  }
+
+  abs(input: WebGPUTensorStorage): WebGPUTensorStorage {
+    return absTensor(this.device, input, this.pool);
+  }
+
+  exp(input: WebGPUTensorStorage): WebGPUTensorStorage {
+    return expTensor(this.device, input, this.pool);
+  }
+
+  log(input: WebGPUTensorStorage): WebGPUTensorStorage {
+    return logTensor(this.device, input, this.pool);
+  }
+
+  relu(input: WebGPUTensorStorage): WebGPUTensorStorage {
+    return reluTensor(this.device, input, this.pool);
+  }
+
+  sigmoid(input: WebGPUTensorStorage): WebGPUTensorStorage {
+    return sigmoidTensor(this.device, input, this.pool);
+  }
+
+  sqrt(input: WebGPUTensorStorage): WebGPUTensorStorage {
+    return sqrtTensor(this.device, input, this.pool);
+  }
+
+  tanh(input: WebGPUTensorStorage): WebGPUTensorStorage {
+    return tanhTensor(this.device, input, this.pool);
   }
 
   destroy(): void {
@@ -199,12 +223,49 @@ export function divTensors(
 }
 
 export function negTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  return unaryElementwise(device, input, WEBGPU_NEG_WGSL, pool);
+}
+
+export function absTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  return unaryElementwise(device, input, WEBGPU_ABS_WGSL, pool);
+}
+
+export function expTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  return unaryElementwise(device, input, WEBGPU_EXP_WGSL, pool);
+}
+
+export function logTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  return unaryElementwise(device, input, WEBGPU_LOG_WGSL, pool);
+}
+
+export function reluTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  return unaryElementwise(device, input, WEBGPU_RELU_WGSL, pool);
+}
+
+export function sigmoidTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  return unaryElementwise(device, input, WEBGPU_SIGMOID_WGSL, pool);
+}
+
+export function sqrtTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  return unaryElementwise(device, input, WEBGPU_SQRT_WGSL, pool);
+}
+
+export function tanhTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  return unaryElementwise(device, input, WEBGPU_TANH_WGSL, pool);
+}
+
+function unaryElementwise(
+  device: GPUDevice,
+  input: WebGPUTensorStorage,
+  shader: string,
+  pool?: BufferPool
+): WebGPUTensorStorage {
   const byteLength = input.byteLength;
   const outputBuffer = pool?.acquire(byteLength, bufferUsage().storageCopy) ?? device.createBuffer({
     size: byteLength,
     usage: bufferUsage().storageCopy
   });
-  const pipeline = getPipeline(device, WEBGPU_NEG_WGSL);
+  const pipeline = getPipeline(device, shader);
   const bindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
     entries: [
@@ -324,6 +385,21 @@ function binaryElementwiseShader(expression: string): string {
 @group(0) @binding(0) var<storage, read> left: array<f32>;
 @group(0) @binding(1) var<storage, read> right: array<f32>;
 @group(0) @binding(2) var<storage, read_write> out: array<f32>;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+  let i = id.x;
+  if (i < arrayLength(&out)) {
+    out[i] = ${expression};
+  }
+}
+`;
+}
+
+function unaryElementwiseShader(expression: string): string {
+  return `
+@group(0) @binding(0) var<storage, read> input: array<f32>;
+@group(0) @binding(1) var<storage, read_write> out: array<f32>;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {

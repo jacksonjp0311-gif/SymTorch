@@ -1,13 +1,13 @@
 # WebGPU Browser Parity Gate
 
-SymTorch `0.11.0` adds the first browser-side WebGPU parity gate.
+SymTorch `0.11.0` added the first browser-side WebGPU parity gate. SymTorch `0.13.0` expands it to the explicit same-shape elementwise kernel set.
 
-The gate runs the same-shape `float32` add WGSL kernel in a real browser environment when WebGPU is available. If the browser or runner does not expose `navigator.gpu`, the test skips cleanly and reports the reason.
+The gate runs same-shape `float32` WGSL kernels in a real browser environment when WebGPU is available. If the browser or runner does not expose `navigator.gpu`, the test skips cleanly and reports the reason.
 
 ## What It Proves
 
 - The shader exported by `@symtorch/webgpu` can compile in a browser WebGPU runtime.
-- Uploaded CPU data can be processed by the add kernel.
+- Uploaded CPU data can be processed by binary and unary elementwise kernels.
 - Explicit readback can be compared against a CPU oracle.
 - Tolerance uses `WEBGPU_DEFAULT_TOLERANCE`.
 

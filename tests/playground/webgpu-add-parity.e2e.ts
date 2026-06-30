@@ -1,7 +1,21 @@
 import { expect, test } from "@playwright/test";
-import { WEBGPU_ADD_WGSL, WEBGPU_DEFAULT_TOLERANCE } from "@symtorch/webgpu";
+import {
+  WEBGPU_ABS_WGSL,
+  WEBGPU_ADD_WGSL,
+  WEBGPU_DEFAULT_TOLERANCE,
+  WEBGPU_DIV_WGSL,
+  WEBGPU_EXP_WGSL,
+  WEBGPU_LOG_WGSL,
+  WEBGPU_MUL_WGSL,
+  WEBGPU_NEG_WGSL,
+  WEBGPU_RELU_WGSL,
+  WEBGPU_SIGMOID_WGSL,
+  WEBGPU_SQRT_WGSL,
+  WEBGPU_SUB_WGSL,
+  WEBGPU_TANH_WGSL
+} from "@symtorch/webgpu";
 
-test("webgpu add kernel matches the CPU oracle when WebGPU is available", async ({ page }) => {
+test("webgpu same-shape elementwise kernels match CPU oracles when WebGPU is available", async ({ page }) => {
   await page.goto("/");
   const available = await page.evaluate(async () => {
     const gpu = navigator.gpu;
@@ -15,34 +29,58 @@ test("webgpu add kernel matches the CPU oracle when WebGPU is available", async 
 
   test.skip(!available.ok, `WebGPU parity skipped: ${available.reason}`);
 
-  const result = await page.evaluate(async ({ shader, tolerance }) => {
+  const cases = [
+    { name: "add", kind: "binary", shader: WEBGPU_ADD_WGSL },
+    { name: "sub", kind: "binary", shader: WEBGPU_SUB_WGSL },
+    { name: "mul", kind: "binary", shader: WEBGPU_MUL_WGSL },
+    { name: "div", kind: "binary", shader: WEBGPU_DIV_WGSL },
+    { name: "neg", kind: "unary", shader: WEBGPU_NEG_WGSL },
+    { name: "abs", kind: "unary", shader: WEBGPU_ABS_WGSL },
+    { name: "exp", kind: "unary", shader: WEBGPU_EXP_WGSL },
+    { name: "log", kind: "unary-positive", shader: WEBGPU_LOG_WGSL },
+    { name: "relu", kind: "unary", shader: WEBGPU_RELU_WGSL },
+    { name: "sigmoid", kind: "unary", shader: WEBGPU_SIGMOID_WGSL },
+    { name: "sqrt", kind: "unary-positive", shader: WEBGPU_SQRT_WGSL },
+    { name: "tanh", kind: "unary", shader: WEBGPU_TANH_WGSL }
+  ] as const;
+
+  for (const kernel of cases) {
+    const result = await page.evaluate(async ({ kernel, tolerance }) => {
     const adapter = await navigator.gpu!.requestAdapter();
     if (!adapter) throw new Error("Expected a WebGPU adapter after availability check.");
     const device = await adapter.requestDevice();
     const left = new Float32Array([1, -2, 3.5, 4, 9, -8, 0.25, 12]);
+    const positive = new Float32Array([0.25, 1, 2, 4, 9, 16, 0.5, 25]);
     const right = new Float32Array([0.5, 2, -1.5, 8, -4, 3, 0.75, -10]);
-    const expected = Array.from(left, (value, index) => value + (right[index] ?? 0));
+    const input = kernel.kind === "unary-positive" ? positive : left;
+    const expected = expectedValues(kernel.name, input, right);
     const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
-    const leftBuffer = device.createBuffer({ size: left.byteLength, usage });
-    const rightBuffer = device.createBuffer({ size: right.byteLength, usage });
-    const outBuffer = device.createBuffer({ size: left.byteLength, usage });
-    device.queue.writeBuffer(leftBuffer, 0, left);
+    const leftBuffer = device.createBuffer({ size: input.byteLength, usage });
+    const rightBuffer = device.createBuffer({ size: input.byteLength, usage });
+    const outBuffer = device.createBuffer({ size: input.byteLength, usage });
+    device.queue.writeBuffer(leftBuffer, 0, input);
     device.queue.writeBuffer(rightBuffer, 0, right);
 
     const pipeline = device.createComputePipeline({
       layout: "auto",
       compute: {
-        module: device.createShaderModule({ code: shader }),
+        module: device.createShaderModule({ code: kernel.shader }),
         entryPoint: "main"
       }
     });
-    const bindGroup = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [
+    const entries: GPUBindGroupEntry[] = kernel.kind === "binary"
+      ? [
         { binding: 0, resource: { buffer: leftBuffer } },
         { binding: 1, resource: { buffer: rightBuffer } },
         { binding: 2, resource: { buffer: outBuffer } }
       ]
+      : [
+        { binding: 0, resource: { buffer: leftBuffer } },
+        { binding: 1, resource: { buffer: outBuffer } }
+      ];
+    const bindGroup = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(0),
+      entries
     });
 
     const encoder = device.createCommandEncoder();
@@ -53,10 +91,10 @@ test("webgpu add kernel matches the CPU oracle when WebGPU is available", async 
     pass.end();
 
     const readback = device.createBuffer({
-      size: left.byteLength,
+      size: input.byteLength,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
     });
-    encoder.copyBufferToBuffer(outBuffer, 0, readback, 0, left.byteLength);
+    encoder.copyBufferToBuffer(outBuffer, 0, readback, 0, input.byteLength);
     device.queue.submit([encoder.finish()]);
     await readback.mapAsync(GPUMapMode.READ);
     const actual = Array.from(new Float32Array(readback.getMappedRange().slice(0)));
@@ -72,9 +110,28 @@ test("webgpu add kernel matches the CPU oracle when WebGPU is available", async 
       const target = expected[index] ?? 0;
       return Math.abs(value - target) <= tolerance.atol + tolerance.rtol * Math.abs(target);
     });
-    return { actual, expected, maxError, ok };
-  }, { shader: WEBGPU_ADD_WGSL, tolerance: WEBGPU_DEFAULT_TOLERANCE });
+    return { name: kernel.name, actual, expected, maxError, ok };
 
-  expect(result.ok, `max error ${result.maxError}`).toBe(true);
-  expect(result.actual).toEqual(result.expected);
+    function expectedValues(name: string, left: Float32Array, right: Float32Array): number[] {
+      return Array.from(left, (value, index) => {
+        const b = right[index] ?? 0;
+        if (name === "add") return value + b;
+        if (name === "sub") return value - b;
+        if (name === "mul") return value * b;
+        if (name === "div") return value / b;
+        if (name === "neg") return -value;
+        if (name === "abs") return Math.abs(value);
+        if (name === "exp") return Math.exp(value);
+        if (name === "log") return Math.log(value);
+        if (name === "relu") return Math.max(value, 0);
+        if (name === "sigmoid") return 1 / (1 + Math.exp(-value));
+        if (name === "sqrt") return Math.sqrt(value);
+        if (name === "tanh") return Math.tanh(value);
+        throw new Error(`Unknown kernel ${name}.`);
+      });
+    }
+  }, { kernel, tolerance: WEBGPU_DEFAULT_TOLERANCE });
+
+    expect(result.ok, `${result.name} max error ${result.maxError}`).toBe(true);
+  }
 });

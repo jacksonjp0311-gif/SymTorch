@@ -1,6 +1,13 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.12.0` is the WebGPU same-shape elementwise kernel line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.13.0` is the WebGPU unary elementwise kernel line, not a production stability claim.
+
+## v0.13.0 WebGPU Unary Elementwise Kernels
+
+- Added explicit same-shape WebGPU unary kernels for `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh`.
+- Kept `@symtorch/webgpu` as an explicit upload/execute/readback package; these kernels are not wired into core tensor dispatch yet.
+- Expanded fake-device kernel tests and browser WebGPU parity coverage for the elementwise kernel set.
+- Bumped private workspace package versions to `0.13.0`.
 
 ## v0.12.0 WebGPU Same-Shape Elementwise Kernels
 
