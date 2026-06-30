@@ -20,10 +20,59 @@ export type WebGPUTolerance = {
   rtol: number;
 };
 
+export type WebGPUParityCase = {
+  op: "add" | "sub" | "mul" | "div" | "neg" | "abs" | "exp" | "log" | "relu" | "sigmoid" | "sqrt" | "tanh" | "sumAll" | "meanAll" | "logSumExpAll";
+  shape: readonly number[];
+  tolerance: WebGPUTolerance;
+};
+
+export type WebGPUBackendDispatchStatus = {
+  routedThroughCore: false;
+  explicitKernelCount: number;
+  parityCases: WebGPUParityCase[];
+  remaining: string[];
+};
+
 export const WEBGPU_DEFAULT_TOLERANCE: WebGPUTolerance = {
   atol: 1e-5,
   rtol: 1e-4
 };
+
+export const WEBGPU_PARITY_CASES: readonly WebGPUParityCase[] = [
+  "add",
+  "sub",
+  "mul",
+  "div",
+  "neg",
+  "abs",
+  "exp",
+  "log",
+  "relu",
+  "sigmoid",
+  "sqrt",
+  "tanh",
+  "sumAll",
+  "meanAll",
+  "logSumExpAll"
+].map((op) => ({
+  op: op as WebGPUParityCase["op"],
+  shape: [2, 3],
+  tolerance: WEBGPU_DEFAULT_TOLERANCE
+}));
+
+export function getWebGPUBackendDispatchStatus(): WebGPUBackendDispatchStatus {
+  return {
+    routedThroughCore: false,
+    explicitKernelCount: WEBGPU_PARITY_CASES.length,
+    parityCases: WEBGPU_PARITY_CASES.map((item) => ({ ...item, shape: [...item.shape], tolerance: { ...item.tolerance } })),
+    remaining: [
+      "register async WebGPU execution backend in @symtorch/core",
+      "add broadcasting and axis reductions",
+      "add matmul and autograd parity gates",
+      "define browser and Node WebGPU runtime support matrix"
+    ]
+  };
+}
 
 export const WEBGPU_ADD_WGSL = `
 @group(0) @binding(0) var<storage, read> left: array<f32>;

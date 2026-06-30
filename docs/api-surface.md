@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.29.0` production hardening contracts alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.30.0` production contract corpus alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -71,9 +71,9 @@ Supported:
 - Evaluation: `FuzzyRuleEngine`, `RuleResult`, `AggregatedRuleResult`, `EntityRuleResult`, `RankedEntityResult`
 - Observability: `LogicObserver`, `FuzzyRuleEngineOptions`, `RuleEvaluationEvent`, `ProgramEvaluationEvent`
 - Runtime limits and policy bundles: `LogicRuntimeLimits`, `productionRuntimeLimits`, `POLICY_BUNDLE_SCHEMA_VERSION`, `SerializedPolicyBundle`, `PolicyBundlePredicate`, `PolicyBundleInput`, `LoadedPolicyBundle`, `LoadPolicyBundleOptions`, `createPolicyBundle`, `isSerializedPolicyBundle`, `verifyPolicyBundleHash`, `loadPolicyBundle`
-- Production contracts: `PRODUCTION_READINESS_SCHEMA_VERSION`, `ProductionReadinessReport`, `ProductionReadinessTrack`, `ProductionTrackId`, `ProductionTrackStatus`, `getProductionReadinessReport`
-- Policy admission alpha: `POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION`, `PolicyBundleSignature`, `SignedPolicyBundle`, `SignedPolicyBundleVerificationResult`, `signPolicyBundle`, `verifySignedPolicyBundle`, `verifySignedPolicyBundleDetailed`, `PolicyBundleSecurityAssessment`, `assessPolicyBundleSecurity`
-- Domain contracts: `DOMAIN_CONTRACT_SCHEMA_VERSION`, `DomainContract`, `DomainEntity`, `DomainField`, `DomainFieldType`, `DomainValidationDiagnostic`, `DomainValidationResult`, `createDomainContract`, `validateDomainContext`
+- Production contracts: `PRODUCTION_READINESS_SCHEMA_VERSION`, `POLICY_ADMISSION_SCHEMA_VERSION`, `ProductionReadinessReport`, `ProductionReadinessTrack`, `ProductionTrackId`, `ProductionTrackStatus`, `PolicyAdmissionReport`, `PolicyAdmissionDiagnostic`, `getProductionReadinessReport`, `admitPolicyBundle`
+- Policy admission alpha: `POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION`, `PolicyBundleSignature`, `SignedPolicyBundle`, `SignedPolicyBundleVerificationResult`, `TrustedPolicyKey`, `TrustedPolicyKeySet`, `signPolicyBundle`, `signPolicyBundleHmacSha256`, `verifySignedPolicyBundle`, `verifySignedPolicyBundleDetailed`, `verifySignedPolicyBundleHmacSha256`, `PolicyBundleSecurityAssessment`, `assessPolicyBundleSecurity`
+- Domain contracts: `DOMAIN_CONTRACT_SCHEMA_VERSION`, `DomainContract`, `DomainEntity`, `DomainField`, `DomainFieldType`, `DomainValidationDiagnostic`, `DomainValidationResult`, `DomainGroundingRecord`, `DomainGroundingResult`, `createDomainContract`, `validateDomainContext`, `groundDomainEntities`
 - Training: `LabeledRuleExample`, `RuleTrainerOptions`, `RuleTrainerHistoryItem`, `RuleTrainerResult`, `RuleTrainer`
 - Explanations: `EXPLANATION_SCHEMA_VERSION`, `ExplanationSchemaVersion`, `RuleExplanation`, `PredicateTrace`, `AggregatedRuleExplanation`, `SerializedPredicateTrace`, `SerializedRuleExplanation`, `SerializedAggregatedRuleExplanation`, `SerializedExplanation`
 - Rendering and serialization: `renderRuleExplanation`, `renderAggregatedExplanation`, `decisionCard`, `decisionTrace`, `serializeExplanation`
@@ -107,6 +107,8 @@ Supported:
 - `DecisionTraceSnapshot`
 - `DecisionLedgerSink`
 - `DecisionLedgerAppendSink`
+- `DurableLedgerAdapterKind`
+- `DurableLedgerAdapterDescriptor`
 - `DecisionReplayFn`
 - `DecisionReplayReport`
 - `DecisionReplayMismatch`
@@ -116,12 +118,15 @@ Supported:
 - `AgentDecisionEvent`
 - `DecisionLedgerAppendEvent`
 - `DecisionReplayEvent`
+- `OperationalEvent`
+- `OperationalSummary`
 - `RuleAgentOptions`
 - `PolicyAgentOptions`
 - `AgentRuntimeLimits`
 - `EntityDecisionOptions`
 - `DecisionLedgerEntry`
 - `DecisionLedger`
+- `InMemoryOperationalSink`
 - `WorkingMemory`
 - `HolographicMemory`
 - `HolographicMemoryTrace`
@@ -131,6 +136,8 @@ Supported:
 - `isSerializedEntityDecision`
 - `isSerializedDecisionLedger`
 - `serializeDecisionLedger`
+- `describeDurableLedgerAdapter`
+- `applyLedgerRetention`
 - `createDecisionTraceSnapshot`
 - `isDecisionTraceSnapshot`
 - `loadDecisionLedger`
@@ -164,7 +171,11 @@ Supported:
 - `WebGPUDType`
 - `WebGPUTensorStorage`
 - `WebGPUTolerance`
+- `WebGPUParityCase`
+- `WebGPUBackendDispatchStatus`
 - `WEBGPU_DEFAULT_TOLERANCE`
+- `WEBGPU_PARITY_CASES`
+- `getWebGPUBackendDispatchStatus`
 - `WEBGPU_ADD_WGSL`
 - `WEBGPU_SUB_WGSL`, `WEBGPU_MUL_WGSL`, `WEBGPU_DIV_WGSL`, `WEBGPU_NEG_WGSL`
 - `WEBGPU_ABS_WGSL`, `WEBGPU_EXP_WGSL`, `WEBGPU_LOG_WGSL`, `WEBGPU_RELU_WGSL`, `WEBGPU_SIGMOID_WGSL`, `WEBGPU_SQRT_WGSL`, `WEBGPU_TANH_WGSL`

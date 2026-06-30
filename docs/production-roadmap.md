@@ -33,6 +33,6 @@ SymTorch production readiness means contracts, not claims.
 
 The signing alpha uses deterministic local signatures for fixture and development workflows. It is not cryptographic production signing. Durable multi-user storage, remote policy registries, sandboxed execution, and WebGPU backend dispatch remain future work.
 
-## 0.29.0 Contract Layer
+## 0.30.0 Contract Layer
 
 The ten tracks are now represented by `symtorch.productionReadiness.v1` through `getProductionReadinessReport()`. Policy bundles can be checked with `assessPolicyBundleSecurity()` before local admission, and decisions can be frozen with `symtorch.decisionTraceSnapshot.v1` snapshots. These are contract foundations; they are not a substitute for real cryptographic signing, sandboxed execution, durable databases, or CPU/GPU parity gates.

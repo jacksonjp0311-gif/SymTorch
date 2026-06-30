@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AGENT_DECISION_SCHEMA_VERSION, DECISION_LEDGER_SCHEMA_VERSION, DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION } from "@symtorch/agent";
-import { DOMAIN_CONTRACT_SCHEMA_VERSION, EXPLANATION_SCHEMA_VERSION, POLICY_BUNDLE_SCHEMA_VERSION, POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION, PRODUCTION_READINESS_SCHEMA_VERSION } from "@symtorch/logic";
+import { DOMAIN_CONTRACT_SCHEMA_VERSION, EXPLANATION_SCHEMA_VERSION, POLICY_ADMISSION_SCHEMA_VERSION, POLICY_BUNDLE_SCHEMA_VERSION, POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION, PRODUCTION_READINESS_SCHEMA_VERSION } from "@symtorch/logic";
 import {
   PLAYGROUND_STATE_VERSION,
   POLICY_LIBRARY_SCHEMA_VERSION,
@@ -25,6 +25,8 @@ type ReleaseManifest = {
     policyBundleSignature: string;
     decisionTraceSnapshot: string;
     productionReadiness: string;
+    policyAdmission: string;
+    apiStabilitySnapshot: string;
   };
   validationGates: string[];
   nonClaims: string[];
@@ -40,7 +42,7 @@ describe("production readiness manifest", () => {
     const rootPackage = readJson<{ version: string }>("../package.json");
 
     expect(manifest.version).toBe(rootPackage.version);
-    expect(manifest.status).toBe("production-hardening-contracts-alpha");
+    expect(manifest.status).toBe("production-contract-corpus-alpha");
     expect(manifest.schemaVersions).toEqual({
       explanation: EXPLANATION_SCHEMA_VERSION,
       agentDecision: AGENT_DECISION_SCHEMA_VERSION,
@@ -53,8 +55,25 @@ describe("production readiness manifest", () => {
       domainContract: DOMAIN_CONTRACT_SCHEMA_VERSION,
       policyBundleSignature: POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION,
       decisionTraceSnapshot: DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION,
-      productionReadiness: PRODUCTION_READINESS_SCHEMA_VERSION
+      productionReadiness: PRODUCTION_READINESS_SCHEMA_VERSION,
+      policyAdmission: POLICY_ADMISSION_SCHEMA_VERSION,
+      apiStabilitySnapshot: "symtorch.apiStabilitySnapshot.v1"
     });
+  });
+
+  it("keeps the API stability snapshot aligned with the release", () => {
+    const manifest = readJson<ReleaseManifest>("../docs/release-manifest.json");
+    const snapshot = readJson<{ schemaVersion: string; version: string; packages: Record<string, { tier: string }> }>("../docs/api-stability-snapshot.json");
+
+    expect(snapshot.schemaVersion).toBe(manifest.schemaVersions.apiStabilitySnapshot);
+    expect(snapshot.version).toBe(manifest.version);
+    expect(Object.keys(snapshot.packages)).toEqual([
+      "@symtorch/core",
+      "@symtorch/nn",
+      "@symtorch/logic",
+      "@symtorch/agent",
+      "@symtorch/webgpu"
+    ]);
   });
 
   it("documents the required validation gate and non-claims", () => {

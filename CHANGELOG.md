@@ -1,6 +1,17 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.29.0` is the production hardening contracts alpha line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.30.0` is the production contract corpus alpha line, not a production stability claim.
+
+## v0.30.0 Production Contract Corpus Alpha
+
+- Added checked-in golden decision trace corpus fixtures.
+- Added HMAC-SHA256 policy bundle signing and trusted-key verification metadata.
+- Added `symtorch.policyAdmission.v1` admission reports for local sandbox-style gates.
+- Added typed domain grounding helpers for accepted/rejected entity contexts.
+- Added durable ledger adapter descriptors, retention helpers, and operational event sinks.
+- Added WebGPU dispatch/parity metadata for explicit kernel coverage.
+- Added API stability snapshot documentation and manifest validation.
+- Updated browser workbench model helpers with trace view models and richer policy health status.
 
 ## v0.29.0 Production Hardening Contracts Alpha
 

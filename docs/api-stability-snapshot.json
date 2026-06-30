@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "symtorch.apiStabilitySnapshot.v1",
+  "version": "0.30.0",
+  "packages": {
+    "@symtorch/core": {
+      "tier": "alpha-supported",
+      "breakingChangePolicy": "breaking changes require changelog and API surface doc updates"
+    },
+    "@symtorch/nn": {
+      "tier": "alpha-supported",
+      "breakingChangePolicy": "breaking changes require finite-difference or behavior tests"
+    },
+    "@symtorch/logic": {
+      "tier": "alpha-supported",
+      "breakingChangePolicy": "schema changes require versioned contract tests"
+    },
+    "@symtorch/agent": {
+      "tier": "alpha-supported",
+      "breakingChangePolicy": "serialized decision, ledger, and trace snapshot changes require fixture updates"
+    },
+    "@symtorch/webgpu": {
+      "tier": "experimental",
+      "breakingChangePolicy": "kernel and parity surface may change until backend dispatch stabilizes"
+    }
+  }
+}

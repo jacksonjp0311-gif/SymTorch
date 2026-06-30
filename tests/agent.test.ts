@@ -5,11 +5,14 @@ import { describe, expect, it } from "vitest";
 import { ResourceLimitError } from "@symtorch/core";
 import {
   AGENT_DECISION_SCHEMA_VERSION,
+  applyLedgerRetention,
   createDecisionTraceSnapshot,
   DECISION_LEDGER_SCHEMA_VERSION,
   DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION,
   DecisionLedger,
+  describeDurableLedgerAdapter,
   HolographicMemory,
+  InMemoryOperationalSink,
   isSerializedAgentDecision,
   isDecisionTraceSnapshot,
   isSerializedDecisionLedger,
@@ -525,6 +528,41 @@ describe("@symtorch/agent", () => {
       checked: 1,
       mismatchCount: 0
     }]);
+  });
+
+  it("summarizes operational events and applies ledger retention", () => {
+    const sink = new InMemoryOperationalSink();
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5, { observer: sink });
+
+    agent.observe({ high_risk: 0.8 });
+    agent.recordDecision(new Date("2026-06-29T14:00:00.000Z"));
+    agent.observe({ high_risk: 0.1 });
+    agent.recordDecision(new Date("2026-06-29T14:01:00.000Z"));
+    const retained = applyLedgerRetention(agent.ledger.snapshot(), { maxEntries: 1 });
+    const descriptor = describeDurableLedgerAdapter({
+      kind: "indexeddb",
+      transactional: true,
+      appendOnly: true,
+      migrationSafe: true,
+      retentionPolicy: { maxEntries: 5000 }
+    });
+
+    expect(sink.summary()).toEqual({
+      decisions: 2,
+      ledgerAppends: 2,
+      replays: 0,
+      acceptedDecisions: 2
+    });
+    expect(sink.snapshot().map((event) => event.kind)).toEqual([
+      "agent.decision",
+      "ledger.append",
+      "agent.decision",
+      "ledger.append"
+    ]);
+    expect(retained.entries.map((entry) => entry.id)).toEqual(["decision-2"]);
+    expect(descriptor.kind).toBe("indexeddb");
   });
 
   it("persists decision ledger snapshots through the node file sink", async () => {

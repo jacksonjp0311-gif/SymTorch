@@ -1,0 +1,193 @@
+{
+  "schemaVersion": "symtorch.decisionTraceSnapshot.v1",
+  "createdAt": "2026-06-30T12:00:00.000Z",
+  "decision": {
+    "entityId": "case-hot",
+    "schemaVersion": "symtorch.agentDecision.v1",
+    "action": "escalate(X)",
+    "selectedHead": "escalate(X)",
+    "score": 0.809999942779541,
+    "threshold": 0.5,
+    "accepted": true,
+    "trace": {
+      "schemaVersion": "symtorch.explanation.v1",
+      "type": "aggregate",
+      "head": "escalate(X)",
+      "score": 0.809999942779541,
+      "ruleCount": 1,
+      "rules": [
+        {
+          "schemaVersion": "symtorch.explanation.v1",
+          "type": "rule",
+          "rule": "escalate(X) :- high_risk(X), not approved(X).",
+          "head": "escalate(X)",
+          "score": 0.809999942779541,
+          "predicates": [
+            {
+              "name": "high_risk(X)",
+              "negated": false,
+              "value": 0.8999999761581421,
+              "contribution": 0.8999999761581421,
+              "kind": "fixed",
+              "detail": {
+                "key": "high_risk"
+              }
+            },
+            {
+              "name": "not approved(X)",
+              "negated": true,
+              "value": 0.10000000149011612,
+              "contribution": 0.8999999761581421,
+              "kind": "fixed",
+              "detail": {
+                "key": "approved"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "results": [
+      {
+        "schemaVersion": "symtorch.explanation.v1",
+        "type": "aggregate",
+        "head": "escalate(X)",
+        "score": 0.809999942779541,
+        "ruleCount": 1,
+        "rules": [
+          {
+            "schemaVersion": "symtorch.explanation.v1",
+            "type": "rule",
+            "rule": "escalate(X) :- high_risk(X), not approved(X).",
+            "head": "escalate(X)",
+            "score": 0.809999942779541,
+            "predicates": [
+              {
+                "name": "high_risk(X)",
+                "negated": false,
+                "value": 0.8999999761581421,
+                "contribution": 0.8999999761581421,
+                "kind": "fixed",
+                "detail": {
+                  "key": "high_risk"
+                }
+              },
+              {
+                "name": "not approved(X)",
+                "negated": true,
+                "value": 0.10000000149011612,
+                "contribution": 0.8999999761581421,
+                "kind": "fixed",
+                "detail": {
+                  "key": "approved"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "ledger": {
+    "schemaVersion": "symtorch.decisionLedger.v1",
+    "entries": [
+      {
+        "id": "decision-1",
+        "createdAt": "2026-06-30T12:00:00.000Z",
+        "kind": "entity",
+        "context": {
+          "entity": "case-hot",
+          "high_risk": 0.9,
+          "approved": 0.1
+        },
+        "decision": {
+          "entityId": "case-hot",
+          "schemaVersion": "symtorch.agentDecision.v1",
+          "action": "escalate(X)",
+          "selectedHead": "escalate(X)",
+          "score": 0.809999942779541,
+          "threshold": 0.5,
+          "accepted": true,
+          "trace": {
+            "schemaVersion": "symtorch.explanation.v1",
+            "type": "aggregate",
+            "head": "escalate(X)",
+            "score": 0.809999942779541,
+            "ruleCount": 1,
+            "rules": [
+              {
+                "schemaVersion": "symtorch.explanation.v1",
+                "type": "rule",
+                "rule": "escalate(X) :- high_risk(X), not approved(X).",
+                "head": "escalate(X)",
+                "score": 0.809999942779541,
+                "predicates": [
+                  {
+                    "name": "high_risk(X)",
+                    "negated": false,
+                    "value": 0.8999999761581421,
+                    "contribution": 0.8999999761581421,
+                    "kind": "fixed",
+                    "detail": {
+                      "key": "high_risk"
+                    }
+                  },
+                  {
+                    "name": "not approved(X)",
+                    "negated": true,
+                    "value": 0.10000000149011612,
+                    "contribution": 0.8999999761581421,
+                    "kind": "fixed",
+                    "detail": {
+                      "key": "approved"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "results": [
+            {
+              "schemaVersion": "symtorch.explanation.v1",
+              "type": "aggregate",
+              "head": "escalate(X)",
+              "score": 0.809999942779541,
+              "ruleCount": 1,
+              "rules": [
+                {
+                  "schemaVersion": "symtorch.explanation.v1",
+                  "type": "rule",
+                  "rule": "escalate(X) :- high_risk(X), not approved(X).",
+                  "head": "escalate(X)",
+                  "score": 0.809999942779541,
+                  "predicates": [
+                    {
+                      "name": "high_risk(X)",
+                      "negated": false,
+                      "value": 0.8999999761581421,
+                      "contribution": 0.8999999761581421,
+                      "kind": "fixed",
+                      "detail": {
+                        "key": "high_risk"
+                      }
+                    },
+                    {
+                      "name": "not approved(X)",
+                      "negated": true,
+                      "value": 0.10000000149011612,
+                      "contribution": 0.8999999761581421,
+                      "kind": "fixed",
+                      "detail": {
+                        "key": "approved"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

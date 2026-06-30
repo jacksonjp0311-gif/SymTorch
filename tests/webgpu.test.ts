@@ -5,6 +5,7 @@ import {
   createWebGPUContext,
   divTensors,
   expTensor,
+  getWebGPUBackendDispatchStatus,
   logSumExpAllTensor,
   logTensor,
   meanAllTensor,
@@ -19,7 +20,8 @@ import {
   tanhTensor,
   uploadTensor,
   WEBGPU_ADD_WGSL,
-  WEBGPU_DEFAULT_TOLERANCE
+  WEBGPU_DEFAULT_TOLERANCE,
+  WEBGPU_PARITY_CASES
 } from "@symtorch/webgpu";
 
 describe("@symtorch/webgpu", () => {
@@ -48,6 +50,15 @@ describe("@symtorch/webgpu", () => {
     expect(WEBGPU_DEFAULT_TOLERANCE).toEqual({ atol: 1e-5, rtol: 1e-4 });
     expect(() => uploadTensor(device as unknown as GPUDevice, [1, 2, 3], [2, 2]))
       .toThrow("does not match shape");
+  });
+
+  it("exports explicit CPU/GPU parity and dispatch status metadata", () => {
+    const status = getWebGPUBackendDispatchStatus();
+
+    expect(WEBGPU_PARITY_CASES.map((item) => item.op)).toContain("logSumExpAll");
+    expect(status.routedThroughCore).toBe(false);
+    expect(status.explicitKernelCount).toBe(WEBGPU_PARITY_CASES.length);
+    expect(status.remaining.some((item) => item.includes("@symtorch/core"))).toBe(true);
   });
 
   it("runs the same-shape add kernel against a CPU oracle", async () => {

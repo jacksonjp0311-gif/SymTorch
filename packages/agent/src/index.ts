@@ -66,6 +66,19 @@ export type DecisionLedgerAppendSink = DecisionLedgerSink & {
   append(entry: DecisionLedgerEntry): void | Promise<void>;
 };
 
+export type DurableLedgerAdapterKind = "memory" | "file" | "indexeddb" | "sqlite" | "custom";
+
+export type DurableLedgerAdapterDescriptor = {
+  kind: DurableLedgerAdapterKind;
+  transactional: boolean;
+  appendOnly: boolean;
+  migrationSafe: boolean;
+  retentionPolicy?: {
+    maxEntries?: number;
+    maxAgeDays?: number;
+  };
+};
+
 export type DecisionReplayMismatch = {
   entryId: string;
   reason: string;
@@ -122,6 +135,48 @@ export type AgentObserver = {
   onLedgerAppend?(event: DecisionLedgerAppendEvent): void;
   onReplay?(event: DecisionReplayEvent): void;
 };
+
+export type OperationalEvent = AgentDecisionEvent | DecisionLedgerAppendEvent | DecisionReplayEvent;
+
+export type OperationalSummary = {
+  decisions: number;
+  ledgerAppends: number;
+  replays: number;
+  acceptedDecisions: number;
+};
+
+export class InMemoryOperationalSink implements AgentObserver {
+  private readonly events: OperationalEvent[] = [];
+
+  onDecision(event: AgentDecisionEvent): void {
+    this.events.push(cloneJson(event));
+  }
+
+  onLedgerAppend(event: DecisionLedgerAppendEvent): void {
+    this.events.push(cloneJson(event));
+  }
+
+  onReplay(event: DecisionReplayEvent): void {
+    this.events.push(cloneJson(event));
+  }
+
+  snapshot(): OperationalEvent[] {
+    return this.events.map((event) => cloneJson(event));
+  }
+
+  summary(): OperationalSummary {
+    return {
+      decisions: this.events.filter((event) => event.kind === "agent.decision").length,
+      ledgerAppends: this.events.filter((event) => event.kind === "ledger.append").length,
+      replays: this.events.filter((event) => event.kind === "ledger.replay").length,
+      acceptedDecisions: this.events.filter((event) => "accepted" in event && event.accepted).length
+    };
+  }
+
+  clear(): void {
+    this.events.length = 0;
+  }
+}
 
 export type RuleAgentOptions = {
   observer?: AgentObserver;
@@ -448,6 +503,30 @@ export function isSerializedDecisionLedger(value: unknown): value is SerializedD
 
 export function serializeDecisionLedger(ledger: DecisionLedger): SerializedDecisionLedger {
   return ledger.snapshot();
+}
+
+export function describeDurableLedgerAdapter(descriptor: DurableLedgerAdapterDescriptor): DurableLedgerAdapterDescriptor {
+  return cloneJson(descriptor);
+}
+
+export function applyLedgerRetention(
+  snapshot: SerializedDecisionLedger,
+  policy: NonNullable<DurableLedgerAdapterDescriptor["retentionPolicy"]>
+): SerializedDecisionLedger {
+  if (!isSerializedDecisionLedger(snapshot)) {
+    throw new DecisionReplayError(`Expected ${DECISION_LEDGER_SCHEMA_VERSION} snapshot.`);
+  }
+  const cutoff = policy.maxAgeDays === undefined
+    ? null
+    : Date.now() - policy.maxAgeDays * 24 * 60 * 60 * 1000;
+  let entries = snapshot.entries.filter((entry) => cutoff === null || Date.parse(entry.createdAt) >= cutoff);
+  if (policy.maxEntries !== undefined && entries.length > policy.maxEntries) {
+    entries = entries.slice(entries.length - policy.maxEntries);
+  }
+  return {
+    schemaVersion: DECISION_LEDGER_SCHEMA_VERSION,
+    entries: entries.map((entry) => cloneJson(entry))
+  };
 }
 
 export function createDecisionTraceSnapshot(

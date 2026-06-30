@@ -240,6 +240,8 @@ export const POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION = "symtorch.policyBundleSign
 export type PolicyBundleSignatureSchemaVersion = typeof POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION;
 export const PRODUCTION_READINESS_SCHEMA_VERSION = "symtorch.productionReadiness.v1" as const;
 export type ProductionReadinessSchemaVersion = typeof PRODUCTION_READINESS_SCHEMA_VERSION;
+export const POLICY_ADMISSION_SCHEMA_VERSION = "symtorch.policyAdmission.v1" as const;
+export type PolicyAdmissionSchemaVersion = typeof POLICY_ADMISSION_SCHEMA_VERSION;
 
 export type PolicyBundlePredicate =
   | { kind: "fact"; name: string; key?: string }
@@ -258,9 +260,11 @@ export type SerializedPolicyBundle = {
 
 export type PolicyBundleSignature = {
   schemaVersion: PolicyBundleSignatureSchemaVersion;
-  algorithm: "symtorch-dev-fnv1a32";
+  algorithm: "symtorch-dev-fnv1a32" | "hmac-sha256";
   keyId: string;
   signature: string;
+  createdAt?: string;
+  expiresAt?: string;
 };
 
 export type SignedPolicyBundle = SerializedPolicyBundle & {
@@ -269,7 +273,19 @@ export type SignedPolicyBundle = SerializedPolicyBundle & {
 
 export type SignedPolicyBundleVerificationResult =
   | { ok: true; keyId: string; algorithm: PolicyBundleSignature["algorithm"] }
-  | { ok: false; reason: "invalid_bundle" | "missing_signature" | "invalid_signature_schema" | "unknown_key" | "signature_mismatch" };
+  | { ok: false; reason: "invalid_bundle" | "missing_signature" | "invalid_signature_schema" | "unknown_key" | "revoked_key" | "expired_signature" | "signature_mismatch" | "crypto_unavailable" };
+
+export type TrustedPolicyKey = {
+  keyId: string;
+  secret: string;
+  revoked?: boolean;
+  notBefore?: string;
+  expiresAt?: string;
+};
+
+export type TrustedPolicyKeySet = {
+  keys: TrustedPolicyKey[];
+};
 
 export type ProductionTrackId =
   | "typed_domains"
@@ -306,6 +322,29 @@ export type PolicyBundleSecurityAssessment = {
     code: "invalid_hash" | "invalid_signature" | "untrusted_key" | "rule_validation" | "runtime_limit" | "security_boundary";
     message: string;
   }[];
+};
+
+export type PolicyAdmissionDiagnostic = {
+  code: "security" | "domain" | "limits" | "validation" | "sandbox";
+  message: string;
+};
+
+export type PolicyAdmissionReport = {
+  schemaVersion: PolicyAdmissionSchemaVersion;
+  ok: boolean;
+  diagnostics: PolicyAdmissionDiagnostic[];
+  limits: Required<LogicRuntimeLimits>;
+};
+
+export type DomainGroundingRecord = {
+  entityId: string;
+  context: PredicateContext;
+};
+
+export type DomainGroundingResult = {
+  ok: boolean;
+  accepted: DomainGroundingRecord[];
+  rejected: Array<{ entityId: string; diagnostics: DomainValidationDiagnostic[] }>;
 };
 
 export type PolicyBundleInput = Omit<SerializedPolicyBundle, "schemaVersion" | "hash">;
@@ -887,10 +926,59 @@ export function verifySignedPolicyBundleDetailed(bundle: unknown, secrets: Recor
   if (!isPolicyBundleSignature(bundle.signature)) return { ok: false, reason: "invalid_signature_schema" };
   const secret = secrets[bundle.signature.keyId];
   if (secret === undefined) return { ok: false, reason: "unknown_key" };
+  if (isExpired(bundle.signature.expiresAt)) return { ok: false, reason: "expired_signature" };
+  if (bundle.signature.algorithm !== "symtorch-dev-fnv1a32") return { ok: false, reason: "invalid_signature_schema" };
   if (bundle.signature.signature !== stableHash(`${bundle.hash}:${bundle.signature.keyId}:${secret}`)) {
     return { ok: false, reason: "signature_mismatch" };
   }
   return { ok: true, keyId: bundle.signature.keyId, algorithm: bundle.signature.algorithm };
+}
+
+export async function signPolicyBundleHmacSha256(
+  bundle: SerializedPolicyBundle,
+  key: TrustedPolicyKey,
+  options: { createdAt?: Date; expiresAt?: Date } = {}
+): Promise<SignedPolicyBundle> {
+  if (!verifyPolicyBundleHash(bundle)) {
+    throw new RuleValidationError(`Expected ${POLICY_BUNDLE_SCHEMA_VERSION} bundle with a valid hash before signing.`);
+  }
+  if (key.revoked) throw new RuleValidationError(`Policy signing key "${key.keyId}" is revoked.`);
+  const createdAt = options.createdAt ?? new Date();
+  return {
+    ...bundle,
+    signature: {
+      schemaVersion: POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION,
+      algorithm: "hmac-sha256",
+      keyId: key.keyId,
+      signature: await hmacSha256(`${bundle.hash}:${key.keyId}`, key.secret),
+      createdAt: createdAt.toISOString(),
+      ...(options.expiresAt ? { expiresAt: options.expiresAt.toISOString() } : {})
+    }
+  };
+}
+
+export async function verifySignedPolicyBundleHmacSha256(
+  bundle: unknown,
+  keySet: TrustedPolicyKeySet
+): Promise<SignedPolicyBundleVerificationResult> {
+  if (!isSerializedPolicyBundle(bundle)) return { ok: false, reason: "invalid_bundle" };
+  if (!isRecord(bundle) || !("signature" in bundle)) return { ok: false, reason: "missing_signature" };
+  const signature = bundle.signature;
+  if (!isPolicyBundleSignature(signature) || signature.algorithm !== "hmac-sha256") {
+    return { ok: false, reason: "invalid_signature_schema" };
+  }
+  const key = keySet.keys.find((item) => item.keyId === signature.keyId);
+  if (!key) return { ok: false, reason: "unknown_key" };
+  if (key.revoked) return { ok: false, reason: "revoked_key" };
+  if (isExpired(key.expiresAt) || isExpired(signature.expiresAt)) return { ok: false, reason: "expired_signature" };
+  try {
+    const expected = await hmacSha256(`${bundle.hash}:${signature.keyId}`, key.secret);
+    return expected === signature.signature
+      ? { ok: true, keyId: key.keyId, algorithm: "hmac-sha256" }
+      : { ok: false, reason: "signature_mismatch" };
+  } catch {
+    return { ok: false, reason: "crypto_unavailable" };
+  }
 }
 
 export function productionRuntimeLimits(overrides: LogicRuntimeLimits = {}): Required<LogicRuntimeLimits> {
@@ -937,6 +1025,56 @@ export function assessPolicyBundleSecurity(
     schemaVersion: PRODUCTION_READINESS_SCHEMA_VERSION,
     ok: diagnostics.length === 0,
     diagnostics
+  };
+}
+
+export function admitPolicyBundle(
+  bundle: unknown,
+  options: { limits?: LogicRuntimeLimits; secrets?: Record<string, string>; trustedKeyIds?: readonly string[] } = {}
+): PolicyAdmissionReport {
+  const limits = productionRuntimeLimits(options.limits);
+  const diagnostics: PolicyAdmissionDiagnostic[] = [];
+  const securityOptions: { secrets?: Record<string, string>; trustedKeyIds?: readonly string[]; limits?: LogicRuntimeLimits } = { limits };
+  if (options.secrets) securityOptions.secrets = options.secrets;
+  if (options.trustedKeyIds) securityOptions.trustedKeyIds = options.trustedKeyIds;
+  const security = assessPolicyBundleSecurity(bundle, securityOptions);
+  for (const diagnostic of security.diagnostics) {
+    diagnostics.push({ code: diagnostic.code === "runtime_limit" ? "limits" : diagnostic.code === "security_boundary" ? "sandbox" : "security", message: diagnostic.message });
+  }
+  if (isSerializedPolicyBundle(bundle)) {
+    const validation = validateProgram(bundle.rules, { limits });
+    if (!validation.ok) diagnostics.push({ code: "validation", message: validation.error.message });
+    if (bundle.predicates.length > limits.maxRules) {
+      diagnostics.push({ code: "limits", message: `Predicate count ${bundle.predicates.length} exceeds maxRules=${limits.maxRules}.` });
+    }
+  }
+  return {
+    schemaVersion: POLICY_ADMISSION_SCHEMA_VERSION,
+    ok: diagnostics.length === 0,
+    diagnostics,
+    limits
+  };
+}
+
+export function groundDomainEntities(
+  contract: DomainContract,
+  entityName: string,
+  records: readonly DomainGroundingRecord[]
+): DomainGroundingResult {
+  const accepted: DomainGroundingRecord[] = [];
+  const rejected: DomainGroundingResult["rejected"] = [];
+  for (const record of records) {
+    const validation = validateDomainContext(contract, entityName, record.context);
+    if (validation.ok) {
+      accepted.push({ entityId: record.entityId, context: { ...record.context } });
+    } else {
+      rejected.push({ entityId: record.entityId, diagnostics: validation.diagnostics });
+    }
+  }
+  return {
+    ok: rejected.length === 0,
+    accepted,
+    rejected
   };
 }
 
@@ -1352,9 +1490,11 @@ function isPolicyBundlePredicate(value: unknown): value is PolicyBundlePredicate
 function isPolicyBundleSignature(value: unknown): value is PolicyBundleSignature {
   return isRecord(value) &&
     value.schemaVersion === POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION &&
-    value.algorithm === "symtorch-dev-fnv1a32" &&
+    (value.algorithm === "symtorch-dev-fnv1a32" || value.algorithm === "hmac-sha256") &&
     typeof value.keyId === "string" &&
-    typeof value.signature === "string";
+    typeof value.signature === "string" &&
+    (value.createdAt === undefined || typeof value.createdAt === "string") &&
+    (value.expiresAt === undefined || typeof value.expiresAt === "string");
 }
 
 function predicateFromBundle(predicate: PolicyBundlePredicate): Predicate {
@@ -1393,4 +1533,32 @@ function stableHash(value: string): string {
     hash = Math.imul(hash, 16777619);
   }
   return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+async function hmacSha256(message: string, secret: string): Promise<string> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw new Error("Web Crypto subtle API is not available.");
+  const encoder = new TextEncoder();
+  const key = await subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signed = await subtle.sign("HMAC", key, encoder.encode(message));
+  return `hmac-sha256:${base64Url(new Uint8Array(signed))}`;
+}
+
+function base64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  const encoded = typeof btoa === "function"
+    ? btoa(binary)
+    : Buffer.from(binary, "binary").toString("base64");
+  return encoded.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function isExpired(value: string | undefined): boolean {
+  return value !== undefined && Number.isFinite(Date.parse(value)) && Date.parse(value) < Date.now();
 }

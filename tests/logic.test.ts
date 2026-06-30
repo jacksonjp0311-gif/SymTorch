@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ResourceLimitError, tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { assessPolicyBundleSecurity, createDomainContract, createPolicyBundle, decisionCard, decisionTrace, DOMAIN_CONTRACT_SCHEMA_VERSION, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, getProductionReadinessReport, isSerializedPolicyBundle, LinearPredicate, loadPolicyBundle, POLICY_BUNDLE_SCHEMA_VERSION, POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION, productionRuntimeLimits, PRODUCTION_READINESS_SCHEMA_VERSION, parseProgram, PredicateEvaluationError, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, signPolicyBundle, ThresholdPredicate, validateDomainContext, validateProgram, validatePrograms, verifyPolicyBundleHash, verifySignedPolicyBundle, verifySignedPolicyBundleDetailed } from "@symtorch/logic";
+import { admitPolicyBundle, assessPolicyBundleSecurity, createDomainContract, createPolicyBundle, decisionCard, decisionTrace, DOMAIN_CONTRACT_SCHEMA_VERSION, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, getProductionReadinessReport, groundDomainEntities, isSerializedPolicyBundle, LinearPredicate, loadPolicyBundle, POLICY_ADMISSION_SCHEMA_VERSION, POLICY_BUNDLE_SCHEMA_VERSION, POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION, productionRuntimeLimits, PRODUCTION_READINESS_SCHEMA_VERSION, parseProgram, PredicateEvaluationError, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, signPolicyBundle, signPolicyBundleHmacSha256, ThresholdPredicate, validateDomainContext, validateProgram, validatePrograms, verifyPolicyBundleHash, verifySignedPolicyBundle, verifySignedPolicyBundleDetailed, verifySignedPolicyBundleHmacSha256 } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -449,6 +449,66 @@ describe("@symtorch/logic", () => {
       trustedKeyIds: ["other"]
     }).diagnostics[0]).toMatchObject({ code: "untrusted_key" });
     expect(assessPolicyBundleSecurity(bundle).diagnostics[0]).toMatchObject({ code: "security_boundary" });
+  });
+
+  it("signs policy bundles with HMAC keys and rejects revoked keys", async () => {
+    const bundle = createPolicyBundle({
+      name: "Crypto Policy",
+      version: "test",
+      rules: "escalate(X) :- high_risk(X).",
+      predicates: [{ kind: "fact", name: "high_risk" }],
+      metadata: { owner: "test" }
+    });
+    const key = { keyId: "prod-a", secret: "top-secret" };
+    const signed = await signPolicyBundleHmacSha256(bundle, key, {
+      createdAt: new Date("2026-06-30T00:00:00.000Z")
+    });
+
+    expect(signed.signature.algorithm).toBe("hmac-sha256");
+    expect(signed.signature.signature).toMatch(/^hmac-sha256:/);
+    await expect(verifySignedPolicyBundleHmacSha256(signed, { keys: [key] })).resolves.toMatchObject({
+      ok: true,
+      keyId: "prod-a",
+      algorithm: "hmac-sha256"
+    });
+    await expect(verifySignedPolicyBundleHmacSha256(signed, { keys: [{ ...key, revoked: true }] })).resolves.toEqual({
+      ok: false,
+      reason: "revoked_key"
+    });
+  });
+
+  it("admits policy bundles through sandbox-style gates and grounds typed entities", () => {
+    const bundle = createPolicyBundle({
+      name: "Admission Policy",
+      version: "test",
+      rules: "escalate(X) :- high_risk(X).",
+      predicates: [{ kind: "fact", name: "high_risk" }],
+      metadata: { owner: "test" }
+    });
+    const signed = signPolicyBundle(bundle, "local-dev", "secret");
+    const admission = admitPolicyBundle(signed, {
+      secrets: { "local-dev": "secret" },
+      trustedKeyIds: ["local-dev"],
+      limits: { maxRules: 4 }
+    });
+    const contract = createDomainContract({
+      case: {
+        fields: {
+          high_risk: { type: "number", min: 0, max: 1 },
+          approved: { type: "number", min: 0, max: 1, required: false }
+        }
+      }
+    });
+    const grounded = groundDomainEntities(contract, "case", [
+      { entityId: "case-hot", context: { high_risk: 0.9, approved: 0.1 } },
+      { entityId: "case-bad", context: { high_risk: 2 } }
+    ]);
+
+    expect(admission.schemaVersion).toBe(POLICY_ADMISSION_SCHEMA_VERSION);
+    expect(admission.ok).toBe(true);
+    expect(grounded.ok).toBe(false);
+    expect(grounded.accepted.map((item) => item.entityId)).toEqual(["case-hot"]);
+    expect(grounded.rejected[0]?.entityId).toBe("case-bad");
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {

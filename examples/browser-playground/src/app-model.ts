@@ -61,6 +61,20 @@ export type PolicyHealth = {
   predicateCount: number;
   lastDecisionStatus: string;
   replayStatus: "PASS" | "FAIL" | "NOT_RUN";
+  bundleHealth: "PASS" | "FAIL";
+  failureSummary: string;
+};
+
+export type TraceViewModel = {
+  title: string;
+  score: number;
+  accepted: boolean;
+  rows: Array<{
+    rule: string;
+    predicate: string;
+    contribution: number;
+    kind: string;
+  }>;
 };
 
 export type SavedPolicyBundle = {
@@ -370,7 +384,25 @@ export function createPolicyHealth(
     lastDecisionStatus: lastDecision
       ? `${lastDecision.accepted ? "ACCEPTED" : "REJECTED"} ${lastDecision.action} ${lastDecision.score.toFixed(4)}`
       : "NOT_RUN",
-    replayStatus: replayOk === null ? "NOT_RUN" : replayOk ? "PASS" : "FAIL"
+    replayStatus: replayOk === null ? "NOT_RUN" : replayOk ? "PASS" : "FAIL",
+    bundleHealth: hashVerified ? "PASS" : "FAIL",
+    failureSummary: hashVerified ? "" : "Bundle hash verification failed."
+  };
+}
+
+export function createTraceViewModel(decision: SerializedEntityDecision | null): TraceViewModel | null {
+  if (!decision?.trace) return null;
+  const rows = decision.trace.rules.flatMap((rule) => rule.predicates.map((predicate) => ({
+    rule: rule.rule,
+    predicate: predicate.name,
+    contribution: predicate.contribution,
+    kind: predicate.kind ?? "unknown"
+  })));
+  return {
+    title: `${decision.entityId}: ${decision.action}`,
+    score: decision.score,
+    accepted: decision.accepted,
+    rows
   };
 }
 
