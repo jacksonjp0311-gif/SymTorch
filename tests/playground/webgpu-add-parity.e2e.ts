@@ -12,10 +12,11 @@ import {
   WEBGPU_SIGMOID_WGSL,
   WEBGPU_SQRT_WGSL,
   WEBGPU_SUB_WGSL,
+  WEBGPU_SUM_ALL_WGSL,
   WEBGPU_TANH_WGSL
 } from "@symtorch/webgpu";
 
-test("webgpu same-shape elementwise kernels match CPU oracles when WebGPU is available", async ({ page }) => {
+test("webgpu explicit kernels match CPU oracles when WebGPU is available", async ({ page }) => {
   await page.goto("/");
   const available = await page.evaluate(async () => {
     const gpu = navigator.gpu;
@@ -41,7 +42,8 @@ test("webgpu same-shape elementwise kernels match CPU oracles when WebGPU is ava
     { name: "relu", kind: "unary", shader: WEBGPU_RELU_WGSL },
     { name: "sigmoid", kind: "unary", shader: WEBGPU_SIGMOID_WGSL },
     { name: "sqrt", kind: "unary-positive", shader: WEBGPU_SQRT_WGSL },
-    { name: "tanh", kind: "unary", shader: WEBGPU_TANH_WGSL }
+    { name: "tanh", kind: "unary", shader: WEBGPU_TANH_WGSL },
+    { name: "sumAll", kind: "reduction", shader: WEBGPU_SUM_ALL_WGSL }
   ] as const;
 
   for (const kernel of cases) {
@@ -55,9 +57,10 @@ test("webgpu same-shape elementwise kernels match CPU oracles when WebGPU is ava
     const input = kernel.kind === "unary-positive" ? positive : left;
     const expected = expectedValues(kernel.name, input, right);
     const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
+    const outputByteLength = kernel.kind === "reduction" ? Float32Array.BYTES_PER_ELEMENT : input.byteLength;
     const leftBuffer = device.createBuffer({ size: input.byteLength, usage });
     const rightBuffer = device.createBuffer({ size: input.byteLength, usage });
-    const outBuffer = device.createBuffer({ size: input.byteLength, usage });
+    const outBuffer = device.createBuffer({ size: outputByteLength, usage });
     device.queue.writeBuffer(leftBuffer, 0, input);
     device.queue.writeBuffer(rightBuffer, 0, right);
 
@@ -91,10 +94,10 @@ test("webgpu same-shape elementwise kernels match CPU oracles when WebGPU is ava
     pass.end();
 
     const readback = device.createBuffer({
-      size: input.byteLength,
+      size: outputByteLength,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
     });
-    encoder.copyBufferToBuffer(outBuffer, 0, readback, 0, input.byteLength);
+    encoder.copyBufferToBuffer(outBuffer, 0, readback, 0, outputByteLength);
     device.queue.submit([encoder.finish()]);
     await readback.mapAsync(GPUMapMode.READ);
     const actual = Array.from(new Float32Array(readback.getMappedRange().slice(0)));
@@ -113,6 +116,7 @@ test("webgpu same-shape elementwise kernels match CPU oracles when WebGPU is ava
     return { name: kernel.name, actual, expected, maxError, ok };
 
     function expectedValues(name: string, left: Float32Array, right: Float32Array): number[] {
+      if (name === "sumAll") return [Array.from(left).reduce((total, value) => total + value, 0)];
       return Array.from(left, (value, index) => {
         const b = right[index] ?? 0;
         if (name === "add") return value + b;

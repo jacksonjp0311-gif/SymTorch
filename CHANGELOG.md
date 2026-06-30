@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.13.0` is the WebGPU unary elementwise kernel line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.14.0` is the WebGPU sum reduction kernel line, not a production stability claim.
+
+## v0.14.0 WebGPU Sum Reduction Kernel
+
+- Added explicit WebGPU `sumAll` reduction support that returns scalar-shaped storage.
+- Added `WEBGPU_SUM_ALL_WGSL`, `WebGPUContext.sumAll()`, and `sumAllTensor()`.
+- Expanded fake-device tests and browser parity coverage to include the first reduction kernel.
+- Kept CPU as the correctness oracle and kept WebGPU execution explicit through `@symtorch/webgpu`.
+- Bumped private workspace package versions to `0.14.0`.
 
 ## v0.13.0 WebGPU Unary Elementwise Kernels
 

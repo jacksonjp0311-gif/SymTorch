@@ -81,4 +81,6 @@ The `0.12.0` line expands the same-shape elementwise set to `add`, `sub`, `mul`,
 
 The `0.13.0` line adds unary activation and math kernels: `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh`. Browser parity now covers the explicit elementwise set when WebGPU is available.
 
-The next missing piece is either same-shape core dispatch integration or the first reduction kernel.
+The `0.14.0` line adds scalar `sumAll`, the first reduction kernel. It is intentionally simple and correctness-first, not a high-performance parallel reduction.
+
+The next missing piece is either same-shape core dispatch integration or axis-aware reductions.

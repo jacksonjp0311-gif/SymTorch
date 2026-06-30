@@ -1,6 +1,6 @@
 {
-  "version": "0.13.0",
-  "status": "webgpu-unary-elementwise-kernels",
+  "version": "0.14.0",
+  "status": "webgpu-sum-reduction-kernel",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

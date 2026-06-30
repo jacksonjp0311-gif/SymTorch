@@ -50,6 +50,22 @@ export const WEBGPU_RELU_WGSL = unaryElementwiseShader("max(input[i], 0.0)");
 export const WEBGPU_SIGMOID_WGSL = unaryElementwiseShader("1.0 / (1.0 + exp(-input[i]))");
 export const WEBGPU_SQRT_WGSL = unaryElementwiseShader("sqrt(input[i])");
 export const WEBGPU_TANH_WGSL = unaryElementwiseShader("tanh(input[i])");
+export const WEBGPU_SUM_ALL_WGSL = `
+@group(0) @binding(0) var<storage, read> input: array<f32>;
+@group(0) @binding(1) var<storage, read_write> out: array<f32>;
+
+@compute @workgroup_size(1)
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+  if (id.x > 0u) {
+    return;
+  }
+  var total = 0.0;
+  for (var i = 0u; i < arrayLength(&input); i = i + 1u) {
+    total = total + input[i];
+  }
+  out[0] = total;
+}
+`;
 
 export async function detectWebGPU(gpu: GPU | undefined = globalThis.navigator?.gpu): Promise<WebGPUStatus> {
   if (!gpu) return { available: false, reason: "navigator.gpu is not available in this runtime." };
@@ -132,6 +148,10 @@ export class WebGPUContext {
 
   tanh(input: WebGPUTensorStorage): WebGPUTensorStorage {
     return tanhTensor(this.device, input, this.pool);
+  }
+
+  sumAll(input: WebGPUTensorStorage): WebGPUTensorStorage {
+    return sumAllTensor(this.device, input, this.pool);
   }
 
   destroy(): void {
@@ -252,6 +272,31 @@ export function sqrtTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?:
 
 export function tanhTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
   return unaryElementwise(device, input, WEBGPU_TANH_WGSL, pool);
+}
+
+export function sumAllTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  const byteLength = Float32Array.BYTES_PER_ELEMENT;
+  const outputBuffer = pool?.acquire(byteLength, bufferUsage().storageCopy) ?? device.createBuffer({
+    size: byteLength,
+    usage: bufferUsage().storageCopy
+  });
+  const pipeline = getPipeline(device, WEBGPU_SUM_ALL_WGSL);
+  const bindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: input.buffer } },
+      { binding: 1, resource: { buffer: outputBuffer } }
+    ]
+  });
+  dispatchElementwise(device, pipeline, bindGroup, 1);
+  return {
+    kind: "webgpu",
+    dtype: "float32",
+    shape: [],
+    size: 1,
+    byteLength,
+    buffer: outputBuffer
+  };
 }
 
 function unaryElementwise(

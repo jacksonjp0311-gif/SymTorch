@@ -1,6 +1,6 @@
-# WebGPU Same-Shape Elementwise Kernels
+# WebGPU Explicit Kernel Set
 
-SymTorch `0.13.0` expands the explicit WebGPU kernel set.
+SymTorch `0.14.0` expands the explicit WebGPU kernel set.
 
 Supported prototype kernels:
 
@@ -16,11 +16,13 @@ Supported prototype kernels:
 - `sigmoid`
 - `sqrt`
 - `tanh`
+- `sumAll`
 
 All kernels are intentionally narrow:
 
 - `float32`
-- same-shape tensors only
+- same-shape tensors for elementwise kernels
+- scalar output for `sumAll`
 - explicit upload/readback through `@symtorch/webgpu`
 - not wired into `@symtorch/core` tensor dispatch yet
 
@@ -34,8 +36,9 @@ const quotient = context.div(left, right);
 const negated = context.neg(left);
 const activated = context.relu(left);
 const probabilities = context.sigmoid(left);
+const total = context.sumAll(left);
 ```
 
 ## Current Gate
 
-The kernel set is covered by fake-device tests in CI. The browser parity gate covers the explicit elementwise set when WebGPU is available and skips cleanly on runners without WebGPU.
+The kernel set is covered by fake-device tests in CI. The browser parity gate covers the explicit kernel set when WebGPU is available and skips cleanly on runners without WebGPU.

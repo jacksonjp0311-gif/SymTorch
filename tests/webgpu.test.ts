@@ -11,6 +11,7 @@ import {
   reluTensor,
   sigmoidTensor,
   sqrtTensor,
+  sumAllTensor,
   subTensors,
   tanhTensor,
   uploadTensor,
@@ -98,6 +99,23 @@ describe("@symtorch/webgpu", () => {
     await expectStorageClose(context, logTensor(device as unknown as GPUDevice, positive), Array.from([0.25, 1, 4, 9], Math.log));
     await expectStorage(context, sqrtTensor(device as unknown as GPUDevice, positive), [0.5, 1, 2, 3]);
     await expectStorageClose(context, tanhTensor(device as unknown as GPUDevice, signed), Array.from([-2, -0.5, 0, 3], Math.tanh));
+  });
+
+  it("runs the sum-all reduction kernel against a CPU oracle", async () => {
+    const device = new FakeGPUDevice();
+    const context = createWebGPUContext(device as unknown as GPUDevice);
+    const matrix = context.uploadTensor([1, -2, 3.5, 4, 8, -0.5], [2, 3]);
+
+    const result = context.sumAll(matrix);
+    expect(result).toMatchObject({
+      kind: "webgpu",
+      dtype: "float32",
+      shape: [],
+      size: 1,
+      byteLength: 4
+    });
+    await expectStorage(context, result, [14]);
+    await expectStorage(context, sumAllTensor(device as unknown as GPUDevice, matrix), [14]);
   });
 });
 
@@ -206,6 +224,12 @@ class FakeGPUComputePassEncoder {
 
   dispatchWorkgroups(_x: number): void {
     if (!this.pipeline || !this.bindGroup) throw new Error("Fake compute pass expected a pipeline and bind group.");
+    if (this.pipeline.code.includes("total = total + input[i]")) {
+      const input = new Float32Array(this.bindGroup.bufferAt(0).bytes);
+      const out = new Float32Array(this.bindGroup.bufferAt(1).bytes);
+      out[0] = Array.from(input).reduce((total, value) => total + value, 0);
+      return;
+    }
     if (this.pipeline.code.includes("var<storage, read> input")) {
       const input = new Float32Array(this.bindGroup.bufferAt(0).bytes);
       const out = new Float32Array(this.bindGroup.bufferAt(1).bytes);

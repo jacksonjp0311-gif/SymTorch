@@ -22,7 +22,7 @@ The `0.6.0` line adds production-shaped contracts, validation gates, and version
 
 The `@symtorch/webgpu` package currently focuses on detection and backend planning. GPU kernels, memory scheduling, kernel fusion, and CPU/GPU parity testing are future work.
 
-The `0.13.0` WebGPU line can upload tensor data into GPU buffers, run same-shape `float32` binary and unary elementwise kernels, read results back explicitly, and run a browser parity gate for the elementwise set when WebGPU is available. It does not yet provide general tensor dispatch, broadcasting, reductions, autograd on GPU, or broad hardware coverage.
+The `0.14.0` WebGPU line can upload tensor data into GPU buffers, run same-shape `float32` binary and unary elementwise kernels, run scalar `sumAll`, read results back explicitly, and run a browser parity gate for the explicit kernel set when WebGPU is available. It does not yet provide general tensor dispatch, broadcasting, axis reductions, autograd on GPU, or broad hardware coverage.
 
 ## Current Best Use Cases
 

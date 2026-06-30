@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.13.0` WebGPU unary elementwise kernel line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.14.0` WebGPU sum reduction kernel line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -125,6 +125,7 @@ Supported:
 - `WEBGPU_ADD_WGSL`
 - `WEBGPU_SUB_WGSL`, `WEBGPU_MUL_WGSL`, `WEBGPU_DIV_WGSL`, `WEBGPU_NEG_WGSL`
 - `WEBGPU_ABS_WGSL`, `WEBGPU_EXP_WGSL`, `WEBGPU_LOG_WGSL`, `WEBGPU_RELU_WGSL`, `WEBGPU_SIGMOID_WGSL`, `WEBGPU_SQRT_WGSL`, `WEBGPU_TANH_WGSL`
+- `WEBGPU_SUM_ALL_WGSL`
 - `detectWebGPU`
 - `requestWebGPUDevice`
 - `WebGPUContext`
@@ -134,6 +135,7 @@ Supported:
 - `addTensors`
 - `subTensors`, `mulTensors`, `divTensors`, `negTensor`
 - `absTensor`, `expTensor`, `logTensor`, `reluTensor`, `sigmoidTensor`, `sqrtTensor`, `tanhTensor`
+- `sumAllTensor`
 - `BufferPool`
 
 Experimental:
@@ -142,9 +144,9 @@ Experimental:
 
 Notes:
 
-- WebGPU support is currently capability detection, buffer pooling, explicit tensor upload/readback, and a same-shape elementwise kernel set.
-- Same-shape elementwise `add`, `sub`, `mul`, `div`, `neg`, `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh` have prototype kernels. Broadcasting, reductions, wider tensor kernels, and core dispatch integration are future work.
-- The browser parity gate exercises the explicit elementwise set when WebGPU is available and skips otherwise.
+- WebGPU support is currently capability detection, buffer pooling, explicit tensor upload/readback, a same-shape elementwise kernel set, and scalar `sumAll`.
+- Same-shape elementwise `add`, `sub`, `mul`, `div`, `neg`, `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh` have prototype kernels. `sumAll` is the first reduction prototype. Broadcasting, axis reductions, wider tensor kernels, and core dispatch integration are future work.
+- The browser parity gate exercises the explicit kernel set when WebGPU is available and skips otherwise.
 
 ## Internal By Convention
 
