@@ -1,6 +1,6 @@
 {
-  "version": "0.21.0",
-  "status": "production-hardening",
+  "version": "0.22.0",
+  "status": "policy-bundle-runtime",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

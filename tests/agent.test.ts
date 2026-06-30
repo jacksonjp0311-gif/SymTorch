@@ -12,6 +12,7 @@ import {
   isSerializedDecisionLedger,
   isSerializedEntityDecision,
   loadDecisionLedger,
+  createPolicyAgent,
   RuleAgent,
   serializeDecisionLedger,
   vectorSymbol,
@@ -22,7 +23,7 @@ import {
 } from "@symtorch/agent";
 import { FileDecisionLedgerSink } from "@symtorch/agent/node";
 import { AppendFileDecisionLedgerSink } from "@symtorch/agent/node";
-import { EXPLANATION_SCHEMA_VERSION, FactPredicate, FuzzyRuleEngine, PredicateRegistry, RuleProgram } from "@symtorch/logic";
+import { createPolicyBundle, EXPLANATION_SCHEMA_VERSION, FactPredicate, FuzzyRuleEngine, PredicateRegistry, RuleProgram } from "@symtorch/logic";
 
 describe("@symtorch/agent", () => {
   it("uses fact-store working memory for rule decisions", () => {
@@ -37,6 +38,42 @@ describe("@symtorch/agent", () => {
     const decision = agent.decide();
     expect(decision.action).toBe("escalate(X)");
     expect(decision.results[0]?.explanation.rules[0]?.predicates[0]?.detail?.key).toBe("high_risk");
+  });
+
+  it("creates executable agents from policy bundles", () => {
+    const bundle = createPolicyBundle({
+      name: "Escalation Policy",
+      version: "2026.06.30",
+      rules: "escalate(X) :- high_risk(X), not approved(X).",
+      predicates: [
+        { kind: "threshold", name: "high_risk", valueKey: "risk", threshold: 0.7, slope: 10 },
+        { kind: "fact", name: "approved" }
+      ],
+      metadata: { owner: "risk" }
+    });
+    const events: unknown[] = [];
+    const agent = createPolicyAgent(bundle, {
+      threshold: 0.5,
+      limits: {
+        maxRuleSourceLength: 200,
+        maxEntitiesPerBatch: 2
+      },
+      observer: {
+        onDecision: (event) => events.push(event),
+        onRuleEvaluate: (event) => events.push(event)
+      }
+    });
+
+    agent.memory.observeEntity("case-hot", { risk: 0.9, approved: 0.1 });
+    const decision = agent.decideEntityTrace("case-hot");
+    const roundTrip = JSON.parse(JSON.stringify(decision));
+
+    expect(decision.action).toBe("escalate(X)");
+    expect(decision.accepted).toBe(true);
+    expect(decision.trace?.schemaVersion).toBe(EXPLANATION_SCHEMA_VERSION);
+    expect(roundTrip).toEqual(decision);
+    expect(events.some((event) => (event as { kind?: string }).kind === "rule.evaluate")).toBe(true);
+    expect(events.some((event) => (event as { kind?: string }).kind === "agent.decision")).toBe(true);
   });
 
   it("selects actions after aggregating same-head rules", () => {

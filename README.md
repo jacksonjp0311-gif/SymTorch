@@ -101,6 +101,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Agent loop primitives for observation -> decision -> serialized explanation, including entity batches.
 - Versioned decision ledger snapshots for replay and persistence adapters.
 - Versioned policy bundle contracts with deterministic integrity hashes.
+- Executable policy bundle runtime that materializes predicates and creates `RuleAgent` instances.
 - Append-oriented Node ledger persistence for newline-delimited decision entries.
 - Dependency-free observer hooks for rule evaluation, decisions, ledger appends, and replay summaries.
 - Holographic memory primitive for binding, superposing, and recalling vector symbols.
@@ -133,6 +134,7 @@ pnpm example:batch-routing
 pnpm demo:gradients
 pnpm demo:rule
 pnpm demo:ledger
+pnpm demo:policy
 pnpm demo:all
 ```
 
@@ -225,6 +227,7 @@ examples/
 - [Policy replay CLI](docs/policy-replay-cli.md)
 - [Observability hooks](docs/observability.md)
 - [Production hardening](docs/production-hardening.md)
+- [Policy bundle runtime](docs/policy-bundle-runtime.md)
 - [Backend abstraction alpha](docs/backend-abstraction.md)
 - [GPU backend plan](docs/gpu-backend-plan.md)
 - [WebGPU residency prototype](docs/webgpu-residency.md)
@@ -269,6 +272,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.21.0` workspace line is the production hardening line: runtime limits, typed errors, policy bundles, append-oriented ledgers, and backend dispatch boundaries make the runtime safer to embed while the WebGPU line remains explicit and CPU-oracled.
+SymTorch is early, active, and intentionally foundation-first. The `0.22.0` workspace line is the policy bundle runtime line: versioned policy bundles can now be verified, materialized into predicates and rule engines, executed through `RuleAgent`, recorded to ledgers, and replay checked while the WebGPU line remains explicit and CPU-oracled.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

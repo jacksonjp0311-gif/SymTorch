@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.21.0` production hardening line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.22.0` policy bundle runtime line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -70,7 +70,7 @@ Supported:
 - Predicates and registry: `PredicateRegistry`, `FixedPredicate`, `FactPredicate`, `ThresholdPredicate`, `LinearPredicate`
 - Evaluation: `FuzzyRuleEngine`, `RuleResult`, `AggregatedRuleResult`, `EntityRuleResult`, `RankedEntityResult`
 - Observability: `LogicObserver`, `FuzzyRuleEngineOptions`, `RuleEvaluationEvent`, `ProgramEvaluationEvent`
-- Runtime limits and policy bundles: `LogicRuntimeLimits`, `POLICY_BUNDLE_SCHEMA_VERSION`, `SerializedPolicyBundle`, `PolicyBundlePredicate`, `PolicyBundleInput`, `createPolicyBundle`, `isSerializedPolicyBundle`, `verifyPolicyBundleHash`
+- Runtime limits and policy bundles: `LogicRuntimeLimits`, `POLICY_BUNDLE_SCHEMA_VERSION`, `SerializedPolicyBundle`, `PolicyBundlePredicate`, `PolicyBundleInput`, `LoadedPolicyBundle`, `LoadPolicyBundleOptions`, `createPolicyBundle`, `isSerializedPolicyBundle`, `verifyPolicyBundleHash`, `loadPolicyBundle`
 - Training: `LabeledRuleExample`, `RuleTrainerOptions`, `RuleTrainerHistoryItem`, `RuleTrainerResult`, `RuleTrainer`
 - Explanations: `EXPLANATION_SCHEMA_VERSION`, `ExplanationSchemaVersion`, `RuleExplanation`, `PredicateTrace`, `AggregatedRuleExplanation`, `SerializedPredicateTrace`, `SerializedRuleExplanation`, `SerializedAggregatedRuleExplanation`, `SerializedExplanation`
 - Rendering and serialization: `renderRuleExplanation`, `renderAggregatedExplanation`, `decisionCard`, `decisionTrace`, `serializeExplanation`
@@ -110,6 +110,7 @@ Supported:
 - `DecisionLedgerAppendEvent`
 - `DecisionReplayEvent`
 - `RuleAgentOptions`
+- `PolicyAgentOptions`
 - `AgentRuntimeLimits`
 - `EntityDecisionOptions`
 - `DecisionLedgerEntry`
@@ -125,6 +126,7 @@ Supported:
 - `serializeDecisionLedger`
 - `loadDecisionLedger`
 - `verifyDecisionLedgerReplay`
+- `createPolicyAgent`
 
 Node-only subpath:
 

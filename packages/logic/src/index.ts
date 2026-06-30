@@ -225,6 +225,18 @@ export type SerializedPolicyBundle = {
 
 export type PolicyBundleInput = Omit<SerializedPolicyBundle, "schemaVersion" | "hash">;
 
+export type LoadedPolicyBundle = {
+  bundle: SerializedPolicyBundle;
+  program: RuleProgram;
+  registry: PredicateRegistry;
+  engine: FuzzyRuleEngine;
+};
+
+export type LoadPolicyBundleOptions = {
+  limits?: LogicRuntimeLimits;
+  observer?: LogicObserver;
+};
+
 export type LabeledRuleExample = PredicateContext & {
   label: number;
 };
@@ -728,6 +740,20 @@ export function verifyPolicyBundleHash(bundle: SerializedPolicyBundle): boolean 
   })) === bundle.hash;
 }
 
+export function loadPolicyBundle(bundle: SerializedPolicyBundle, options: LoadPolicyBundleOptions = {}): LoadedPolicyBundle {
+  if (!isSerializedPolicyBundle(bundle)) {
+    throw new RuleValidationError(`Expected ${POLICY_BUNDLE_SCHEMA_VERSION} bundle with a valid hash.`);
+  }
+  const program = new RuleProgram(bundle.rules, options.limits ? { limits: options.limits } : {});
+  const registry = new PredicateRegistry();
+  for (const predicate of bundle.predicates) registry.register(predicateFromBundle(predicate));
+  const engine = new FuzzyRuleEngine(registry, {
+    ...(options.limits ? { limits: options.limits } : {}),
+    ...(options.observer ? { observer: options.observer } : {})
+  });
+  return { bundle, program, registry, engine };
+}
+
 export function productAnd(values: readonly Tensor[]): Tensor {
   return values.reduce((acc, value) => mul(acc, value), tensor(1));
 }
@@ -1051,6 +1077,23 @@ function isPolicyBundlePredicate(value: unknown): value is PolicyBundlePredicate
       typeof value.bias === "number";
   }
   return false;
+}
+
+function predicateFromBundle(predicate: PolicyBundlePredicate): Predicate {
+  if (predicate.kind === "fact") return new FactPredicate(predicate.name, predicate.key ?? predicate.name);
+  if (predicate.kind === "threshold") {
+    return new ThresholdPredicate(predicate.name, predicate.valueKey, predicate.threshold, predicate.slope);
+  }
+  if (predicate.weights.length !== predicate.featureCount) {
+    throw new RuleValidationError(`Linear predicate "${predicate.name}" expected ${predicate.featureCount} weights, received ${predicate.weights.length}.`);
+  }
+  return new LinearPredicate(
+    predicate.name,
+    predicate.featureKey,
+    predicate.featureCount,
+    predicate.weights,
+    predicate.bias
+  );
 }
 
 function stableMetadata(metadata: Record<string, string | number | boolean>): Record<string, string | number | boolean> {

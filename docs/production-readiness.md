@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.21.0` is the production hardening line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, replay verification with configurable tolerance, batched tensor operations, neural regularization, a command-line replay gate, dependency-free operator hooks, runtime guardrails, policy bundle integrity checks, append-oriented ledgers, and backend dispatch contracts needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.22.0` is the policy bundle runtime line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, replay verification with configurable tolerance, batched tensor operations, neural regularization, a command-line replay gate, dependency-free operator hooks, runtime guardrails, policy bundle integrity checks, append-oriented ledgers, backend dispatch contracts, and executable policy bundles needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -20,6 +20,7 @@ SymTorch `0.21.0` is the production hardening line. This does not mean the proje
 - Runtime limits for tensor allocation, rule parsing/evaluation, entity batches, and replay entries.
 - Typed errors for resource limits, backend execution, validation, and predicate evaluation.
 - Versioned policy bundles with deterministic integrity hashes.
+- Executable policy bundle loading into rule programs, predicate registries, engines, and agents.
 - Append-oriented Node ledger sink for newline-delimited decision entries.
 - Explicit core backend dispatch boundary with typed failure for missing kernels.
 - Batched `matmul` with gradient support for rank-3+ tensors.
@@ -47,6 +48,7 @@ SymTorch `0.21.0` is the production hardening line. This does not mean the proje
 - Observability hooks are structured operator signals. They are not a metrics backend, durable audit log, distributed tracing implementation, or security boundary.
 - Runtime limits are guardrails, not a sandbox for arbitrary untrusted rule execution.
 - Policy bundle hashes are integrity checks, not cryptographic signatures.
+- Policy bundle runtime is local and does not provide a registry, promotion workflow, or schema migration runner.
 - Append file ledgers are simple persistence adapters, not transactional databases.
 - Package versions are private workspace checkpoints, not npm stability guarantees.
 - `Dropout` does not save or restore its training/eval mode across serialization boundaries.

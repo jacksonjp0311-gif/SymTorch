@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ResourceLimitError, tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { createPolicyBundle, decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, isSerializedPolicyBundle, LinearPredicate, POLICY_BUNDLE_SCHEMA_VERSION, parseProgram, PredicateEvaluationError, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate, validateProgram, validatePrograms, verifyPolicyBundleHash } from "@symtorch/logic";
+import { createPolicyBundle, decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, isSerializedPolicyBundle, LinearPredicate, loadPolicyBundle, POLICY_BUNDLE_SCHEMA_VERSION, parseProgram, PredicateEvaluationError, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate, validateProgram, validatePrograms, verifyPolicyBundleHash } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -330,6 +330,50 @@ describe("@symtorch/logic", () => {
     expect(isSerializedPolicyBundle(bundle)).toBe(true);
     expect(verifyPolicyBundleHash(bundle)).toBe(true);
     expect(isSerializedPolicyBundle({ ...bundle, rules: "tampered(X)." })).toBe(false);
+  });
+
+  it("loads policy bundles into executable programs and predicates", () => {
+    const bundle = createPolicyBundle({
+      name: "Escalation Policy",
+      version: "2026.06.30",
+      rules: `
+        escalate(X) :- high_risk(X), not approved(X).
+        suspicious(X) :- suspicious_features(X).
+      `,
+      predicates: [
+        { kind: "fact", name: "approved" },
+        { kind: "threshold", name: "high_risk", valueKey: "risk", threshold: 0.7, slope: 12 },
+        { kind: "linear", name: "suspicious_features", featureKey: "features", featureCount: 2, weights: [2, 1], bias: -1 }
+      ],
+      metadata: { owner: "risk" }
+    });
+
+    const loaded = loadPolicyBundle(bundle);
+    const escalation = loaded.engine.evaluateProgramGrouped(loaded.program, {
+      risk: 0.9,
+      approved: 0.1,
+      features: [0.9, 0.8]
+    });
+    const highRisk = loaded.registry.resolve(loaded.program.rules[0]!.body[0]!, { risk: 0.7 });
+    const linear = loaded.registry.resolve(loaded.program.rules[1]!.body[0]!, { features: [1, 0] });
+
+    expect(escalation.find((result) => result.head === "escalate(X)")?.score.item()).toBeGreaterThan(0.7);
+    expect(highRisk.score.item()).toBeCloseTo(0.5, 5);
+    expect(highRisk.detail?.threshold).toBeCloseTo(0.7, 5);
+    expect(highRisk.detail).toMatchObject({ slope: 12, valueKey: "risk" });
+    expect(linear.score.item()).toBeCloseTo(1 / (1 + Math.exp(-1)), 5);
+  });
+
+  it("rejects tampered policy bundles before loading", () => {
+    const bundle = createPolicyBundle({
+      name: "Escalation Policy",
+      version: "2026.06.30",
+      rules: "escalate(X) :- high_risk(X).",
+      predicates: [{ kind: "fact", name: "high_risk" }],
+      metadata: {}
+    });
+
+    expect(() => loadPolicyBundle({ ...bundle, rules: "escalate(X) :- low_risk(X)." })).toThrow("valid hash");
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {

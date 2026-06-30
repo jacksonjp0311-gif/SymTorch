@@ -1,6 +1,15 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.21.0` is the production hardening line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.22.0` is the policy bundle runtime line, not a production stability claim.
+
+## v0.22.0 Policy Bundle Runtime
+
+- Added `loadPolicyBundle()` to verify bundles and materialize executable rule programs, predicate registries, and engines.
+- Added `createPolicyAgent()` for one-call bundle-to-agent runtime construction.
+- Restores fact, threshold, and linear predicates from bundle metadata.
+- Added `pnpm demo:policy` for bundle creation, decision, ledger recording, and replay verification.
+- Added tests for executable bundles, tamper rejection, restored predicates, JSON-safe agent decisions, limits, and observer propagation.
+- Bumped private workspace package versions to `0.22.0`.
 
 ## v0.21.0 Production Hardening
 

@@ -1,5 +1,5 @@
 import { add, bind, mul, ResourceLimitError, sum, tensor, type Tensor, unbind, zeros } from "@symtorch/core";
-import { decisionTrace, FactStore, type AggregatedRuleResult, type FuzzyRuleEngine, type PredicateContext, type RuleProgram, type SerializedAggregatedRuleExplanation } from "@symtorch/logic";
+import { decisionTrace, FactStore, loadPolicyBundle, type AggregatedRuleResult, type FuzzyRuleEngine, type LogicObserver, type LogicRuntimeLimits, type PredicateContext, type RuleProgram, type SerializedAggregatedRuleExplanation, type SerializedPolicyBundle } from "@symtorch/logic";
 
 export type Observation = Record<string, unknown>;
 
@@ -110,6 +110,12 @@ export type AgentObserver = {
 export type RuleAgentOptions = {
   observer?: AgentObserver;
   limits?: AgentRuntimeLimits;
+};
+
+export type PolicyAgentOptions = {
+  threshold?: number;
+  observer?: AgentObserver & LogicObserver;
+  limits?: AgentRuntimeLimits & LogicRuntimeLimits;
 };
 
 export type AgentRuntimeLimits = {
@@ -381,6 +387,17 @@ export class RuleAgent {
       contextKeys: stableKeys(entry.context)
     });
   }
+}
+
+export function createPolicyAgent(bundle: SerializedPolicyBundle, options: PolicyAgentOptions = {}): RuleAgent {
+  const loaded = loadPolicyBundle(bundle, {
+    ...(options.limits ? { limits: options.limits } : {}),
+    ...(options.observer ? { observer: options.observer } : {})
+  });
+  return new RuleAgent(loaded.program, loaded.engine, options.threshold ?? 0.5, {
+    ...(options.observer ? { observer: options.observer } : {}),
+    ...(options.limits ? { limits: options.limits } : {})
+  });
 }
 
 export function isSerializedAgentDecision(value: unknown): value is SerializedAgentDecision {
