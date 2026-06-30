@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.14.0` is the WebGPU sum reduction kernel line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.15.0` is the WebGPU mean composition line, not a production stability claim.
+
+## v0.15.0 WebGPU Mean Composition
+
+- Added scalar-shaped WebGPU storage creation with `scalarTensor()` and `WebGPUContext.scalar()`.
+- Added `meanAllTensor()` and `WebGPUContext.meanAll()` by composing `sumAll` with scalar division.
+- Expanded fake-device and browser parity coverage for scalar reduction composition.
+- Kept CPU as the correctness oracle and kept WebGPU execution explicit through `@symtorch/webgpu`.
+- Bumped private workspace package versions to `0.15.0`.
 
 ## v0.14.0 WebGPU Sum Reduction Kernel
 

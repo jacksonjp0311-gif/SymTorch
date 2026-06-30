@@ -6,11 +6,13 @@ import {
   divTensors,
   expTensor,
   logTensor,
+  meanAllTensor,
   mulTensors,
   negTensor,
   reluTensor,
   sigmoidTensor,
   sqrtTensor,
+  scalarTensor,
   sumAllTensor,
   subTensors,
   tanhTensor,
@@ -116,6 +118,34 @@ describe("@symtorch/webgpu", () => {
     });
     await expectStorage(context, result, [14]);
     await expectStorage(context, sumAllTensor(device as unknown as GPUDevice, matrix), [14]);
+  });
+
+  it("composes scalar tensors and mean-all from explicit kernels", async () => {
+    const device = new FakeGPUDevice();
+    const context = createWebGPUContext(device as unknown as GPUDevice);
+    const matrix = context.uploadTensor([1, -2, 3.5, 4, 8, -0.5], [2, 3]);
+    const scalar = context.scalar(6);
+
+    expect(scalar).toMatchObject({
+      kind: "webgpu",
+      dtype: "float32",
+      shape: [],
+      size: 1,
+      byteLength: 4
+    });
+    await expectStorage(context, scalar, [6]);
+    await expectStorage(context, scalarTensor(device as unknown as GPUDevice, 2.5), [2.5]);
+
+    const result = context.meanAll(matrix);
+    expect(result).toMatchObject({
+      kind: "webgpu",
+      dtype: "float32",
+      shape: [],
+      size: 1,
+      byteLength: 4
+    });
+    await expectStorageClose(context, result, [14 / 6]);
+    await expectStorageClose(context, meanAllTensor(device as unknown as GPUDevice, matrix), [14 / 6]);
   });
 });
 

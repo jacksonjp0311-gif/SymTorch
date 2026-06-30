@@ -43,7 +43,8 @@ test("webgpu explicit kernels match CPU oracles when WebGPU is available", async
     { name: "sigmoid", kind: "unary", shader: WEBGPU_SIGMOID_WGSL },
     { name: "sqrt", kind: "unary-positive", shader: WEBGPU_SQRT_WGSL },
     { name: "tanh", kind: "unary", shader: WEBGPU_TANH_WGSL },
-    { name: "sumAll", kind: "reduction", shader: WEBGPU_SUM_ALL_WGSL }
+    { name: "sumAll", kind: "reduction", shader: WEBGPU_SUM_ALL_WGSL },
+    { name: "meanAll", kind: "reduction", shader: WEBGPU_SUM_ALL_WGSL }
   ] as const;
 
   for (const kernel of cases) {
@@ -101,6 +102,9 @@ test("webgpu explicit kernels match CPU oracles when WebGPU is available", async
     device.queue.submit([encoder.finish()]);
     await readback.mapAsync(GPUMapMode.READ);
     const actual = Array.from(new Float32Array(readback.getMappedRange().slice(0)));
+    if (kernel.name === "meanAll") {
+      actual[0] = (actual[0] ?? 0) / input.length;
+    }
     readback.unmap();
     readback.destroy();
     leftBuffer.destroy();
@@ -117,6 +121,7 @@ test("webgpu explicit kernels match CPU oracles when WebGPU is available", async
 
     function expectedValues(name: string, left: Float32Array, right: Float32Array): number[] {
       if (name === "sumAll") return [Array.from(left).reduce((total, value) => total + value, 0)];
+      if (name === "meanAll") return [Array.from(left).reduce((total, value) => total + value, 0) / left.length];
       return Array.from(left, (value, index) => {
         const b = right[index] ?? 0;
         if (name === "add") return value + b;
@@ -134,6 +139,7 @@ test("webgpu explicit kernels match CPU oracles when WebGPU is available", async
         throw new Error(`Unknown kernel ${name}.`);
       });
     }
+
   }, { kernel, tolerance: WEBGPU_DEFAULT_TOLERANCE });
 
     expect(result.ok, `${result.name} max error ${result.maxError}`).toBe(true);

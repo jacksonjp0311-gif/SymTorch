@@ -94,6 +94,10 @@ export class WebGPUContext {
     return uploadTensor(this.device, data, shape, this.pool);
   }
 
+  scalar(value: number): WebGPUTensorStorage {
+    return scalarTensor(this.device, value, this.pool);
+  }
+
   async readTensor(storage: WebGPUTensorStorage): Promise<Float32Array> {
     return readTensor(this.device, storage);
   }
@@ -154,6 +158,10 @@ export class WebGPUContext {
     return sumAllTensor(this.device, input, this.pool);
   }
 
+  meanAll(input: WebGPUTensorStorage): WebGPUTensorStorage {
+    return meanAllTensor(this.device, input, this.pool);
+  }
+
   destroy(): void {
     this.pool.destroy();
   }
@@ -188,6 +196,10 @@ export function uploadTensor(
     byteLength,
     buffer
   };
+}
+
+export function scalarTensor(device: GPUDevice, value: number, pool?: BufferPool): WebGPUTensorStorage {
+  return uploadTensor(device, [value], [], pool);
 }
 
 export async function readTensor(device: GPUDevice, storage: WebGPUTensorStorage): Promise<Float32Array> {
@@ -297,6 +309,13 @@ export function sumAllTensor(device: GPUDevice, input: WebGPUTensorStorage, pool
     byteLength,
     buffer: outputBuffer
   };
+}
+
+export function meanAllTensor(device: GPUDevice, input: WebGPUTensorStorage, pool?: BufferPool): WebGPUTensorStorage {
+  if (input.size === 0) throw new Error("meanAllTensor requires at least one element.");
+  const summed = sumAllTensor(device, input, pool);
+  const divisor = scalarTensor(device, input.size, pool);
+  return divTensors(device, summed, divisor, pool);
 }
 
 function unaryElementwise(

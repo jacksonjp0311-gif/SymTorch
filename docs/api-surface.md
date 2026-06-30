@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.14.0` WebGPU sum reduction kernel line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.15.0` WebGPU mean composition line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -132,10 +132,12 @@ Supported:
 - `createWebGPUContext`
 - `uploadTensor`
 - `readTensor`
+- `scalarTensor`
 - `addTensors`
 - `subTensors`, `mulTensors`, `divTensors`, `negTensor`
 - `absTensor`, `expTensor`, `logTensor`, `reluTensor`, `sigmoidTensor`, `sqrtTensor`, `tanhTensor`
 - `sumAllTensor`
+- `meanAllTensor`
 - `BufferPool`
 
 Experimental:
@@ -144,8 +146,8 @@ Experimental:
 
 Notes:
 
-- WebGPU support is currently capability detection, buffer pooling, explicit tensor upload/readback, a same-shape elementwise kernel set, and scalar `sumAll`.
-- Same-shape elementwise `add`, `sub`, `mul`, `div`, `neg`, `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh` have prototype kernels. `sumAll` is the first reduction prototype. Broadcasting, axis reductions, wider tensor kernels, and core dispatch integration are future work.
+- WebGPU support is currently capability detection, buffer pooling, explicit tensor upload/readback, a same-shape elementwise kernel set, scalar `sumAll`, and composed `meanAll`.
+- Same-shape elementwise `add`, `sub`, `mul`, `div`, `neg`, `abs`, `exp`, `log`, `relu`, `sigmoid`, `sqrt`, and `tanh` have prototype kernels. `sumAll` is the first reduction prototype; `meanAll` composes `sumAll` with scalar division. Broadcasting, axis reductions, wider tensor kernels, and core dispatch integration are future work.
 - The browser parity gate exercises the explicit kernel set when WebGPU is available and skips otherwise.
 
 ## Internal By Convention
