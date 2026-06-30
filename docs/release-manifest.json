@@ -1,6 +1,6 @@
 {
-  "version": "0.26.0",
-  "status": "policy-fixture-suite",
+  "version": "0.27.0",
+  "status": "expected-decision-fixtures",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

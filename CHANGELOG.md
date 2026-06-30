@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.26.0` is the policy fixture suite line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.27.0` is the expected decision fixture line, not a production stability claim.
+
+## v0.27.0 Expected Decision Fixtures
+
+- Added `symtorch.policyExpectations.v1` sidecar expectations for checked-in policy fixtures.
+- Fixture verification now checks expected decision rank, entity, action, acceptance, and score ranges.
+- `pnpm demo:policy-fixtures` now fails on behavior drift, not only schema/runtime failures.
+- Added expected-decision coverage tests for every checked-in policy bundle.
+- Bumped private workspace package versions to `0.27.0`.
 
 ## v0.26.0 Policy Fixture Suite
 

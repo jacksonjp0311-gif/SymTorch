@@ -130,6 +130,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Versioned browser policy libraries for saving, loading, exporting, and importing local bundles.
 - Explicit workbench migration helpers for old saved state and policy-library artifacts.
 - Checked-in policy fixture suite for escalation, fraud review, and support routing.
+- Expected decision fixtures that lock policy rank, entity, action, acceptance, and score ranges.
 - Append-oriented Node ledger persistence for newline-delimited decision entries.
 - Dependency-free observer hooks for rule evaluation, decisions, ledger appends, and replay summaries.
 - Holographic memory primitive for binding, superposing, and recalling vector symbols.
@@ -283,7 +284,7 @@ examples/
 
 Near term:
 
-- expand the policy fixture corpus and expected decision assertions
+- expand the policy fixture corpus across more domains
 - workbench migration coverage for every persisted artifact
 - backend dispatch foundation for future WebGPU kernels
 - typed domains and guarded grounding
@@ -307,6 +308,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.26.0` workspace line is the policy fixture suite line: multiple checked-in policy bundles are now verified, materialized, executed, ledger-recorded, replay-checked, and loaded through the workbench library migration path while the WebGPU line remains explicit and CPU-oracled.
+SymTorch is early, active, and intentionally foundation-first. The `0.27.0` workspace line is the expected decision fixture line: checked-in policy bundles are now verified, materialized, executed, ledger-recorded, replay-checked, loaded through migration paths, and checked against expected decision ranks/actions/score ranges while the WebGPU line remains explicit and CPU-oracled.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

@@ -8,6 +8,20 @@ type FixtureCase = {
   approved: number;
 };
 
+type ExpectedDecision = {
+  rank: number;
+  entityId: string;
+  action: string;
+  accepted: boolean;
+  scoreMin: number;
+  scoreMax: number;
+};
+
+type ExpectedDecisionFile = {
+  schemaVersion: "symtorch.policyExpectations.v1";
+  fixtures: Record<string, ExpectedDecision[]>;
+};
+
 const fixtureCases: Record<string, FixtureCase[]> = {
   "case-escalation": [
     { entityId: "case-hot", high_risk: 0.9, approved: 0.1 },
@@ -27,6 +41,7 @@ const policiesDir = new URL("../examples/policies/", import.meta.url);
 const files = readdirSync(policiesDir)
   .filter((file) => file.endsWith(".policy.json"))
   .sort();
+const expectations = readExpectations();
 
 console.log("SymTorch Policy Fixture Suite");
 console.log(`fixtures: ${files.length}`);
@@ -52,6 +67,8 @@ for (const file of files) {
   }
 
   const decisions = agent.decideEntitiesTrace();
+  const expected = expectations.fixtures[file] ?? [];
+  assertExpectedDecisions(file, decisions, expected);
   const entries = agent.recordEntityDecisions({ acceptedOnly: true, topK: cases.length }, new Date("2026-06-30T00:00:00.000Z"));
   const snapshot = serializeDecisionLedger(agent.ledger);
   const replayReport = verifyDecisionLedgerReplay(snapshot, (entry: DecisionLedgerEntry) => replayDecision(bundle, entry), { atol: 1e-6 });
@@ -68,11 +85,12 @@ for (const file of files) {
       accepted: decision.accepted,
       score: Number(decision.score.toFixed(4))
     })),
+    expectations: expected.length,
     ledgerEntries: entries.length,
     replay: replayReport.ok
   }, null, 2));
 
-  if (!verifyPolicyBundleHash(bundle) || loaded.program.rules.length === 0 || decisions.length !== cases.length || entries.length === 0 || !replayReport.ok) {
+  if (!verifyPolicyBundleHash(bundle) || loaded.program.rules.length === 0 || decisions.length !== cases.length || expected.length === 0 || entries.length === 0 || !replayReport.ok) {
     throw new Error(`Policy fixture failed: ${file}`);
   }
 }
@@ -83,6 +101,37 @@ function readBundle(file: string): SerializedPolicyBundle {
     throw new Error(`Invalid policy fixture: ${file}`);
   }
   return value;
+}
+
+function readExpectations(): ExpectedDecisionFile {
+  const value = JSON.parse(readFileSync(new URL("expected-decisions.json", policiesDir), "utf8")) as ExpectedDecisionFile;
+  if (value.schemaVersion !== "symtorch.policyExpectations.v1") {
+    throw new Error("Invalid expected decision fixture schema.");
+  }
+  return value;
+}
+
+function assertExpectedDecisions(
+  file: string,
+  decisions: ReturnType<ReturnType<typeof createPolicyAgent>["decideEntitiesTrace"]>,
+  expected: readonly ExpectedDecision[]
+): void {
+  if (expected.length === 0) {
+    throw new Error(`No expected decisions registered for ${file}.`);
+  }
+  for (const item of expected) {
+    const decision = decisions[item.rank];
+    if (!decision) throw new Error(`Missing rank ${item.rank} decision for ${file}.`);
+    if (
+      decision.entityId !== item.entityId ||
+      decision.action !== item.action ||
+      decision.accepted !== item.accepted ||
+      decision.score < item.scoreMin ||
+      decision.score > item.scoreMax
+    ) {
+      throw new Error(`Expected decision drift in ${file} at rank ${item.rank}.`);
+    }
+  }
 }
 
 function casesFor(bundle: SerializedPolicyBundle): FixtureCase[] {

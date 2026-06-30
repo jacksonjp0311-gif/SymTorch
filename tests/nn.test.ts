@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mean, mul, logSoftmax, Tensor, tensor } from "@symtorch/core";
 import { binaryCrossEntropyWithLogits, crossEntropyLoss, Dropout, LayerNorm } from "@symtorch/nn";
 
@@ -76,17 +76,22 @@ describe("@symtorch/nn", () => {
   });
 
   it("applies inverted dropout scaling in training mode", () => {
+    const random = mockRandomSequence([0.1, 0.9]);
     const dropout = new Dropout(0.5);
     dropout.training = true;
     const input = tensor([2, 2, 2, 2, 2, 2, 2, 2, 2, 2], { shape: [10], requiresGrad: true });
-    const output = dropout.forward(input);
-    const values = output.toArray();
-    const zeros = values.filter((v) => v === 0).length;
-    const scaled = values.filter((v) => v > 0);
-    expect(zeros).toBeGreaterThan(0);
-    expect(zeros).toBeLessThan(10);
-    for (const v of scaled) {
-      expect(v).toBeCloseTo(4, 0);
+    try {
+      const output = dropout.forward(input);
+      const values = output.toArray();
+      const zeros = values.filter((v) => v === 0).length;
+      const scaled = values.filter((v) => v > 0);
+      expect(zeros).toBe(5);
+      expect(scaled).toHaveLength(5);
+      for (const v of scaled) {
+        expect(v).toBeCloseTo(4, 0);
+      }
+    } finally {
+      random.mockRestore();
     }
   });
 
@@ -104,20 +109,33 @@ describe("@symtorch/nn", () => {
   });
 
   it("backpropagates through Dropout mask", () => {
+    const random = mockRandomSequence([0.1, 0.9]);
     const dropout = new Dropout(0.5);
     dropout.training = true;
     const input = tensor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], { shape: [10], requiresGrad: true });
-    const output = dropout.forward(input);
-    output.sum().backward();
-    const gradValues = input.grad?.toArray() ?? [];
-    const nonZeroGrad = gradValues.filter((v) => v !== 0);
-    expect(nonZeroGrad.length).toBeGreaterThan(0);
-    expect(nonZeroGrad.length).toBeLessThan(10);
-    for (const v of nonZeroGrad) {
-      expect(v).toBeCloseTo(2, 0);
+    try {
+      const output = dropout.forward(input);
+      output.sum().backward();
+      const gradValues = input.grad?.toArray() ?? [];
+      const nonZeroGrad = gradValues.filter((v) => v !== 0);
+      expect(nonZeroGrad).toHaveLength(5);
+      for (const v of nonZeroGrad) {
+        expect(v).toBeCloseTo(2, 0);
+      }
+    } finally {
+      random.mockRestore();
     }
   });
 });
+
+function mockRandomSequence(values: readonly number[]): ReturnType<typeof vi.spyOn> {
+  let index = 0;
+  return vi.spyOn(Math, "random").mockImplementation(() => {
+    const value = values[index % values.length] ?? 0;
+    index++;
+    return value;
+  });
+}
 
 function expectGradientClose(values: readonly number[], shape: readonly number[], fn: (x: Tensor) => Tensor): void {
   const x = tensor(values, { shape, requiresGrad: true });

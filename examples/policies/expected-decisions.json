@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "symtorch.policyExpectations.v1",
+  "fixtures": {
+    "escalation.policy.json": [
+      {
+        "rank": 0,
+        "entityId": "case-approved",
+        "action": "defer(X)",
+        "accepted": true,
+        "scoreMin": 0.94,
+        "scoreMax": 0.96
+      },
+      {
+        "rank": 1,
+        "entityId": "case-hot",
+        "action": "escalate(X)",
+        "accepted": true,
+        "scoreMin": 0.78,
+        "scoreMax": 0.81
+      }
+    ],
+    "fraud-review.policy.json": [
+      {
+        "rank": 0,
+        "entityId": "txn-approved",
+        "action": "clear(X)",
+        "accepted": true,
+        "scoreMin": 0.91,
+        "scoreMax": 0.93
+      },
+      {
+        "rank": 1,
+        "entityId": "txn-hot",
+        "action": "review(X)",
+        "accepted": true,
+        "scoreMin": 0.87,
+        "scoreMax": 0.9
+      }
+    ],
+    "support-routing.policy.json": [
+      {
+        "rank": 0,
+        "entityId": "ticket-resolved",
+        "action": "resolve_standard(X)",
+        "accepted": true,
+        "scoreMin": 0.89,
+        "scoreMax": 0.91
+      },
+      {
+        "rank": 1,
+        "entityId": "ticket-outage",
+        "action": "route_specialist(X)",
+        "accepted": true,
+        "scoreMin": 0.8,
+        "scoreMax": 0.84
+      }
+    ]
+  }
+}
