@@ -9,5 +9,30 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
-  }
+  },
+  "description": "Differentiable tensors + autograd core for SymTorch (TypeScript, ESM).",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacksonjp0311-gif/SymTorch.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/jacksonjp0311-gif/SymTorch#readme",
+  "bugs": {
+    "url": "https://github.com/jacksonjp0311-gif/SymTorch/issues"
+  },
+  "keywords": [
+    "tensor",
+    "autograd",
+    "differentiable",
+    "typescript",
+    "ml"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false
 }

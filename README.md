@@ -7,9 +7,16 @@
 
 **Differentiable tensors, trainable symbolic rules, and explainable agent decisions in TypeScript.**
 
-SymTorch is a JavaScript-native research and engineering project for building neuro-symbolic AI systems in the browser, Node.js, and edge-style runtimes. It combines a PyTorch-inspired eager tensor/autograd core with a fuzzy-logic rule engine, learnable predicates, working memory, and agent-facing explanations.
+SymTorch is a JavaScript-native research and engineering project for building **neuro-symbolic AI systems** in the browser, Node.js, and edge-style runtimes.
 
-The bet is simple: developers should be able to write rules humans can read, compile them into differentiable tensor programs, train them with gradient descent, and still ask, "why did the system decide that?"
+It combines:
+
+- a PyTorch-inspired eager **tensor + autograd** core
+- a Prolog-like **fuzzy rule engine** with learnable predicates
+- **working memory** over observations and entity facts
+- **versioned, JSON-safe explanation traces** and decision ledgers (designed for agents)
+
+The bet is simple: developers should be able to write rules humans can read, compile them into differentiable tensor programs, train them with gradient descent, and still ask: **“why did the system decide that?”**
 
 ```prolog
 escalate(X) :- high_risk(X), not approved(X).
@@ -18,7 +25,9 @@ escalate(X) :- customer_vip(X).
 
 Those rules can produce one aggregated `escalate(X)` score, train their predicates from feedback, and preserve an explanation trace for every contributing rule.
 
-## 30-Second Demo
+---
+
+## 30-second demo
 
 ```ts
 import { tensor } from "@symtorch/core";
@@ -57,9 +66,11 @@ console.log(decisionTrace(result));
 
 The rule stays readable, `high_risk(X)` can train, and the final output remains a versioned JSON-safe explanation trace.
 
-## Working Prototype Loop
+---
 
-The current browser workbench demonstrates the product loop SymTorch is moving toward:
+## The product loop (workbench prototype)
+
+The current browser workbench demonstrates the end-to-end loop SymTorch is moving toward:
 
 ```text
 edit readable policy
@@ -79,11 +90,15 @@ Run it locally:
 pnpm playground:browser
 ```
 
-The workbench is intentionally local-first. It proves the contracts and runtime path before adding remote registries, auth, or multi-user storage.
+The workbench is intentionally **local-first**. It proves the contracts and runtime path before adding remote registries, auth, or multi-user storage.
+
+---
 
 ## Why SymTorch
 
-Most JavaScript ML tools focus on neural models alone. Most rule engines are discrete and brittle. SymTorch is building the missing middle: a tensor system where symbolic rules are first-class differentiable programs.
+Most JavaScript ML tools focus on neural models alone. Most rule engines are discrete and brittle.
+
+SymTorch is building the missing middle: **a tensor system where symbolic rules are first-class differentiable programs**.
 
 Use it for:
 
@@ -92,6 +107,8 @@ Use it for:
 - browser or Node.js ML experiments without a Python service
 - fuzzy reasoning over observations, facts, and learned predicates
 - LLM-assisted rule authoring where SymTorch executes, trains, and explains
+
+---
 
 ## Why this is not just JS tensors
 
@@ -105,7 +122,61 @@ readable rule -> fuzzy tensor execution -> trainable predicate -> explanation tr
 
 That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can stay readable while `high_risk(X)` becomes a learnable predicate, the rule score remains differentiable, and the final decision still carries a trace of which predicates and rules contributed. SymTorch is early and foundation-first; it is not claiming parity with mature tensor frameworks. The work right now is to make the math and explanations credible enough to build on.
 
-## Current Capabilities
+## Install
+
+### Option A: from npm (after first public publish)
+
+```powershell
+pnpm add @symtorch/core @symtorch/logic @symtorch/agent
+```
+
+### Option B: from source (today)
+
+```powershell
+git clone https://github.com/jacksonjp0311-gif/SymTorch
+cd SymTorch
+pnpm install
+pnpm test
+pnpm build
+```
+
+---
+
+## Quickstart (repo gates)
+
+```powershell
+pnpm install
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+Run examples:
+
+```powershell
+pnpm example:linear
+pnpm example:routing
+pnpm example:trainable-routing
+pnpm example:batch-routing
+```
+
+Run verification demos:
+
+```powershell
+pnpm demo:gradients
+pnpm demo:rule
+pnpm demo:ledger
+pnpm demo:policy
+pnpm demo:golden-policy
+pnpm demo:policy-fixtures
+pnpm demo:all
+```
+
+---
+
+## Current capabilities (detailed)
+
+This section is intentionally exhaustive: it’s the factual capability surface of the repo as of `0.30.0`.
 
 - Eager `Tensor` API with CPU `float32` typed-array storage.
 - Backend registry and storage model with CPU available and WebGPU registered as an explicit placeholder acceleration target.
@@ -149,37 +220,41 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Versioned `symtorch.trainingRun.v1` records for browser-side training history.
 - WebGPU package with runtime detection, buffer pooling, explicit tensor residency, same-shape elementwise kernel prototypes, and a browser parity gate when WebGPU is available.
 
-## Quickstart
+---
 
-```powershell
-pnpm install
+## Validation gates (release-manifest)
+
+The `0.30.0` release manifest documents the “production contract corpus alpha” gates:
+
+```text
+pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm test
+pnpm playground:test
 pnpm build
-```
-
-Run the demos:
-
-```powershell
-pnpm example:linear
-pnpm example:routing
-pnpm example:trainable-routing
-pnpm example:batch-routing
-```
-
-## Executable Demos
-
-```powershell
-pnpm demo:gradients
-pnpm demo:rule
-pnpm demo:ledger
-pnpm demo:policy
-pnpm demo:golden-policy
+pnpm playground:build
+pnpm exec tsx scripts/smoke-browser-playground.ts
+pnpm playground:e2e
 pnpm demo:policy-fixtures
 pnpm demo:all
 ```
 
-These are short verification scripts. They are meant to show the core claims directly: gradient sanity, trainable readable rules, and JSON-safe agent ledger replay.
+---
+
+## Non-claims (important)
+
+The version labels in this repository are engineering checkpoints for a private workspace.
+
+SymTorch is:
+
+- not a full PyTorch replacement
+- not a full Prolog or Datalog engine
+- not a production authorization system
+- not a high-performance GPU tensor runtime yet
+- not a durable database or retention system
+- not an npm stability guarantee
+
+---
 
 ## Trainable Rule Example
 
@@ -240,7 +315,7 @@ const drafts = validatePrograms([
 console.log(drafts.map((draft) => [draft.id, draft.result.ok]));
 ```
 
-## Monorepo Layout
+## Monorepo layout
 
 ```text
 packages/
@@ -256,6 +331,8 @@ examples/
   trainable-routing/
   policies/
 ```
+
+---
 
 ## Documentation
 
@@ -279,9 +356,11 @@ examples/
 - [WebGPU add kernel prototype](docs/webgpu-add-kernel.md)
 - [WebGPU browser parity gate](docs/webgpu-browser-parity.md)
 - [WebGPU same-shape elementwise kernels](docs/webgpu-elementwise-kernels.md)
-- [Production readiness alpha](docs/production-readiness.md)
 - [Limitations](docs/limitations.md)
 - [Changelog](CHANGELOG.md)
+- [Production readiness alpha](docs/production-readiness.md)
+
+---
 
 ## Design Principles
 
@@ -319,6 +398,11 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.30.0` workspace line is the production contract corpus alpha line: the ten production tracks are now represented in machine-readable readiness reports, policy admission reports, HMAC signing metadata, typed domain contracts, decision trace snapshots, golden trace fixtures, expected decision fixtures, migrations, replay checks, operational event sinks, API stability snapshots, WebGPU parity metadata, and browser gates. Durable database adapters, audited key management, hardened sandboxing, and WebGPU backend dispatch remain explicit future work.
+SymTorch is early, active, and intentionally foundation-first.
 
-The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.
+The `0.30.0` workspace line is the **production contract corpus alpha** line: the ten production tracks are represented in machine-readable readiness reports, policy admission reports, HMAC signing metadata, typed domain contracts, decision trace snapshots, golden trace fixtures, expected decision fixtures, migrations, replay checks, operational event sinks, API stability snapshots, WebGPU parity metadata, and browser gates.
+
+Durable database adapters, audited key management, hardened sandboxing, and WebGPU backend dispatch remain explicit future work.
+
+---
+

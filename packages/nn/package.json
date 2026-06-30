@@ -12,5 +12,30 @@
   },
   "dependencies": {
     "@symtorch/core": "workspace:*"
-  }
+  },
+  "description": "Neural network modules, layers, optimizers, and losses for SymTorch.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacksonjp0311-gif/SymTorch.git",
+    "directory": "packages/nn"
+  },
+  "homepage": "https://github.com/jacksonjp0311-gif/SymTorch#readme",
+  "bugs": {
+    "url": "https://github.com/jacksonjp0311-gif/SymTorch/issues"
+  },
+  "keywords": [
+    "neural-network",
+    "layers",
+    "optimizers",
+    "typescript",
+    "ml"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false
 }

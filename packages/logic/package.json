@@ -13,5 +13,30 @@
   "dependencies": {
     "@symtorch/core": "workspace:*",
     "@symtorch/nn": "workspace:*"
-  }
+  },
+  "description": "Trainable fuzzy rules, predicates, explanations, and rule training for SymTorch.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacksonjp0311-gif/SymTorch.git",
+    "directory": "packages/logic"
+  },
+  "homepage": "https://github.com/jacksonjp0311-gif/SymTorch#readme",
+  "bugs": {
+    "url": "https://github.com/jacksonjp0311-gif/SymTorch/issues"
+  },
+  "keywords": [
+    "logic",
+    "rules",
+    "fuzzy-logic",
+    "neuro-symbolic",
+    "typescript"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false
 }

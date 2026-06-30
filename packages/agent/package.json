@@ -17,5 +17,30 @@
   "dependencies": {
     "@symtorch/core": "workspace:*",
     "@symtorch/logic": "workspace:*"
-  }
+  },
+  "description": "Agent decision loops, working memory, decision ledgers, and trace snapshots for SymTorch.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacksonjp0311-gif/SymTorch.git",
+    "directory": "packages/agent"
+  },
+  "homepage": "https://github.com/jacksonjp0311-gif/SymTorch#readme",
+  "bugs": {
+    "url": "https://github.com/jacksonjp0311-gif/SymTorch/issues"
+  },
+  "keywords": [
+    "agents",
+    "explanations",
+    "decision",
+    "ledger",
+    "typescript"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false
 }
