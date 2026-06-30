@@ -8,9 +8,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
-
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -26,24 +23,18 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Cache Playwright browsers
+      - name: Cache Playwright Chromium
         uses: actions/cache@v4
         with:
-          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
-          key: pw-chromium-${{ runner.os }}-v1178
-          restore-keys: |
-            pw-chromium-${{ runner.os }}-
+          path: ~/.cache/ms-playwright
+          key: pw-chromium-1178
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --only-shell chromium
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm playground:test
       - run: pnpm build
       - run: pnpm playground:build
       - run: pnpm exec tsx scripts/smoke-browser-playground.ts
-
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --only-shell chromium
-
-      - name: Playwright E2E
-        run: pnpm playground:e2e
+      - run: pnpm playground:e2e
