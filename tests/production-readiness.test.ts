@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AGENT_DECISION_SCHEMA_VERSION, DECISION_LEDGER_SCHEMA_VERSION } from "@symtorch/agent";
-import { EXPLANATION_SCHEMA_VERSION } from "@symtorch/logic";
+import { EXPLANATION_SCHEMA_VERSION, POLICY_BUNDLE_SCHEMA_VERSION } from "@symtorch/logic";
 import {
   PLAYGROUND_STATE_VERSION,
   SCENARIO_SCHEMA_VERSION,
@@ -18,6 +18,7 @@ type ReleaseManifest = {
     playgroundState: string;
     scenario: string;
     trainingRun: string;
+    policyBundle: string;
   };
   validationGates: string[];
   nonClaims: string[];
@@ -33,14 +34,15 @@ describe("production readiness manifest", () => {
     const rootPackage = readJson<{ version: string }>("../package.json");
 
     expect(manifest.version).toBe(rootPackage.version);
-    expect(manifest.status).toBe("observability-hooks");
+    expect(manifest.status).toBe("production-hardening");
     expect(manifest.schemaVersions).toEqual({
       explanation: EXPLANATION_SCHEMA_VERSION,
       agentDecision: AGENT_DECISION_SCHEMA_VERSION,
       decisionLedger: DECISION_LEDGER_SCHEMA_VERSION,
       playgroundState: PLAYGROUND_STATE_VERSION,
       scenario: SCENARIO_SCHEMA_VERSION,
-      trainingRun: TRAINING_RUN_SCHEMA_VERSION
+      trainingRun: TRAINING_RUN_SCHEMA_VERSION,
+      policyBundle: POLICY_BUNDLE_SCHEMA_VERSION
     });
   });
 

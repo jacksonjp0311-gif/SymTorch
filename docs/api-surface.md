@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.20.0` observability hooks line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.21.0` production hardening line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -13,7 +13,10 @@ This document defines the intended public API surface for the current `0.20.0` o
 Supported:
 
 - `Tensor`
+- `SymTorchError`, `ResourceLimitError`, `BackendExecutionError`
+- `CoreRuntimeLimits`, `configureRuntimeLimits`, `getRuntimeLimits`
 - `BackendDescriptor`, `BackendScope`, `BackendStatus`
+- `BackendKernelName`, `runBackendKernel`
 - `CpuStorage`, `GpuStorage`, `TensorStorage`, `TensorBackend`
 - `registerBackend`, `getBackend`, `listBackends`, `getDefaultDevice`, `setDefaultDevice`, `withDefaultDevice`
 - `tensor`, `fromArray`, `zeros`, `ones`, `full`, `randn`
@@ -61,11 +64,13 @@ Supported:
 
 - Rule AST and parser types: `Term`, `PredicateCall`, `RuleAst`, `RuleProgram`
 - Parser diagnostics: `RuleParseError`
+- Error taxonomy: `RuleValidationError`, `PredicateEvaluationError`
 - Validation: `RuleValidationResult`, `RuleDiagnostic`, `BatchRuleValidationItem`, `RuleValidationOptions`, `RuleValidationInput`, `parseProgram`, `parseRule`, `validateProgram`, `validatePrograms`
 - Predicate contracts: `Predicate`, `PredicateContext`, `PredicateResolver`, `PredicateResolution`
 - Predicates and registry: `PredicateRegistry`, `FixedPredicate`, `FactPredicate`, `ThresholdPredicate`, `LinearPredicate`
 - Evaluation: `FuzzyRuleEngine`, `RuleResult`, `AggregatedRuleResult`, `EntityRuleResult`, `RankedEntityResult`
 - Observability: `LogicObserver`, `FuzzyRuleEngineOptions`, `RuleEvaluationEvent`, `ProgramEvaluationEvent`
+- Runtime limits and policy bundles: `LogicRuntimeLimits`, `POLICY_BUNDLE_SCHEMA_VERSION`, `SerializedPolicyBundle`, `PolicyBundlePredicate`, `PolicyBundleInput`, `createPolicyBundle`, `isSerializedPolicyBundle`, `verifyPolicyBundleHash`
 - Training: `LabeledRuleExample`, `RuleTrainerOptions`, `RuleTrainerHistoryItem`, `RuleTrainerResult`, `RuleTrainer`
 - Explanations: `EXPLANATION_SCHEMA_VERSION`, `ExplanationSchemaVersion`, `RuleExplanation`, `PredicateTrace`, `AggregatedRuleExplanation`, `SerializedPredicateTrace`, `SerializedRuleExplanation`, `SerializedAggregatedRuleExplanation`, `SerializedExplanation`
 - Rendering and serialization: `renderRuleExplanation`, `renderAggregatedExplanation`, `decisionCard`, `decisionTrace`, `serializeExplanation`
@@ -95,6 +100,7 @@ Supported:
 - `SerializedEntityDecision`
 - `SerializedDecisionLedger`
 - `DecisionLedgerSink`
+- `DecisionLedgerAppendSink`
 - `DecisionReplayFn`
 - `DecisionReplayReport`
 - `DecisionReplayMismatch`
@@ -104,6 +110,7 @@ Supported:
 - `DecisionLedgerAppendEvent`
 - `DecisionReplayEvent`
 - `RuleAgentOptions`
+- `AgentRuntimeLimits`
 - `EntityDecisionOptions`
 - `DecisionLedgerEntry`
 - `DecisionLedger`
@@ -123,6 +130,7 @@ Node-only subpath:
 
 - `@symtorch/agent/node`
 - `FileDecisionLedgerSink`
+- `AppendFileDecisionLedgerSink`
 
 Notes:
 

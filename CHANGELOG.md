@@ -1,6 +1,16 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.20.0` is the observability hooks line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.21.0` is the production hardening line, not a production stability claim.
+
+## v0.21.0 Production Hardening
+
+- Added core `SymTorchError`, `ResourceLimitError`, and `BackendExecutionError` taxonomy.
+- Added tensor allocation limits and an explicit backend kernel dispatch boundary.
+- Added logic runtime limits for rule source length, rule count, predicates per rule, and entity evaluation count.
+- Added `PredicateEvaluationError`, policy bundle contracts, deterministic bundle hashing, and bundle validation.
+- Added agent limits for entity batches and replay entries.
+- Added `AppendFileDecisionLedgerSink` for newline-delimited append-oriented ledger persistence.
+- Added hardening tests and documentation, and bumped private workspace package versions to `0.21.0`.
 
 ## v0.20.0 Observability Hooks
 

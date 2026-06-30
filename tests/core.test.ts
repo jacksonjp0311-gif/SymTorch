@@ -1,18 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   add,
+  BackendExecutionError,
   bind,
   circularConvolve,
   circularCorrelate,
   clip,
+  configureRuntimeLimits,
   getBackend,
   getDefaultDevice,
+  getRuntimeLimits,
   listBackends,
   logsumexp,
   matmul,
   mean,
   mul,
   pow,
+  ResourceLimitError,
+  runBackendKernel,
   setDefaultDevice,
   sigmoid,
   softmax,
@@ -52,6 +57,20 @@ describe("@symtorch/core", () => {
     expect(() => gpu.toArray()).toThrow("WebGPU storage is a placeholder");
     await expect(gpu.read()).rejects.toThrow("GPU readback is not implemented");
     await expect(gpu.toCPU()).rejects.toThrow("GPU readback is not implemented");
+  });
+
+  it("enforces tensor resource limits and exposes backend dispatch errors", () => {
+    const previous = getRuntimeLimits();
+    try {
+      configureRuntimeLimits({ maxTensorElements: 2 });
+      expect(() => tensor([1, 2, 3])).toThrow(ResourceLimitError);
+    } finally {
+      configureRuntimeLimits(previous);
+    }
+
+    const gpu = tensor([1], { device: "webgpu" });
+    expect(() => runBackendKernel("add", [gpu], () => tensor(0))).toThrow(BackendExecutionError);
+    expect(() => add(gpu, gpu)).toThrow(BackendExecutionError);
   });
 
   it("adds tensors with broadcasting", () => {

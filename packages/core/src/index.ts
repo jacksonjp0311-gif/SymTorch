@@ -1,6 +1,13 @@
 export type DType = "float32";
 export type Device = "cpu" | "webgpu";
 export type BackendStatus = "available" | "placeholder";
+export type SymTorchErrorCode =
+  | "ERR_BACKEND"
+  | "ERR_BACKEND_EXECUTION"
+  | "ERR_PREDICATE"
+  | "ERR_RESOURCE_LIMIT"
+  | "ERR_RULE_VALIDATION"
+  | "ERR_TENSOR_SHAPE";
 
 export type BackendDescriptor = {
   id: Device;
@@ -30,6 +37,7 @@ export type TensorStorage = CpuStorage | GpuStorage;
 export type TensorBackend = BackendDescriptor & {
   createStorage(data: Float32Array, shape: readonly number[], dtype: DType): TensorStorage;
   readSync(storage: TensorStorage): Float32Array;
+  execute?<T>(op: BackendKernelName, inputs: readonly Tensor[], fallback: () => T): T;
 };
 
 export type TensorOptions = {
@@ -37,6 +45,26 @@ export type TensorOptions = {
   shape?: readonly number[];
   dtype?: DType;
   device?: Device;
+};
+
+export type BackendKernelName =
+  | "add"
+  | "sub"
+  | "mul"
+  | "div"
+  | "neg"
+  | "matmul"
+  | "sum"
+  | "mean"
+  | "max"
+  | "reshape"
+  | "transpose"
+  | "softmax"
+  | "logSoftmax"
+  | "logsumexp";
+
+export type CoreRuntimeLimits = {
+  maxTensorElements?: number;
 };
 
 type BackwardEdge = {
@@ -47,6 +75,30 @@ type BackwardEdge = {
 const EPS = 1e-7;
 const backendRegistry = new Map<Device, TensorBackend>();
 let defaultDevice: Device = "cpu";
+let runtimeLimits: Required<CoreRuntimeLimits> = {
+  maxTensorElements: Number.POSITIVE_INFINITY
+};
+
+export class SymTorchError extends Error {
+  constructor(readonly code: SymTorchErrorCode, message: string) {
+    super(message);
+    this.name = "SymTorchError";
+  }
+}
+
+export class ResourceLimitError extends SymTorchError {
+  constructor(message: string) {
+    super("ERR_RESOURCE_LIMIT", message);
+    this.name = "ResourceLimitError";
+  }
+}
+
+export class BackendExecutionError extends SymTorchError {
+  constructor(message: string) {
+    super("ERR_BACKEND_EXECUTION", message);
+    this.name = "BackendExecutionError";
+  }
+}
 
 export class Tensor {
   readonly storage: TensorStorage;
@@ -74,8 +126,9 @@ export class Tensor {
     this.requiresGrad = options.requiresGrad ?? parents.some((edge) => edge.parent.requiresGrad);
     this.parents = parents;
     const expected = sizeOf(this.shape);
+    assertTensorElementLimit(expected);
     if (expected !== storageSize(this.storage)) {
-      throw new Error(`Tensor storage length ${storageSize(this.storage)} does not match shape [${this.shape.join(", ")}] (${expected}).`);
+      throw new SymTorchError("ERR_TENSOR_SHAPE", `Tensor storage length ${storageSize(this.storage)} does not match shape [${this.shape.join(", ")}] (${expected}).`);
     }
   }
 
@@ -245,6 +298,24 @@ export function registerBackend(backend: TensorBackend): void {
   backendRegistry.set(backend.id, { ...backend });
 }
 
+export function configureRuntimeLimits(limits: CoreRuntimeLimits): void {
+  const next = {
+    ...runtimeLimits,
+    ...limits
+  };
+  if (!Number.isFinite(next.maxTensorElements) && next.maxTensorElements !== Number.POSITIVE_INFINITY) {
+    throw new ResourceLimitError("maxTensorElements must be a positive finite number or Infinity.");
+  }
+  if (next.maxTensorElements <= 0) {
+    throw new ResourceLimitError("maxTensorElements must be greater than 0.");
+  }
+  runtimeLimits = next;
+}
+
+export function getRuntimeLimits(): Required<CoreRuntimeLimits> {
+  return { ...runtimeLimits };
+}
+
 export function getBackend(device: Device = defaultDevice): BackendDescriptor {
   const backend = backendRegistry.get(device);
   if (!backend) throw new Error(`No backend registered for device "${device}".`);
@@ -314,35 +385,35 @@ export function randn(shape: readonly number[], options: TensorOptions = {}): Te
 export function add(aLike: TensorLike, bLike: TensorLike): Tensor {
   const a = tensor(aLike);
   const b = tensor(bLike);
-  return binaryOp(a, b, (x, y) => x + y, (grad) => grad, (grad) => grad);
+  return runBackendKernel("add", [a, b], () => binaryOp(a, b, (x, y) => x + y, (grad) => grad, (grad) => grad));
 }
 
 export function sub(aLike: TensorLike, bLike: TensorLike): Tensor {
   const a = tensor(aLike);
   const b = tensor(bLike);
-  return binaryOp(a, b, (x, y) => x - y, (grad) => grad, (grad) => neg(grad));
+  return runBackendKernel("sub", [a, b], () => binaryOp(a, b, (x, y) => x - y, (grad) => grad, (grad) => neg(grad)));
 }
 
 export function mul(aLike: TensorLike, bLike: TensorLike): Tensor {
   const a = tensor(aLike);
   const b = tensor(bLike);
-  return binaryOp(a, b, (x, y) => x * y, (grad) => mulNoGrad(grad, b), (grad) => mulNoGrad(grad, a));
+  return runBackendKernel("mul", [a, b], () => binaryOp(a, b, (x, y) => x * y, (grad) => mulNoGrad(grad, b), (grad) => mulNoGrad(grad, a)));
 }
 
 export function div(aLike: TensorLike, bLike: TensorLike): Tensor {
   const a = tensor(aLike);
   const b = tensor(bLike);
-  return binaryOp(
+  return runBackendKernel("div", [a, b], () => binaryOp(
     a,
     b,
     (x, y) => x / y,
     (grad) => divNoGrad(grad, b),
     (grad) => neg(divNoGrad(mulNoGrad(grad, a), mulNoGrad(b, b)))
-  );
+  ));
 }
 
 export function neg(x: Tensor): Tensor {
-  return unaryOp(x, (v) => -v, (grad) => negNoGrad(grad));
+  return runBackendKernel("neg", [x], () => unaryOp(x, (v) => -v, (grad) => negNoGrad(grad)));
 }
 
 export function exp(x: Tensor): Tensor {
@@ -415,6 +486,10 @@ export function sigmoid(x: Tensor): Tensor {
 }
 
 export function sum(x: Tensor, axis?: number, keepDims = false): Tensor {
+  return runBackendKernel("sum", [x], () => sumCpu(x, axis, keepDims));
+}
+
+function sumCpu(x: Tensor, axis?: number, keepDims = false): Tensor {
   if (axis === undefined) {
     const value = x.data.reduce((acc, n) => acc + n, 0);
     return new Tensor(new Float32Array([value]), [], {}, [{ parent: x, backward: (grad) => full(x.shape, grad.item()) }]);
@@ -438,11 +513,17 @@ export function sum(x: Tensor, axis?: number, keepDims = false): Tensor {
 }
 
 export function mean(x: Tensor, axis?: number, keepDims = false): Tensor {
-  const denom = axis === undefined ? x.size : x.shape[normalizeAxis(axis, x.ndim)] ?? 1;
-  return div(sum(x, axis, keepDims), denom);
+  return runBackendKernel("mean", [x], () => {
+    const denom = axis === undefined ? x.size : x.shape[normalizeAxis(axis, x.ndim)] ?? 1;
+    return div(sum(x, axis, keepDims), denom);
+  });
 }
 
 export function max(x: Tensor): Tensor {
+  return runBackendKernel("max", [x], () => maxCpu(x));
+}
+
+function maxCpu(x: Tensor): Tensor {
   let best = -Infinity;
   let bestIndex = 0;
   for (let i = 0; i < x.data.length; i++) {
@@ -463,6 +544,10 @@ export function max(x: Tensor): Tensor {
 }
 
 export function matmul(a: Tensor, b: Tensor): Tensor {
+  return runBackendKernel("matmul", [a, b], () => matmulCpu(a, b));
+}
+
+function matmulCpu(a: Tensor, b: Tensor): Tensor {
   if (a.ndim < 2 || b.ndim < 2) {
     throw new Error("matmul requires at least rank-2 tensors.");
   }
@@ -494,17 +579,29 @@ export const bind = circularConvolve;
 export const unbind = circularCorrelate;
 
 export function transpose(x: Tensor): Tensor {
+  return runBackendKernel("transpose", [x], () => transposeCpu(x));
+}
+
+function transposeCpu(x: Tensor): Tensor {
   if (x.ndim !== 2) throw new Error("transpose currently supports rank-2 tensors.");
   const out = transposeNoGrad(x);
   return new Tensor(out.data, out.shape, {}, [{ parent: x, backward: (grad) => transposeNoGrad(grad) }]);
 }
 
 export function reshape(x: Tensor, shape: readonly number[]): Tensor {
+  return runBackendKernel("reshape", [x], () => reshapeCpu(x, shape));
+}
+
+function reshapeCpu(x: Tensor, shape: readonly number[]): Tensor {
   if (sizeOf(shape) !== x.size) throw new Error(`Cannot reshape ${x.size} values to [${shape.join(", ")}].`);
   return new Tensor(x.data.slice(), shape, {}, [{ parent: x, backward: (grad) => new Tensor(grad.data.slice(), x.shape) }]);
 }
 
 export function logsumexp(x: Tensor, axis?: number, keepDims = false): Tensor {
+  return runBackendKernel("logsumexp", [x], () => logsumexpCpu(x, axis, keepDims));
+}
+
+function logsumexpCpu(x: Tensor, axis?: number, keepDims = false): Tensor {
   if (axis === undefined) {
     const m = max(x);
     return add(log(sum(exp(sub(x, m)))), m);
@@ -516,6 +613,10 @@ export function logsumexp(x: Tensor, axis?: number, keepDims = false): Tensor {
 }
 
 export function softmax(x: Tensor, axis = x.ndim - 1): Tensor {
+  return runBackendKernel("softmax", [x], () => softmaxCpu(x, axis));
+}
+
+function softmaxCpu(x: Tensor, axis = x.ndim - 1): Tensor {
   const normalized = normalizeAxis(axis, x.ndim);
   const shifted = sub(x, maxAlongAxis(x, normalized, true));
   const ex = exp(shifted);
@@ -523,7 +624,7 @@ export function softmax(x: Tensor, axis = x.ndim - 1): Tensor {
 }
 
 export function logSoftmax(x: Tensor, axis = x.ndim - 1): Tensor {
-  return sub(x, logsumexp(x, axis, true));
+  return runBackendKernel("logSoftmax", [x], () => sub(x, logsumexp(x, axis, true)));
 }
 
 function matmul2D(a: Tensor, b: Tensor): Tensor {
@@ -881,6 +982,20 @@ export function sizeOf(shape: readonly number[]): number {
   return shape.reduce((acc, n) => acc * n, 1);
 }
 
+export function runBackendKernel<T>(op: BackendKernelName, inputs: readonly Tensor[], fallback: () => T): T {
+  const devices = new Set(inputs.map((input) => input.device));
+  if (devices.size === 0 || (devices.size === 1 && devices.has("cpu"))) return fallback();
+  if (devices.size > 1) {
+    throw new BackendExecutionError(`Cannot execute "${op}" across mixed tensor devices: ${Array.from(devices).sort().join(", ")}.`);
+  }
+  const device = inputs[0]?.device;
+  if (!device) return fallback();
+  const backend = backendRegistry.get(device);
+  if (!backend) throw new BackendExecutionError(`No backend registered for device "${device}".`);
+  if (!backend.execute) throw new BackendExecutionError(`Backend "${device}" does not implement kernel "${op}".`);
+  return backend.execute(op, inputs, fallback);
+}
+
 function stridesOf(shape: readonly number[]): number[] {
   const strides = new Array<number>(shape.length);
   let stride = 1;
@@ -959,7 +1074,7 @@ function resolveDevice(device?: Device): Device {
 }
 
 function assertRegisteredBackend(device: Device): void {
-  if (!backendRegistry.has(device)) throw new Error(`No backend registered for device "${device}".`);
+  if (!backendRegistry.has(device)) throw new SymTorchError("ERR_BACKEND", `No backend registered for device "${device}".`);
 }
 
 function createStorage(device: Device, data: Float32Array, shape: readonly number[], dtype: DType): TensorStorage {
@@ -989,6 +1104,12 @@ function descriptorOf(backend: TensorBackend): BackendDescriptor {
     status: backend.status,
     description: backend.description
   };
+}
+
+function assertTensorElementLimit(elements: number): void {
+  if (elements > runtimeLimits.maxTensorElements) {
+    throw new ResourceLimitError(`Tensor with ${elements} elements exceeds maxTensorElements=${runtimeLimits.maxTensorElements}.`);
+  }
 }
 
 function replaceAt(values: readonly number[], index: number, value: number): number[] {

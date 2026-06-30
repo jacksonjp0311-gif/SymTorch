@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { ResourceLimitError } from "@symtorch/core";
 import {
   AGENT_DECISION_SCHEMA_VERSION,
   DECISION_LEDGER_SCHEMA_VERSION,
@@ -20,6 +21,7 @@ import {
   type SerializedEntityDecision
 } from "@symtorch/agent";
 import { FileDecisionLedgerSink } from "@symtorch/agent/node";
+import { AppendFileDecisionLedgerSink } from "@symtorch/agent/node";
 import { EXPLANATION_SCHEMA_VERSION, FactPredicate, FuzzyRuleEngine, PredicateRegistry, RuleProgram } from "@symtorch/logic";
 
 describe("@symtorch/agent", () => {
@@ -204,6 +206,39 @@ describe("@symtorch/agent", () => {
     expect(filtered.map((decision) => decision.entityId)).toEqual(["case-d", "case-a"]);
     expect(filtered.every((decision) => decision.accepted)).toBe(true);
     expect(explicit.map((decision) => decision.entityId)).toEqual(["case-a"]);
+  });
+
+  it("enforces entity batch and replay entry limits", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5, {
+      limits: { maxEntitiesPerBatch: 1 }
+    });
+
+    agent.memory.observeEntity("case-a", { high_risk: 0.7 });
+    agent.memory.observeEntity("case-b", { high_risk: 0.8 });
+
+    expect(() => agent.decideEntitiesTrace()).toThrow(ResourceLimitError);
+
+    const ledger = new DecisionLedger();
+    ledger.append({
+      kind: "agent",
+      context: { high_risk: 0.8 },
+      decision: {
+        schemaVersion: AGENT_DECISION_SCHEMA_VERSION,
+        action: "escalate(X)",
+        selectedHead: "escalate(X)",
+        score: 0.8,
+        threshold: 0.5,
+        accepted: true,
+        trace: null,
+        results: []
+      }
+    }, new Date("2026-06-30T00:00:00.000Z"));
+
+    expect(() => verifyDecisionLedgerReplay(ledger.snapshot(), () => ledger.snapshot().entries[0]!.decision, {
+      limits: { maxReplayEntries: 0 }
+    })).toThrow(ResourceLimitError);
   });
 
   it("records single decisions in an append-only ledger", () => {
@@ -452,6 +487,52 @@ describe("@symtorch/agent", () => {
       const restored = await sink.read();
 
       expect(restored).toEqual(ledger.snapshot());
+      expect(isSerializedDecisionLedger(restored)).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("persists append-only decision ledger entries through the node append sink", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "symtorch-ledger-append-"));
+    try {
+      const sink = new AppendFileDecisionLedgerSink(join(dir, "ledger.ndjson"));
+      const ledger = new DecisionLedger();
+      const first = ledger.append({
+        kind: "agent",
+        context: { high_risk: 0.8 },
+        decision: {
+          schemaVersion: AGENT_DECISION_SCHEMA_VERSION,
+          action: "escalate(X)",
+          selectedHead: "escalate(X)",
+          score: 0.8,
+          threshold: 0.5,
+          accepted: true,
+          trace: null,
+          results: []
+        }
+      }, new Date("2026-06-29T14:02:00.000Z"));
+      const second = ledger.append({
+        kind: "agent",
+        context: { high_risk: 0.1 },
+        decision: {
+          schemaVersion: AGENT_DECISION_SCHEMA_VERSION,
+          action: "no_action",
+          selectedHead: "escalate(X)",
+          score: 0.1,
+          threshold: 0.5,
+          accepted: false,
+          trace: null,
+          results: []
+        }
+      }, new Date("2026-06-29T14:03:00.000Z"));
+
+      await sink.append(first);
+      await sink.append(second);
+      const restored = await sink.read();
+
+      expect(restored.schemaVersion).toBe(DECISION_LEDGER_SCHEMA_VERSION);
+      expect(restored.entries.map((entry) => entry.id)).toEqual(["decision-1", "decision-2"]);
       expect(isSerializedDecisionLedger(restored)).toBe(true);
     } finally {
       await rm(dir, { recursive: true, force: true });

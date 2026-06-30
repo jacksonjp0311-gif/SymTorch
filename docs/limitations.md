@@ -34,6 +34,8 @@ The `0.19.0` policy replay CLI adds a command-line drift gate for fact-predicate
 
 The `0.20.0` observability hooks line adds synchronous operator events for rule evaluation, agent decisions, ledger appends, and replay summaries. It does not provide a metrics backend, distributed tracing implementation, durable audit log, or hook isolation; hook errors currently propagate to the caller.
 
+The `0.21.0` production hardening line adds opt-in runtime limits, typed errors, policy bundle hashing, append file ledgers, and a backend dispatch boundary. It does not make policy bundles cryptographically signed, make append files transactional databases, sandbox untrusted rules, or route core tensor execution through WebGPU kernels yet.
+
 ## Current Best Use Cases
 
 - Explainable agent policy prototypes.

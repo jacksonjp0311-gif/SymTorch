@@ -1,13 +1,14 @@
 {
-  "version": "0.20.0",
-  "status": "observability-hooks",
+  "version": "0.21.0",
+  "status": "production-hardening",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",
     "decisionLedger": "symtorch.decisionLedger.v1",
     "playgroundState": "symtorch.playground.v1",
     "scenario": "symtorch.scenario.v1",
-    "trainingRun": "symtorch.trainingRun.v1"
+    "trainingRun": "symtorch.trainingRun.v1",
+    "policyBundle": "symtorch.policyBundle.v1"
   },
   "validationGates": [
     "pnpm install --frozen-lockfile",

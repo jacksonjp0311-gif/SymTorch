@@ -1,4 +1,4 @@
-import { add, matmul, mul, sigmoid, sub, Tensor, tensor } from "@symtorch/core";
+import { add, matmul, mul, ResourceLimitError, sigmoid, sub, SymTorchError, Tensor, tensor } from "@symtorch/core";
 import { mseLoss, Optimizer, Parameter, SGD } from "@symtorch/nn";
 
 export type Term = {
@@ -33,6 +33,20 @@ export class RuleParseError extends Error {
   }
 }
 
+export class RuleValidationError extends SymTorchError {
+  constructor(message: string) {
+    super("ERR_RULE_VALIDATION", message);
+    this.name = "RuleValidationError";
+  }
+}
+
+export class PredicateEvaluationError extends SymTorchError {
+  constructor(readonly predicate: string, message: string) {
+    super("ERR_PREDICATE", `Predicate "${predicate}" failed: ${message}`);
+    this.name = "PredicateEvaluationError";
+  }
+}
+
 export type RuleValidationResult =
   | { ok: true; rules: RuleAst[]; diagnostics: RuleDiagnostic[] }
   | { ok: false; rules: RuleAst[]; diagnostics: RuleDiagnostic[]; error: RuleParseError | RuleDiagnostic };
@@ -55,6 +69,7 @@ export type BatchRuleValidationItem = {
 
 export type RuleValidationOptions = {
   registry?: PredicateRegistry;
+  limits?: LogicRuntimeLimits;
 };
 
 export type RuleValidationInput = string | {
@@ -180,7 +195,35 @@ export type LogicObserver = {
 
 export type FuzzyRuleEngineOptions = {
   observer?: LogicObserver;
+  limits?: LogicRuntimeLimits;
 };
+
+export type LogicRuntimeLimits = {
+  maxRuleSourceLength?: number;
+  maxRules?: number;
+  maxPredicatesPerRule?: number;
+  maxEntitiesPerEvaluation?: number;
+};
+
+export const POLICY_BUNDLE_SCHEMA_VERSION = "symtorch.policyBundle.v1" as const;
+export type PolicyBundleSchemaVersion = typeof POLICY_BUNDLE_SCHEMA_VERSION;
+
+export type PolicyBundlePredicate =
+  | { kind: "fact"; name: string; key?: string }
+  | { kind: "threshold"; name: string; valueKey: string; threshold: number; slope: number }
+  | { kind: "linear"; name: string; featureKey: string; featureCount: number; weights: number[]; bias: number };
+
+export type SerializedPolicyBundle = {
+  schemaVersion: PolicyBundleSchemaVersion;
+  name: string;
+  version: string;
+  rules: string;
+  predicates: PolicyBundlePredicate[];
+  metadata: Record<string, string | number | boolean>;
+  hash: string;
+};
+
+export type PolicyBundleInput = Omit<SerializedPolicyBundle, "schemaVersion" | "hash">;
 
 export type LabeledRuleExample = PredicateContext & {
   label: number;
@@ -205,8 +248,8 @@ export type RuleTrainerResult = {
 export class RuleProgram {
   readonly rules: readonly RuleAst[];
 
-  constructor(source: string) {
-    this.rules = parseProgram(source);
+  constructor(source: string, options: { limits?: LogicRuntimeLimits } = {}) {
+    this.rules = parseProgram(source, options);
   }
 }
 
@@ -270,6 +313,7 @@ export class FuzzyRuleEngine {
   ) {}
 
   evaluate(rule: RuleAst, context: PredicateContext = {}): RuleResult {
+    enforcePredicatesPerRuleLimit(rule, this.options.limits);
     const startedAt = nowMs();
     let score = tensor(1);
     const traces: PredicateTrace[] = [];
@@ -347,6 +391,7 @@ export class FuzzyRuleEngine {
   }
 
   evaluateEntities(program: RuleProgram, facts: FactStore, entityIds = facts.entityIds()): EntityRuleResult[] {
+    enforceEntityEvaluationLimit(entityIds.length, this.options.limits);
     return entityIds.map((entityId) => ({
       entityId,
       results: this.evaluateProgramGrouped(program, facts.entityContext(entityId))
@@ -391,9 +436,9 @@ export class PredicateRegistry {
 
   resolve(call: PredicateCall, context: PredicateContext): PredicateResolution {
     const predicate = this.predicates.get(call.name);
-    if (!predicate) throw new Error(`No predicate registered for "${call.name}".`);
+    if (!predicate) throw new PredicateEvaluationError(call.name, "not registered.");
     const resolution: PredicateResolution = {
-      score: predicate.evaluate(call, context),
+      score: evaluatePredicate(predicate, call, context),
       kind: predicate.kind
     };
     const detail = predicate.describe?.();
@@ -603,13 +648,17 @@ export function serializeExplanation(explanation: RuleExplanation | AggregatedRu
   return serializeRuleExplanation(explanation);
 }
 
-export function parseProgram(source: string): RuleAst[] {
-  return splitRuleSources(source).map((rule) => parseRuleAt(rule.text, rule.start, source));
+export function parseProgram(source: string, options: { limits?: LogicRuntimeLimits } = {}): RuleAst[] {
+  enforceRuleSourceLimit(source, options.limits);
+  const rules = splitRuleSources(source).map((rule) => parseRuleAt(rule.text, rule.start, source));
+  enforceRuleCountLimit(rules.length, options.limits);
+  for (const rule of rules) enforcePredicatesPerRuleLimit(rule, options.limits);
+  return rules;
 }
 
 export function validateProgram(source: string, options: RuleValidationOptions = {}): RuleValidationResult {
   try {
-    const rules = parseProgram(source);
+    const rules = parseProgram(source, options.limits ? { limits: options.limits } : {});
     const diagnostics = options.registry ? validatePredicateBindings(rules, options.registry) : [];
     if (diagnostics.length > 0) return { ok: false, rules, diagnostics, error: diagnostics[0]! };
     return { ok: true, rules, diagnostics };
@@ -635,6 +684,48 @@ export function validatePrograms(inputs: readonly RuleValidationInput[], options
 
 export function parseRule(source: string): RuleAst {
   return parseRuleAt(source, 0, source);
+}
+
+export function createPolicyBundle(input: PolicyBundleInput): SerializedPolicyBundle {
+  const bundleWithoutHash = {
+    schemaVersion: POLICY_BUNDLE_SCHEMA_VERSION,
+    name: input.name,
+    version: input.version,
+    rules: input.rules,
+    predicates: [...input.predicates].sort((left, right) => left.name.localeCompare(right.name)),
+    metadata: stableMetadata(input.metadata)
+  };
+  return {
+    ...bundleWithoutHash,
+    hash: stableHash(stableStringify(bundleWithoutHash))
+  };
+}
+
+export function isSerializedPolicyBundle(value: unknown): value is SerializedPolicyBundle {
+  if (!isRecord(value)) return false;
+  if (value.schemaVersion !== POLICY_BUNDLE_SCHEMA_VERSION) return false;
+  if (typeof value.name !== "string" || typeof value.version !== "string" || typeof value.rules !== "string") return false;
+  if (!Array.isArray(value.predicates) || !value.predicates.every(isPolicyBundlePredicate)) return false;
+  if (!isRecord(value.metadata) || !Object.values(value.metadata).every(isJsonPrimitive)) return false;
+  if (typeof value.hash !== "string") return false;
+  return verifyPolicyBundleHash({
+    schemaVersion: value.schemaVersion,
+    name: value.name,
+    version: value.version,
+    rules: value.rules,
+    predicates: value.predicates,
+    metadata: value.metadata as Record<string, string | number | boolean>,
+    hash: value.hash
+  });
+}
+
+export function verifyPolicyBundleHash(bundle: SerializedPolicyBundle): boolean {
+  const { hash: _hash, ...withoutHash } = bundle;
+  return stableHash(stableStringify({
+    ...withoutHash,
+    predicates: [...bundle.predicates].sort((left, right) => left.name.localeCompare(right.name)),
+    metadata: stableMetadata(bundle.metadata)
+  })) === bundle.hash;
 }
 
 export function productAnd(values: readonly Tensor[]): Tensor {
@@ -796,6 +887,44 @@ function validatePredicateBindings(rules: readonly RuleAst[], registry: Predicat
   return diagnostics;
 }
 
+function evaluatePredicate(predicate: Predicate, call: PredicateCall, context: PredicateContext): Tensor {
+  try {
+    return predicate.evaluate(call, context);
+  } catch (error) {
+    if (error instanceof PredicateEvaluationError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new PredicateEvaluationError(call.name, message);
+  }
+}
+
+function enforceRuleSourceLimit(source: string, limits?: LogicRuntimeLimits): void {
+  const max = limits?.maxRuleSourceLength;
+  if (max !== undefined && source.length > max) {
+    throw new ResourceLimitError(`Rule source length ${source.length} exceeds maxRuleSourceLength=${max}.`);
+  }
+}
+
+function enforceRuleCountLimit(count: number, limits?: LogicRuntimeLimits): void {
+  const max = limits?.maxRules;
+  if (max !== undefined && count > max) {
+    throw new ResourceLimitError(`Rule count ${count} exceeds maxRules=${max}.`);
+  }
+}
+
+function enforcePredicatesPerRuleLimit(rule: RuleAst, limits?: LogicRuntimeLimits): void {
+  const max = limits?.maxPredicatesPerRule;
+  if (max !== undefined && rule.body.length > max) {
+    throw new ResourceLimitError(`Rule "${rule.source}" has ${rule.body.length} predicates, exceeding maxPredicatesPerRule=${max}.`);
+  }
+}
+
+function enforceEntityEvaluationLimit(count: number, limits?: LogicRuntimeLimits): void {
+  const max = limits?.maxEntitiesPerEvaluation;
+  if (max !== undefined && count > max) {
+    throw new ResourceLimitError(`Entity evaluation count ${count} exceeds maxEntitiesPerEvaluation=${max}.`);
+  }
+}
+
 function diagnosticFromParseError(error: RuleParseError): RuleDiagnostic {
   return {
     code: "parse_error",
@@ -898,4 +1027,49 @@ function indent(value: string, prefix: string): string {
     .split("\n")
     .map((line) => `${prefix}${line}`)
     .join("\n");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isJsonPrimitive(value: unknown): value is string | number | boolean {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
+
+function isPolicyBundlePredicate(value: unknown): value is PolicyBundlePredicate {
+  if (!isRecord(value) || typeof value.name !== "string" || typeof value.kind !== "string") return false;
+  if (value.kind === "fact") return value.key === undefined || typeof value.key === "string";
+  if (value.kind === "threshold") {
+    return typeof value.valueKey === "string" && typeof value.threshold === "number" && typeof value.slope === "number";
+  }
+  if (value.kind === "linear") {
+    return typeof value.featureKey === "string" &&
+      typeof value.featureCount === "number" &&
+      Array.isArray(value.weights) &&
+      value.weights.every((item) => typeof item === "number") &&
+      typeof value.bias === "number";
+  }
+  return false;
+}
+
+function stableMetadata(metadata: Record<string, string | number | boolean>): Record<string, string | number | boolean> {
+  return Object.fromEntries(Object.entries(metadata).sort(([left], [right]) => left.localeCompare(right)));
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (isRecord(value)) {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function stableHash(value: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }

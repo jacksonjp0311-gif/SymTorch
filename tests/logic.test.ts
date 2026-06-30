@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { tensor } from "@symtorch/core";
+import { ResourceLimitError, tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, LinearPredicate, parseProgram, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate, validateProgram, validatePrograms } from "@symtorch/logic";
+import { createPolicyBundle, decisionCard, decisionTrace, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, isSerializedPolicyBundle, LinearPredicate, POLICY_BUNDLE_SCHEMA_VERSION, parseProgram, PredicateEvaluationError, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, ThresholdPredicate, validateProgram, validatePrograms, verifyPolicyBundleHash } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -295,6 +295,41 @@ describe("@symtorch/logic", () => {
     expect(batch[0]?.result.diagnostics).toEqual([]);
     expect(batch[1]?.result.diagnostics[0]?.code).toBe("missing_predicate");
     expect(batch[2]?.result.diagnostics[0]?.code).toBe("parse_error");
+  });
+
+  it("enforces rule evaluation limits and typed predicate errors", () => {
+    const source = "escalate(X) :- high_risk(X), not approved(X).";
+
+    expect(() => parseProgram(source, { limits: { maxRuleSourceLength: 10 } })).toThrow(ResourceLimitError);
+    expect(() => new RuleProgram(source, { limits: { maxPredicatesPerRule: 1 } })).toThrow(ResourceLimitError);
+
+    const program = new RuleProgram(source);
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const engine = new FuzzyRuleEngine(registry);
+
+    expect(() => engine.evaluate(program.rules[0]!, { high_risk: 0.8 })).toThrow(PredicateEvaluationError);
+  });
+
+  it("creates and verifies versioned policy bundles", () => {
+    const bundle = createPolicyBundle({
+      name: "Escalation Policy",
+      version: "2026.06.30",
+      rules: "escalate(X) :- high_risk(X), not approved(X).",
+      predicates: [
+        { kind: "fact", name: "approved" },
+        { kind: "threshold", name: "high_risk", valueKey: "risk", threshold: 0.7, slope: 10 }
+      ],
+      metadata: {
+        owner: "risk",
+        trainable: true
+      }
+    });
+
+    expect(bundle.schemaVersion).toBe(POLICY_BUNDLE_SCHEMA_VERSION);
+    expect(bundle.hash).toMatch(/^fnv1a32:/);
+    expect(isSerializedPolicyBundle(bundle)).toBe(true);
+    expect(verifyPolicyBundleHash(bundle)).toBe(true);
+    expect(isSerializedPolicyBundle({ ...bundle, rules: "tampered(X)." })).toBe(false);
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {

@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.20.0` is the observability hooks line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, replay verification with configurable tolerance, batched tensor operations, neural regularization, a command-line replay gate, and dependency-free operator hooks needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.21.0` is the production hardening line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, replay verification with configurable tolerance, batched tensor operations, neural regularization, a command-line replay gate, dependency-free operator hooks, runtime guardrails, policy bundle integrity checks, append-oriented ledgers, and backend dispatch contracts needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -17,6 +17,11 @@ SymTorch `0.20.0` is the observability hooks line. This does not mean the projec
 - Configurable replay tolerance (`atol`, `rtol`) for float-drift detection after predicate retraining.
 - `pnpm ledger:replay` for CLI/CI policy drift checks against persisted ledgers.
 - Synchronous observer hooks for rule evaluation, agent decisions, ledger appends, and replay summaries.
+- Runtime limits for tensor allocation, rule parsing/evaluation, entity batches, and replay entries.
+- Typed errors for resource limits, backend execution, validation, and predicate evaluation.
+- Versioned policy bundles with deterministic integrity hashes.
+- Append-oriented Node ledger sink for newline-delimited decision entries.
+- Explicit core backend dispatch boundary with typed failure for missing kernels.
 - Batched `matmul` with gradient support for rank-3+ tensors.
 - `Dropout` layer with inverted scaling for neural regularization.
 - Local browser build, smoke, and Playwright interaction gates.
@@ -40,6 +45,9 @@ SymTorch `0.20.0` is the observability hooks line. This does not mean the projec
 - There are no persistence adapters beyond the Node file sink or migration runners.
 - The policy replay CLI supports fact predicates only; it is not a policy registry or sandbox for untrusted rule source.
 - Observability hooks are structured operator signals. They are not a metrics backend, durable audit log, distributed tracing implementation, or security boundary.
+- Runtime limits are guardrails, not a sandbox for arbitrary untrusted rule execution.
+- Policy bundle hashes are integrity checks, not cryptographic signatures.
+- Append file ledgers are simple persistence adapters, not transactional databases.
 - Package versions are private workspace checkpoints, not npm stability guarantees.
 - `Dropout` does not save or restore its training/eval mode across serialization boundaries.
 

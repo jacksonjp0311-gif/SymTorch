@@ -1,4 +1,4 @@
-import { add, bind, mul, sum, tensor, type Tensor, unbind, zeros } from "@symtorch/core";
+import { add, bind, mul, ResourceLimitError, sum, tensor, type Tensor, unbind, zeros } from "@symtorch/core";
 import { decisionTrace, FactStore, type AggregatedRuleResult, type FuzzyRuleEngine, type PredicateContext, type RuleProgram, type SerializedAggregatedRuleExplanation } from "@symtorch/logic";
 
 export type Observation = Record<string, unknown>;
@@ -53,6 +53,10 @@ export type DecisionLedgerSink = {
   read(): SerializedDecisionLedger | Promise<SerializedDecisionLedger>;
 };
 
+export type DecisionLedgerAppendSink = DecisionLedgerSink & {
+  append(entry: DecisionLedgerEntry): void | Promise<void>;
+};
+
 export type DecisionReplayMismatch = {
   entryId: string;
   reason: string;
@@ -105,12 +109,19 @@ export type AgentObserver = {
 
 export type RuleAgentOptions = {
   observer?: AgentObserver;
+  limits?: AgentRuntimeLimits;
+};
+
+export type AgentRuntimeLimits = {
+  maxEntitiesPerBatch?: number;
+  maxReplayEntries?: number;
 };
 
 export type DecisionReplayTolerance = {
   atol?: number;
   rtol?: number;
   observer?: Pick<AgentObserver, "onReplay">;
+  limits?: Pick<AgentRuntimeLimits, "maxReplayEntries">;
 };
 
 export class DecisionLedger {
@@ -277,6 +288,7 @@ export class RuleAgent {
   decideEntitiesTrace(options: EntityDecisionOptions | readonly string[] = {}): SerializedEntityDecision[] {
     const normalized = normalizeEntityDecisionOptions(options);
     const entityIds = normalized.entityIds ?? this.memory.entityIds();
+    enforceEntityBatchLimit(entityIds.length, this.options.limits);
     let decisions = entityIds
       .map((entityId) => this.decideEntityTrace(entityId))
       .sort(compareEntityDecisions);
@@ -418,6 +430,7 @@ export function verifyDecisionLedgerReplay(
   if (!isSerializedDecisionLedger(snapshot)) {
     throw new Error(`Expected ${DECISION_LEDGER_SCHEMA_VERSION} snapshot.`);
   }
+  enforceReplayLimit(snapshot.entries.length, tolerance?.limits);
   const atol = tolerance?.atol ?? 0;
   const rtol = tolerance?.rtol ?? 0;
   const mismatches: DecisionReplayMismatch[] = [];
@@ -523,6 +536,20 @@ function nextLedgerId(entries: readonly DecisionLedgerEntry[]): number {
     return Number.isInteger(value) ? Math.max(max, value) : max;
   }, 0);
   return maxId + 1;
+}
+
+function enforceEntityBatchLimit(count: number, limits?: AgentRuntimeLimits): void {
+  const max = limits?.maxEntitiesPerBatch;
+  if (max !== undefined && count > max) {
+    throw new ResourceLimitError(`Entity batch size ${count} exceeds maxEntitiesPerBatch=${max}.`);
+  }
+}
+
+function enforceReplayLimit(count: number, limits?: Pick<AgentRuntimeLimits, "maxReplayEntries">): void {
+  const max = limits?.maxReplayEntries;
+  if (max !== undefined && count > max) {
+    throw new ResourceLimitError(`Replay entry count ${count} exceeds maxReplayEntries=${max}.`);
+  }
 }
 
 function cloneContext(context: PredicateContext): PredicateContext {
