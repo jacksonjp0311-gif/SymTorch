@@ -69,4 +69,10 @@ The `0.9.0` line adds the first residency prototype:
 - `BufferPool` integration
 - fake-device tests for CI-safe upload/readback contract coverage
 
-The next missing piece is the first WGSL kernel.
+The `0.10.0` line adds the first WGSL kernel:
+
+- same-shape `float32` add
+- explicit upload and readback
+- fake-device CI coverage
+
+The next missing piece is a real browser/hardware parity gate for the add kernel.

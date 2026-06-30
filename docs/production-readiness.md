@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.9.0` is the WebGPU residency prototype line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, and initial WebGPU upload/readback boundary needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.10.0` is the WebGPU add-kernel prototype line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, and one narrow GPU compute kernel needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -17,10 +17,11 @@ SymTorch `0.9.0` is the WebGPU residency prototype line. This does not mean the 
 - Backend descriptors for CPU and future WebGPU dispatch.
 - Explicit tensor storage types and readback boundaries.
 - WebGPU tensor upload/readback prototype in `@symtorch/webgpu`.
+- Same-shape WebGPU add kernel prototype.
 
 ## What Is Still Not Production-Ready
 
-- WebGPU tensor kernels are not implemented yet.
+- Only one narrow WebGPU tensor kernel is implemented: same-shape `float32` add.
 - WebGPU is a registered placeholder backend, not an execution backend.
 - The decision ledger is in-memory only, with a versioned snapshot/load boundary for storage adapters.
 - Rule evaluation does not yet implement full unification, joins, quantifiers, or relational grounding.

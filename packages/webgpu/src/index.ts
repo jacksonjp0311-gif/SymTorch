@@ -25,6 +25,20 @@ export const WEBGPU_DEFAULT_TOLERANCE: WebGPUTolerance = {
   rtol: 1e-4
 };
 
+export const WEBGPU_ADD_WGSL = `
+@group(0) @binding(0) var<storage, read> left: array<f32>;
+@group(0) @binding(1) var<storage, read> right: array<f32>;
+@group(0) @binding(2) var<storage, read_write> out: array<f32>;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+  let i = id.x;
+  if (i < arrayLength(&out)) {
+    out[i] = left[i] + right[i];
+  }
+}
+`;
+
 export async function detectWebGPU(gpu: GPU | undefined = globalThis.navigator?.gpu): Promise<WebGPUStatus> {
   if (!gpu) return { available: false, reason: "navigator.gpu is not available in this runtime." };
   const adapter = await gpu.requestAdapter();
@@ -58,6 +72,10 @@ export class WebGPUContext {
 
   disposeTensor(storage: WebGPUTensorStorage): void {
     this.pool.release(storage.buffer, storage.byteLength);
+  }
+
+  add(left: WebGPUTensorStorage, right: WebGPUTensorStorage): WebGPUTensorStorage {
+    return addTensors(this.device, left, right, this.pool);
   }
 
   destroy(): void {
@@ -112,6 +130,44 @@ export async function readTensor(device: GPUDevice, storage: WebGPUTensorStorage
   return values;
 }
 
+export function addTensors(
+  device: GPUDevice,
+  left: WebGPUTensorStorage,
+  right: WebGPUTensorStorage,
+  pool?: BufferPool
+): WebGPUTensorStorage {
+  assertSameTensorShape("addTensors", left, right);
+  const byteLength = left.byteLength;
+  const outputBuffer = pool?.acquire(byteLength, bufferUsage().storageCopy) ?? device.createBuffer({
+    size: byteLength,
+    usage: bufferUsage().storageCopy
+  });
+  const pipeline = getAddPipeline(device);
+  const bindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: left.buffer } },
+      { binding: 1, resource: { buffer: right.buffer } },
+      { binding: 2, resource: { buffer: outputBuffer } }
+    ]
+  });
+  const encoder = device.createCommandEncoder();
+  const pass = encoder.beginComputePass();
+  pass.setPipeline(pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.dispatchWorkgroups(Math.ceil(left.size / 64));
+  pass.end();
+  device.queue.submit([encoder.finish()]);
+  return {
+    kind: "webgpu",
+    dtype: "float32",
+    shape: [...left.shape],
+    size: left.size,
+    byteLength,
+    buffer: outputBuffer
+  };
+}
+
 export class BufferPool {
   private readonly free = new Map<number, GPUBuffer[]>();
 
@@ -136,6 +192,33 @@ export class BufferPool {
     }
     this.free.clear();
   }
+}
+
+const addPipelineCache = new WeakMap<GPUDevice, GPUComputePipeline>();
+
+function getAddPipeline(device: GPUDevice): GPUComputePipeline {
+  const cached = addPipelineCache.get(device);
+  if (cached) return cached;
+  const pipeline = device.createComputePipeline({
+    layout: "auto",
+    compute: {
+      module: device.createShaderModule({ code: WEBGPU_ADD_WGSL }),
+      entryPoint: "main"
+    }
+  });
+  addPipelineCache.set(device, pipeline);
+  return pipeline;
+}
+
+function assertSameTensorShape(op: string, left: WebGPUTensorStorage, right: WebGPUTensorStorage): void {
+  if (left.dtype !== right.dtype) throw new Error(`${op} dtype mismatch: ${left.dtype} vs ${right.dtype}.`);
+  if (left.size !== right.size || !sameShape(left.shape, right.shape)) {
+    throw new Error(`${op} shape mismatch: [${left.shape.join(", ")}] vs [${right.shape.join(", ")}].`);
+  }
+}
+
+function sameShape(left: readonly number[], right: readonly number[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function sizeOf(shape: readonly number[]): number {

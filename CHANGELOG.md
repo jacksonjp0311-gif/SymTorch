@@ -1,6 +1,15 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.9.0` is the WebGPU residency prototype line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.10.0` is the WebGPU add-kernel prototype line, not a production stability claim.
+
+## v0.10.0 WebGPU Add Kernel Prototype
+
+- Added the first WGSL compute kernel: same-shape `float32` elementwise add.
+- Added `WebGPUContext.add()` and standalone `addTensors()`.
+- Added per-device compute pipeline caching for the add kernel.
+- Added CI-safe fake-device tests that exercise upload, bind group dispatch, readback, and CPU oracle comparison.
+- Added WebGPU add-kernel documentation.
+- Bumped private workspace package versions to `0.10.0`.
 
 ## v0.9.0 WebGPU Residency Prototype
 

@@ -1,6 +1,6 @@
 {
-  "version": "0.9.0",
-  "status": "webgpu-residency-prototype",
+  "version": "0.10.0",
+  "status": "webgpu-add-kernel-prototype",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

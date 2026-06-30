@@ -2,7 +2,7 @@
 
 SymTorch `0.9.0` introduces the first real WebGPU residency boundary in `@symtorch/webgpu`.
 
-This is not a full GPU tensor backend yet. It provides the upload/readback infrastructure that future kernels will use.
+This is not a full GPU tensor backend yet. It provides the upload/readback infrastructure that kernels use. The first narrow add kernel is documented in [WebGPU Add Kernel Prototype](webgpu-add-kernel.md).
 
 ## Public API
 
