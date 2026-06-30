@@ -13,7 +13,7 @@ readable rule
 
 ## Package Boundaries
 
-- `@symtorch/core`: eager tensors, CPU execution, shape utilities, and reverse-mode autograd.
+- `@symtorch/core`: eager tensors, backend registry, CPU execution, shape utilities, and reverse-mode autograd.
 - `@symtorch/nn`: modules, parameters, layers, optimizers, and losses.
 - `@symtorch/logic`: rule parsing, fuzzy evaluation, predicates, explanations, training, and validation.
 - `@symtorch/agent`: working memory, serialized decisions, entity batches, filtering, and decision ledger.
@@ -38,6 +38,7 @@ See [Public API Surface](api-surface.md) for the currently supported exports and
 - WebGPU is an acceleration path, not a required runtime.
 - Public decision and explanation data must be JSON-safe.
 - Runtime contract schema versions must be listed in the release manifest and covered by tests.
+- Backend intent must be explicit before GPU kernels are introduced.
 - Rule authoring APIs should support both throwing and non-throwing validation paths.
 - Tests should protect mathematical behavior and agent-facing contracts.
 
@@ -46,7 +47,7 @@ See [Public API Surface](api-surface.md) for the currently supported exports and
 - Browser policy playground.
 - Browser playground training panel.
 - Public API surface documentation.
-- Production-readiness contract manifest.
+- Backend abstraction and eventual CPU/GPU parity gates.
 - Typed domains and guarded grounding.
 - Broader gradient checks and tensor op coverage.
 - WebGPU kernels with CPU parity tests.

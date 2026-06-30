@@ -1,5 +1,15 @@
 export type DType = "float32";
 export type Device = "cpu" | "webgpu";
+export type BackendStatus = "available" | "placeholder";
+
+export type BackendDescriptor = {
+  id: Device;
+  name: string;
+  status: BackendStatus;
+  description: string;
+};
+
+export type BackendScope<T> = () => T;
 
 export type TensorOptions = {
   requiresGrad?: boolean;
@@ -14,6 +24,8 @@ type BackwardEdge = {
 };
 
 const EPS = 1e-7;
+const backendRegistry = new Map<Device, BackendDescriptor>();
+let defaultDevice: Device = "cpu";
 
 export class Tensor {
   readonly data: Float32Array;
@@ -33,7 +45,7 @@ export class Tensor {
     this.data = data instanceof Float32Array ? data : new Float32Array(data);
     this.shape = shape.length === 0 ? [] : [...shape];
     this.dtype = options.dtype ?? "float32";
-    this.device = options.device ?? "cpu";
+    this.device = resolveDevice(options.device);
     this.requiresGrad = options.requiresGrad ?? parents.some((edge) => edge.parent.requiresGrad);
     this.parents = parents;
     const expected = sizeOf(this.shape);
@@ -157,7 +169,54 @@ export class Tensor {
   }
 }
 
+registerBackend({
+  id: "cpu",
+  name: "CPU",
+  status: "available",
+  description: "Typed-array CPU backend and correctness oracle."
+});
+
+registerBackend({
+  id: "webgpu",
+  name: "WebGPU",
+  status: "placeholder",
+  description: "Registered acceleration target. Tensor kernels are not implemented yet."
+});
+
 export type TensorLike = Tensor | number | readonly number[] | Float32Array;
+
+export function registerBackend(backend: BackendDescriptor): void {
+  backendRegistry.set(backend.id, { ...backend });
+}
+
+export function getBackend(device: Device = defaultDevice): BackendDescriptor {
+  const backend = backendRegistry.get(device);
+  if (!backend) throw new Error(`No backend registered for device "${device}".`);
+  return { ...backend };
+}
+
+export function listBackends(): BackendDescriptor[] {
+  return Array.from(backendRegistry.values()).map((backend) => ({ ...backend }));
+}
+
+export function getDefaultDevice(): Device {
+  return defaultDevice;
+}
+
+export function setDefaultDevice(device: Device): void {
+  assertRegisteredBackend(device);
+  defaultDevice = device;
+}
+
+export function withDefaultDevice<T>(device: Device, scope: BackendScope<T>): T {
+  const previous = defaultDevice;
+  setDefaultDevice(device);
+  try {
+    return scope();
+  } finally {
+    defaultDevice = previous;
+  }
+}
 
 export function tensor(value: TensorLike, options: TensorOptions = {}): Tensor {
   if (value instanceof Tensor) return value;
@@ -637,6 +696,16 @@ function assertSameVector(op: string, a: Tensor, b: Tensor): void {
 
 function mod(value: number, modulus: number): number {
   return ((value % modulus) + modulus) % modulus;
+}
+
+function resolveDevice(device?: Device): Device {
+  const resolved = device ?? defaultDevice;
+  assertRegisteredBackend(resolved);
+  return resolved;
+}
+
+function assertRegisteredBackend(device: Device): void {
+  if (!backendRegistry.has(device)) throw new Error(`No backend registered for device "${device}".`);
 }
 
 function replaceAt(values: readonly number[], index: number, value: number): number[] {

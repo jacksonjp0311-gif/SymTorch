@@ -1,6 +1,16 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.6.0` is the persistence-adapter alpha line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.7.0` is the backend-abstraction alpha line, not a production stability claim.
+
+## v0.7.0 Backend Abstraction Alpha
+
+- Added backend descriptors and registry helpers to `@symtorch/core`.
+- Added default-device routing with `getDefaultDevice()`, `setDefaultDevice()`, and `withDefaultDevice()`.
+- Registered `cpu` as the available correctness backend.
+- Registered `webgpu` as a placeholder acceleration target before kernels are implemented.
+- Added backend routing tests for device intent and scoped defaults.
+- Added backend abstraction documentation.
+- Bumped private workspace package versions to `0.7.0`.
 
 ## v0.6.0 Persistence Adapter Alpha
 

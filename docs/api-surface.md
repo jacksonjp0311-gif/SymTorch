@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.6.0` persistence-adapter alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.7.0` backend-abstraction alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -13,6 +13,8 @@ This document defines the intended public API surface for the current `0.6.0` pe
 Supported:
 
 - `Tensor`
+- `BackendDescriptor`, `BackendScope`, `BackendStatus`
+- `registerBackend`, `getBackend`, `listBackends`, `getDefaultDevice`, `setDefaultDevice`, `withDefaultDevice`
 - `tensor`, `fromArray`, `zeros`, `ones`, `full`, `randn`
 - `add`, `sub`, `mul`, `div`, `neg`
 - `exp`, `log`, `abs`, `pow`, `sqrt`, `tanh`, `clip`
@@ -28,6 +30,7 @@ Notes:
 
 - CPU execution is the correctness oracle.
 - `Device` includes `"webgpu"`, but WebGPU tensor execution is not implemented yet.
+- The `webgpu` backend descriptor is a placeholder for future dispatch and parity gates.
 
 ## `@symtorch/nn`
 

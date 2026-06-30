@@ -1,6 +1,6 @@
 {
-  "version": "0.6.0",
-  "status": "persistence-adapter-alpha",
+  "version": "0.7.0",
+  "status": "backend-abstraction-alpha",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

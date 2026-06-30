@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.6.0` is the persistence-adapter alpha line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, and replay boundaries needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.7.0` is the backend-abstraction alpha line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, and explicit backend intent needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -14,10 +14,12 @@ SymTorch `0.6.0` is the persistence-adapter alpha line. This does not mean the p
 - Entity decision batches and replayable in-memory ledger snapshots.
 - Local browser build, smoke, and Playwright interaction gates.
 - Executable demos for gradients, trainable rules, agent ledgers, and holographic memory.
+- Backend descriptors for CPU and future WebGPU dispatch.
 
 ## What Is Still Not Production-Ready
 
 - WebGPU tensor kernels are not implemented yet.
+- WebGPU is a registered placeholder backend, not an execution backend.
 - The decision ledger is in-memory only, with a versioned snapshot/load boundary for storage adapters.
 - Rule evaluation does not yet implement full unification, joins, quantifiers, or relational grounding.
 - There is no security sandbox for executing untrusted rule sources.

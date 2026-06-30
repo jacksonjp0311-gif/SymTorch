@@ -22,6 +22,8 @@ The `0.6.0` line adds production-shaped contracts, validation gates, and version
 
 The `@symtorch/webgpu` package currently focuses on detection and backend planning. GPU kernels, memory scheduling, kernel fusion, and CPU/GPU parity testing are future work.
 
+The `0.7.0` backend registry records device intent and registers WebGPU as a placeholder. It does not execute tensor operations on the GPU yet.
+
 ## Current Best Use Cases
 
 - Explainable agent policy prototypes.

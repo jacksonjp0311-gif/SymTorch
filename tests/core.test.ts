@@ -1,7 +1,46 @@
 import { describe, expect, it } from "vitest";
-import { add, bind, circularConvolve, circularCorrelate, clip, logsumexp, matmul, mean, mul, pow, sigmoid, softmax, sqrt, tanh, Tensor, tensor, unbind } from "@symtorch/core";
+import {
+  add,
+  bind,
+  circularConvolve,
+  circularCorrelate,
+  clip,
+  getBackend,
+  getDefaultDevice,
+  listBackends,
+  logsumexp,
+  matmul,
+  mean,
+  mul,
+  pow,
+  setDefaultDevice,
+  sigmoid,
+  softmax,
+  sqrt,
+  tanh,
+  Tensor,
+  tensor,
+  unbind,
+  withDefaultDevice
+} from "@symtorch/core";
 
 describe("@symtorch/core", () => {
+  it("registers backend descriptors and routes tensor device defaults", () => {
+    const backends = listBackends();
+
+    expect(backends.map((backend) => backend.id)).toEqual(["cpu", "webgpu"]);
+    expect(getBackend("cpu")).toMatchObject({ id: "cpu", status: "available" });
+    expect(getBackend("webgpu")).toMatchObject({ id: "webgpu", status: "placeholder" });
+    expect(getDefaultDevice()).toBe("cpu");
+
+    const scoped = withDefaultDevice("webgpu", () => tensor([1, 2, 3]));
+    expect(scoped.device).toBe("webgpu");
+    expect(getDefaultDevice()).toBe("cpu");
+
+    setDefaultDevice("cpu");
+    expect(tensor(1).device).toBe("cpu");
+  });
+
   it("adds tensors with broadcasting", () => {
     const a = tensor([1, 2, 3, 4], { shape: [2, 2] });
     const b = tensor([10, 20], { shape: [2] });

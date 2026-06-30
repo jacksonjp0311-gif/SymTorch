@@ -84,6 +84,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 ## Current Capabilities
 
 - Eager `Tensor` API with CPU `float32` typed-array storage.
+- Backend registry with CPU available and WebGPU registered as a placeholder acceleration target.
 - Reverse-mode autograd with `.backward()` and gradient accumulation.
 - Core ops including `matmul`, broadcasting, reductions, activations, `softmax`, `logSoftmax`, and `logsumexp`.
 - Vector-symbolic binding ops with differentiable circular convolution and circular correlation.
@@ -216,6 +217,7 @@ examples/
 - [Browser playground prep](docs/browser-playground.md)
 - [Holographic memory](docs/holographic-memory.md)
 - [Persistence adapter alpha](docs/persistence.md)
+- [Backend abstraction alpha](docs/backend-abstraction.md)
 - [Production readiness alpha](docs/production-readiness.md)
 - [Limitations](docs/limitations.md)
 - [Changelog](CHANGELOG.md)
@@ -232,6 +234,7 @@ examples/
 
 Near term:
 
+- backend dispatch foundation for future WebGPU kernels
 - typed domains and guarded grounding
 - scenario contract loaders beyond the playground
 - richer explanation renderers and decision cards
@@ -253,6 +256,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.6.0` workspace line is the persistence-adapter alpha: versioned decision ledger snapshots, restore validation, continued runtime-contract discipline, browser/workbench gates, and executable demos that make the current claims inspectable.
+SymTorch is early, active, and intentionally foundation-first. The `0.7.0` workspace line is the backend-abstraction alpha: CPU remains the correctness oracle, WebGPU is registered as a placeholder acceleration target, device intent is explicit, and the runtime-contract discipline from earlier lines remains intact.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.
