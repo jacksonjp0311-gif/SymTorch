@@ -1,6 +1,16 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.11.0` is the WebGPU browser parity gate line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.12.0` is the WebGPU same-shape elementwise kernel line, not a production stability claim.
+
+## v0.12.0 WebGPU Same-Shape Elementwise Kernels
+
+- Added same-shape `float32` WebGPU kernels for `sub`, `mul`, `div`, and `neg`.
+- Added `WebGPUContext.sub()`, `mul()`, `div()`, and `neg()`.
+- Added standalone `subTensors()`, `mulTensors()`, `divTensors()`, and `negTensor()`.
+- Generalized the WebGPU compute pipeline cache by shader source.
+- Expanded fake-device tests to compare the elementwise kernel set against CPU oracles.
+- Added elementwise kernel documentation.
+- Bumped private workspace package versions to `0.12.0`.
 
 ## v0.11.0 WebGPU Browser Parity Gate
 

@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.11.0` WebGPU browser parity gate line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.12.0` WebGPU same-shape elementwise kernel line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -123,6 +123,7 @@ Supported:
 - `WebGPUTolerance`
 - `WEBGPU_DEFAULT_TOLERANCE`
 - `WEBGPU_ADD_WGSL`
+- `WEBGPU_SUB_WGSL`, `WEBGPU_MUL_WGSL`, `WEBGPU_DIV_WGSL`, `WEBGPU_NEG_WGSL`
 - `detectWebGPU`
 - `requestWebGPUDevice`
 - `WebGPUContext`
@@ -130,6 +131,7 @@ Supported:
 - `uploadTensor`
 - `readTensor`
 - `addTensors`
+- `subTensors`, `mulTensors`, `divTensors`, `negTensor`
 - `BufferPool`
 
 Experimental:
@@ -139,7 +141,7 @@ Experimental:
 Notes:
 
 - WebGPU support is currently capability detection, buffer pooling, and explicit tensor upload/readback.
-- Same-shape add has a prototype kernel. Wider tensor kernels, browser hardware parity gates, and core dispatch integration are future work.
+- Same-shape elementwise `add`, `sub`, `mul`, `div`, and `neg` have prototype kernels. Broadcasting, wider tensor kernels, browser parity for every op, and core dispatch integration are future work.
 - The browser parity gate exercises same-shape add when WebGPU is available and skips otherwise.
 
 ## Internal By Convention

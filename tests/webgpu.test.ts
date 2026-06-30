@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   addTensors,
   createWebGPUContext,
+  divTensors,
+  mulTensors,
+  negTensor,
+  subTensors,
   uploadTensor,
   WEBGPU_ADD_WGSL,
   WEBGPU_DEFAULT_TOLERANCE
@@ -49,7 +53,27 @@ describe("@symtorch/webgpu", () => {
     expect(() => addTensors(device as unknown as GPUDevice, left, context.uploadTensor([1, 2], [2])))
       .toThrow("shape mismatch");
   });
+
+  it("runs the same-shape elementwise kernel set against CPU oracles", async () => {
+    const device = new FakeGPUDevice();
+    const context = createWebGPUContext(device as unknown as GPUDevice);
+    const left = context.uploadTensor([2, -4, 9, 8], [4]);
+    const right = context.uploadTensor([1, 2, -3, 4], [4]);
+
+    await expectStorage(context, context.sub(left, right), [1, -6, 12, 4]);
+    await expectStorage(context, context.mul(left, right), [2, -8, -27, 32]);
+    await expectStorage(context, context.div(left, right), [2, -2, -3, 2]);
+    await expectStorage(context, context.neg(left), [-2, 4, -9, -8]);
+    await expectStorage(context, subTensors(device as unknown as GPUDevice, left, right), [1, -6, 12, 4]);
+    await expectStorage(context, mulTensors(device as unknown as GPUDevice, left, right), [2, -8, -27, 32]);
+    await expectStorage(context, divTensors(device as unknown as GPUDevice, left, right), [2, -2, -3, 2]);
+    await expectStorage(context, negTensor(device as unknown as GPUDevice, left), [-2, 4, -9, -8]);
+  });
 });
+
+async function expectStorage(context: ReturnType<typeof createWebGPUContext>, storage: ReturnType<typeof addTensors>, expected: number[]): Promise<void> {
+  await expect(context.readTensor(storage)).resolves.toEqual(new Float32Array(expected));
+}
 
 class FakeGPUDevice {
   readonly queue = new FakeGPUQueue();
@@ -135,13 +159,25 @@ class FakeGPUComputePassEncoder {
   }
 
   dispatchWorkgroups(_x: number): void {
-    if (!this.pipeline?.code.includes("left[i] + right[i]") || !this.bindGroup) {
-      throw new Error("Fake compute pass expected the add kernel and a bind group.");
+    if (!this.pipeline || !this.bindGroup) throw new Error("Fake compute pass expected a pipeline and bind group.");
+    if (this.pipeline.code.includes("-input[i]")) {
+      const input = new Float32Array(this.bindGroup.bufferAt(0).bytes);
+      const out = new Float32Array(this.bindGroup.bufferAt(1).bytes);
+      for (let i = 0; i < out.length; i++) out[i] = -(input[i] ?? 0);
+      return;
     }
     const left = new Float32Array(this.bindGroup.bufferAt(0).bytes);
     const right = new Float32Array(this.bindGroup.bufferAt(1).bytes);
     const out = new Float32Array(this.bindGroup.bufferAt(2).bytes);
-    for (let i = 0; i < out.length; i++) out[i] = (left[i] ?? 0) + (right[i] ?? 0);
+    for (let i = 0; i < out.length; i++) {
+      const a = left[i] ?? 0;
+      const b = right[i] ?? 0;
+      if (this.pipeline.code.includes("left[i] + right[i]")) out[i] = a + b;
+      else if (this.pipeline.code.includes("left[i] - right[i]")) out[i] = a - b;
+      else if (this.pipeline.code.includes("left[i] * right[i]")) out[i] = a * b;
+      else if (this.pipeline.code.includes("left[i] / right[i]")) out[i] = a / b;
+      else throw new Error("Fake compute pass received an unknown shader.");
+    }
   }
 
   end(): void {}

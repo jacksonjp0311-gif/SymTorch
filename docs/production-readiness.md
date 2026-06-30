@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.11.0` is the WebGPU browser parity gate line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, one narrow GPU compute kernel, and an environment-aware browser parity gate needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.12.0` is the WebGPU same-shape elementwise kernel line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a small elementwise GPU kernel set, and an environment-aware browser parity gate needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -17,7 +17,7 @@ SymTorch `0.11.0` is the WebGPU browser parity gate line. This does not mean the
 - Backend descriptors for CPU and future WebGPU dispatch.
 - Explicit tensor storage types and readback boundaries.
 - WebGPU tensor upload/readback prototype in `@symtorch/webgpu`.
-- Same-shape WebGPU add kernel prototype.
+- Same-shape WebGPU elementwise kernel prototypes.
 - Browser parity gate for the add kernel when WebGPU is available.
 
 ## What Is Still Not Production-Ready
