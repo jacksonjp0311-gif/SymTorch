@@ -84,7 +84,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 ## Current Capabilities
 
 - Eager `Tensor` API with CPU `float32` typed-array storage.
-- Backend registry with CPU available and WebGPU registered as a placeholder acceleration target.
+- Backend registry and storage model with CPU available and WebGPU registered as an explicit placeholder acceleration target.
 - Reverse-mode autograd with `.backward()` and gradient accumulation.
 - Core ops including `matmul`, broadcasting, reductions, activations, `softmax`, `logSoftmax`, and `logsumexp`.
 - Vector-symbolic binding ops with differentiable circular convolution and circular correlation.
@@ -218,6 +218,7 @@ examples/
 - [Holographic memory](docs/holographic-memory.md)
 - [Persistence adapter alpha](docs/persistence.md)
 - [Backend abstraction alpha](docs/backend-abstraction.md)
+- [GPU backend plan](docs/gpu-backend-plan.md)
 - [Production readiness alpha](docs/production-readiness.md)
 - [Limitations](docs/limitations.md)
 - [Changelog](CHANGELOG.md)
@@ -256,6 +257,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.7.0` workspace line is the backend-abstraction alpha: CPU remains the correctness oracle, WebGPU is registered as a placeholder acceleration target, device intent is explicit, and the runtime-contract discipline from earlier lines remains intact.
+SymTorch is early, active, and intentionally foundation-first. The `0.8.0` workspace line is the CPU backend dispatch alpha: Tensor storage is explicit, CPU remains the correctness oracle, WebGPU is a no-hidden-sync placeholder, and the runtime-contract discipline from earlier lines remains intact.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

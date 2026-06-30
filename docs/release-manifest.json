@@ -1,6 +1,6 @@
 {
-  "version": "0.7.0",
-  "status": "backend-abstraction-alpha",
+  "version": "0.8.0",
+  "status": "cpu-backend-dispatch-alpha",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

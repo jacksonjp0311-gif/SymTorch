@@ -35,10 +35,23 @@ describe("@symtorch/core", () => {
 
     const scoped = withDefaultDevice("webgpu", () => tensor([1, 2, 3]));
     expect(scoped.device).toBe("webgpu");
+    expect(scoped.storage.kind).toBe("webgpu");
+    expect(scoped.size).toBe(3);
     expect(getDefaultDevice()).toBe("cpu");
 
     setDefaultDevice("cpu");
     expect(tensor(1).device).toBe("cpu");
+  });
+
+  it("keeps readback explicit for non-CPU tensor storage", async () => {
+    const cpu = tensor([1, 2], { shape: [2] });
+    const gpu = tensor([1, 2], { shape: [2], device: "webgpu" });
+
+    await expect(cpu.read()).resolves.toEqual(new Float32Array([1, 2]));
+    await expect(cpu.toCPU()).resolves.toMatchObject({ device: "cpu" });
+    expect(() => gpu.toArray()).toThrow("WebGPU storage is a placeholder");
+    await expect(gpu.read()).rejects.toThrow("GPU readback is not implemented");
+    await expect(gpu.toCPU()).rejects.toThrow("GPU readback is not implemented");
   });
 
   it("adds tensors with broadcasting", () => {

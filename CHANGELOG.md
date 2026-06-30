@@ -1,6 +1,17 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.7.0` is the backend-abstraction alpha line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.8.0` is the CPU backend dispatch alpha line, not a production stability claim.
+
+## v0.8.0 CPU Backend Dispatch Alpha
+
+- Added explicit `CpuStorage`, `GpuStorage`, and `TensorStorage` types to `@symtorch/core`.
+- Added a `TensorBackend` interface with storage creation and synchronous read boundaries.
+- Routed tensor construction through registered backend storage.
+- Preserved CPU tensor behavior while making WebGPU placeholder tensors impossible to read silently.
+- Added async `Tensor.read()` and `Tensor.toCPU()` APIs for future explicit readback.
+- Added storage/no-hidden-sync tests.
+- Added a GPU backend plan covering backend shape, storage, readback policy, and parity tolerances.
+- Bumped private workspace package versions to `0.8.0`.
 
 ## v0.7.0 Backend Abstraction Alpha
 

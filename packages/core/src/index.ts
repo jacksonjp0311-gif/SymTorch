@@ -10,6 +10,27 @@ export type BackendDescriptor = {
 };
 
 export type BackendScope<T> = () => T;
+export type CpuStorage = {
+  kind: "cpu";
+  shape: readonly number[];
+  dtype: DType;
+  data: Float32Array;
+};
+
+export type GpuStorage = {
+  kind: "webgpu";
+  shape: readonly number[];
+  dtype: DType;
+  byteLength: number;
+  status: "placeholder";
+};
+
+export type TensorStorage = CpuStorage | GpuStorage;
+
+export type TensorBackend = BackendDescriptor & {
+  createStorage(data: Float32Array, shape: readonly number[], dtype: DType): TensorStorage;
+  readSync(storage: TensorStorage): Float32Array;
+};
 
 export type TensorOptions = {
   requiresGrad?: boolean;
@@ -24,11 +45,11 @@ type BackwardEdge = {
 };
 
 const EPS = 1e-7;
-const backendRegistry = new Map<Device, BackendDescriptor>();
+const backendRegistry = new Map<Device, TensorBackend>();
 let defaultDevice: Device = "cpu";
 
 export class Tensor {
-  readonly data: Float32Array;
+  readonly storage: TensorStorage;
   readonly shape: readonly number[];
   readonly dtype: DType;
   readonly device: Device;
@@ -37,25 +58,33 @@ export class Tensor {
   private readonly parents: readonly BackwardEdge[];
 
   constructor(
-    data: Float32Array | number[],
-    shape: readonly number[] = [Array.from(data).length],
+    data: Float32Array | number[] | TensorStorage,
+    shape?: readonly number[],
     options: TensorOptions = {},
     parents: readonly BackwardEdge[] = []
   ) {
-    this.data = data instanceof Float32Array ? data : new Float32Array(data);
-    this.shape = shape.length === 0 ? [] : [...shape];
-    this.dtype = options.dtype ?? "float32";
-    this.device = resolveDevice(options.device);
+    const dtype = options.dtype ?? "float32";
+    const providedStorage = isTensorStorage(data);
+    const rawData = providedStorage ? null : data instanceof Float32Array ? data : new Float32Array(data);
+    const resolvedShape = providedStorage ? data.shape : shape ?? [rawData!.length];
+    this.shape = resolvedShape.length === 0 ? [] : [...resolvedShape];
+    this.dtype = providedStorage ? data.dtype : dtype;
+    this.device = providedStorage ? data.kind === "cpu" ? "cpu" : "webgpu" : resolveDevice(options.device);
+    this.storage = providedStorage ? data : createStorage(this.device, rawData!, this.shape, this.dtype);
     this.requiresGrad = options.requiresGrad ?? parents.some((edge) => edge.parent.requiresGrad);
     this.parents = parents;
     const expected = sizeOf(this.shape);
-    if (expected !== this.data.length) {
-      throw new Error(`Tensor data length ${this.data.length} does not match shape [${this.shape.join(", ")}] (${expected}).`);
+    if (expected !== storageSize(this.storage)) {
+      throw new Error(`Tensor storage length ${storageSize(this.storage)} does not match shape [${this.shape.join(", ")}] (${expected}).`);
     }
   }
 
+  get data(): Float32Array {
+    return readStorageSync(this.storage);
+  }
+
   get size(): number {
-    return this.data.length;
+    return storageSize(this.storage);
   }
 
   get ndim(): number {
@@ -63,8 +92,9 @@ export class Tensor {
   }
 
   item(): number {
-    if (this.data.length !== 1) throw new Error("item() requires a scalar tensor.");
-    return this.data[0] ?? 0;
+    const data = this.data;
+    if (data.length !== 1) throw new Error("item() requires a scalar tensor.");
+    return data[0] ?? 0;
   }
 
   toArray(): number[] {
@@ -72,7 +102,18 @@ export class Tensor {
   }
 
   detach(): Tensor {
+    if (this.storage.kind !== "cpu") throw new Error("detach() requires a CPU-resident tensor. Use explicit readback once GPU storage is implemented.");
     return new Tensor(this.data.slice(), this.shape, { dtype: this.dtype, device: this.device });
+  }
+
+  async read(): Promise<Float32Array> {
+    if (this.storage.kind !== "cpu") throw new Error("GPU readback is not implemented yet. WebGPU tensors cannot be read implicitly.");
+    return this.data.slice();
+  }
+
+  async toCPU(): Promise<Tensor> {
+    if (this.storage.kind !== "cpu") throw new Error("GPU readback is not implemented yet. WebGPU tensors cannot be converted to CPU.");
+    return this.detach();
   }
 
   zeroGrad(): void {
@@ -173,30 +214,45 @@ registerBackend({
   id: "cpu",
   name: "CPU",
   status: "available",
-  description: "Typed-array CPU backend and correctness oracle."
+  description: "Typed-array CPU backend and correctness oracle.",
+  createStorage: (data, shape, dtype) => ({ kind: "cpu", shape: [...shape], dtype, data: data.slice() }),
+  readSync: (storage) => {
+    if (storage.kind !== "cpu") throw new Error("CPU backend cannot synchronously read non-CPU storage.");
+    return storage.data;
+  }
 });
 
 registerBackend({
   id: "webgpu",
   name: "WebGPU",
   status: "placeholder",
-  description: "Registered acceleration target. Tensor kernels are not implemented yet."
+  description: "Registered acceleration target. Tensor kernels are not implemented yet.",
+  createStorage: (_data, shape, dtype) => ({
+    kind: "webgpu",
+    shape: [...shape],
+    dtype,
+    byteLength: sizeOf(shape) * Float32Array.BYTES_PER_ELEMENT,
+    status: "placeholder"
+  }),
+  readSync: () => {
+    throw new Error("WebGPU storage is a placeholder. Explicit readback will be available once GPU residency is implemented.");
+  }
 });
 
 export type TensorLike = Tensor | number | readonly number[] | Float32Array;
 
-export function registerBackend(backend: BackendDescriptor): void {
+export function registerBackend(backend: TensorBackend): void {
   backendRegistry.set(backend.id, { ...backend });
 }
 
 export function getBackend(device: Device = defaultDevice): BackendDescriptor {
   const backend = backendRegistry.get(device);
   if (!backend) throw new Error(`No backend registered for device "${device}".`);
-  return { ...backend };
+  return descriptorOf(backend);
 }
 
 export function listBackends(): BackendDescriptor[] {
-  return Array.from(backendRegistry.values()).map((backend) => ({ ...backend }));
+  return Array.from(backendRegistry.values()).map(descriptorOf);
 }
 
 export function getDefaultDevice(): Device {
@@ -706,6 +762,35 @@ function resolveDevice(device?: Device): Device {
 
 function assertRegisteredBackend(device: Device): void {
   if (!backendRegistry.has(device)) throw new Error(`No backend registered for device "${device}".`);
+}
+
+function createStorage(device: Device, data: Float32Array, shape: readonly number[], dtype: DType): TensorStorage {
+  const backend = backendRegistry.get(device);
+  if (!backend) throw new Error(`No backend registered for device "${device}".`);
+  return backend.createStorage(data, shape, dtype);
+}
+
+function readStorageSync(storage: TensorStorage): Float32Array {
+  const backend = backendRegistry.get(storage.kind === "cpu" ? "cpu" : "webgpu");
+  if (!backend) throw new Error(`No backend registered for storage kind "${storage.kind}".`);
+  return backend.readSync(storage);
+}
+
+function storageSize(storage: TensorStorage): number {
+  return storage.kind === "cpu" ? storage.data.length : sizeOf(storage.shape);
+}
+
+function isTensorStorage(value: unknown): value is TensorStorage {
+  return typeof value === "object" && value !== null && "kind" in value && (value.kind === "cpu" || value.kind === "webgpu");
+}
+
+function descriptorOf(backend: TensorBackend): BackendDescriptor {
+  return {
+    id: backend.id,
+    name: backend.name,
+    status: backend.status,
+    description: backend.description
+  };
 }
 
 function replaceAt(values: readonly number[], index: number, value: number): number[] {

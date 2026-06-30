@@ -13,7 +13,7 @@ readable rule
 
 ## Package Boundaries
 
-- `@symtorch/core`: eager tensors, backend registry, CPU execution, shape utilities, and reverse-mode autograd.
+- `@symtorch/core`: eager tensors, backend registry, explicit storage, CPU execution, shape utilities, and reverse-mode autograd.
 - `@symtorch/nn`: modules, parameters, layers, optimizers, and losses.
 - `@symtorch/logic`: rule parsing, fuzzy evaluation, predicates, explanations, training, and validation.
 - `@symtorch/agent`: working memory, serialized decisions, entity batches, filtering, and decision ledger.
@@ -39,6 +39,7 @@ See [Public API Surface](api-surface.md) for the currently supported exports and
 - Public decision and explanation data must be JSON-safe.
 - Runtime contract schema versions must be listed in the release manifest and covered by tests.
 - Backend intent must be explicit before GPU kernels are introduced.
+- GPU readback must be explicit; synchronous tensor reads require CPU-resident storage.
 - Rule authoring APIs should support both throwing and non-throwing validation paths.
 - Tests should protect mathematical behavior and agent-facing contracts.
 

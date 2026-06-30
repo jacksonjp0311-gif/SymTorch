@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.7.0` is the backend-abstraction alpha line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, and explicit backend intent needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.8.0` is the CPU backend dispatch alpha line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, and no-hidden-sync storage policy needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -15,6 +15,7 @@ SymTorch `0.7.0` is the backend-abstraction alpha line. This does not mean the p
 - Local browser build, smoke, and Playwright interaction gates.
 - Executable demos for gradients, trainable rules, agent ledgers, and holographic memory.
 - Backend descriptors for CPU and future WebGPU dispatch.
+- Explicit tensor storage types and readback boundaries.
 
 ## What Is Still Not Production-Ready
 
