@@ -1,6 +1,6 @@
 {
-  "version": "0.25.0",
-  "status": "policy-workbench-migrations",
+  "version": "0.26.0",
+  "status": "policy-fixture-suite",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",
@@ -20,6 +20,7 @@
     "pnpm playground:build",
     "pnpm exec tsx scripts/smoke-browser-playground.ts",
     "pnpm playground:e2e",
+    "pnpm demo:policy-fixtures",
     "pnpm demo:all"
   ],
   "nonClaims": [

@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.25.0` is the policy workbench migration line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.26.0` is the policy fixture suite line, not a production stability claim.
+
+## v0.26.0 Policy Fixture Suite
+
+- Added checked-in fraud review and support routing policy bundles alongside escalation.
+- Added `pnpm demo:policy-fixtures` to verify every checked-in policy bundle.
+- Added policy fixture tests covering hash verification, materialization, entity decisions, ledger recording, replay, and workbench library migration.
+- Added policy fixture documentation.
+- Bumped private workspace package versions to `0.26.0`.
 
 ## v0.25.0 Policy Workbench Migrations
 

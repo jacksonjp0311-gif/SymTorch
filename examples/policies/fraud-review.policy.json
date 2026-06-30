@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "symtorch.policyBundle.v1",
+  "name": "Fraud Review Policy",
+  "version": "2026.06.30",
+  "rules": "review(X) :- high_risk(X), not approved(X).\nclear(X) :- approved(X).",
+  "predicates": [
+    {
+      "kind": "fact",
+      "name": "approved"
+    },
+    {
+      "kind": "threshold",
+      "name": "high_risk",
+      "valueKey": "high_risk",
+      "threshold": 0.68,
+      "slope": 10
+    }
+  ],
+  "metadata": {
+    "scenarioId": "fraud-review",
+    "source": "fixture-suite"
+  },
+  "hash": "fnv1a32:c153d9a9"
+}

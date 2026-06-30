@@ -1,6 +1,6 @@
 # Policy Bundle Runtime
 
-SymTorch `0.25.0` turns policy bundles into executable runtime artifacts and lets the browser workbench use the same bundle-backed path, including a local versioned policy library and explicit migration helpers for saved workbench artifacts.
+SymTorch `0.26.0` turns policy bundles into executable runtime artifacts and lets the browser workbench use the same bundle-backed path, including a local versioned policy library, explicit migration helpers for saved workbench artifacts, and checked-in fixture policies.
 
 The flow is now:
 

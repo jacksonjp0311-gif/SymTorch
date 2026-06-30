@@ -36,7 +36,7 @@ The `0.20.0` observability hooks line adds synchronous operator events for rule 
 
 The `0.21.0` production hardening line adds opt-in runtime limits, typed errors, policy bundle hashing, append file ledgers, and a backend dispatch boundary. It does not make policy bundles cryptographically signed, make append files transactional databases, sandbox untrusted rules, or route core tensor execution through WebGPU kernels yet.
 
-The `0.25.0` policy workbench migration line makes local bundles executable in Node, saveable/loadable through a versioned browser policy library, and explicitly migratable for supported local artifact shapes. It does not add a remote policy registry, cryptographic signing, staged promotion workflow, durable multi-user storage, or a general migration runner for arbitrary future schemas.
+The `0.26.0` policy fixture suite line makes local bundles executable in Node, saveable/loadable through a versioned browser policy library, explicitly migratable for supported local artifact shapes, and continuously verified as checked-in fixtures. It does not add a remote policy registry, cryptographic signing, staged promotion workflow, durable multi-user storage, or a general migration runner for arbitrary future schemas.
 
 ## Current Best Use Cases
 

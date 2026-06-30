@@ -36,7 +36,7 @@ describe("production readiness manifest", () => {
     const rootPackage = readJson<{ version: string }>("../package.json");
 
     expect(manifest.version).toBe(rootPackage.version);
-    expect(manifest.status).toBe("policy-workbench-migrations");
+    expect(manifest.status).toBe("policy-fixture-suite");
     expect(manifest.schemaVersions).toEqual({
       explanation: EXPLANATION_SCHEMA_VERSION,
       agentDecision: AGENT_DECISION_SCHEMA_VERSION,
@@ -61,6 +61,7 @@ describe("production readiness manifest", () => {
       "pnpm playground:build",
       "pnpm exec tsx scripts/smoke-browser-playground.ts",
       "pnpm playground:e2e",
+      "pnpm demo:policy-fixtures",
       "pnpm demo:all"
     ]);
     expect(manifest.nonClaims).toContain("not a production authorization system");

@@ -129,6 +129,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Browser policy bundle import/export with hash verification and bundle-backed decisions.
 - Versioned browser policy libraries for saving, loading, exporting, and importing local bundles.
 - Explicit workbench migration helpers for old saved state and policy-library artifacts.
+- Checked-in policy fixture suite for escalation, fraud review, and support routing.
 - Append-oriented Node ledger persistence for newline-delimited decision entries.
 - Dependency-free observer hooks for rule evaluation, decisions, ledger appends, and replay summaries.
 - Holographic memory primitive for binding, superposing, and recalling vector symbols.
@@ -163,6 +164,7 @@ pnpm demo:rule
 pnpm demo:ledger
 pnpm demo:policy
 pnpm demo:golden-policy
+pnpm demo:policy-fixtures
 pnpm demo:all
 ```
 
@@ -241,6 +243,7 @@ examples/
   linear-regression/
   neuro-symbolic-routing/
   trainable-routing/
+  policies/
 ```
 
 ## Documentation
@@ -256,6 +259,7 @@ examples/
 - [Observability hooks](docs/observability.md)
 - [Production hardening](docs/production-hardening.md)
 - [Policy bundle runtime](docs/policy-bundle-runtime.md)
+- [Policy fixture suite](docs/policy-fixtures.md)
 - [Workbench migrations](docs/workbench-migrations.md)
 - [Backend abstraction alpha](docs/backend-abstraction.md)
 - [GPU backend plan](docs/gpu-backend-plan.md)
@@ -279,6 +283,7 @@ examples/
 
 Near term:
 
+- expand the policy fixture corpus and expected decision assertions
 - workbench migration coverage for every persisted artifact
 - backend dispatch foundation for future WebGPU kernels
 - typed domains and guarded grounding
@@ -302,6 +307,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.25.0` workspace line is the policy workbench migration line: saved playground state and policy-library artifacts now pass through explicit migration helpers, so local-first workbench persistence can evolve without silently breaking old demos while the WebGPU line remains explicit and CPU-oracled.
+SymTorch is early, active, and intentionally foundation-first. The `0.26.0` workspace line is the policy fixture suite line: multiple checked-in policy bundles are now verified, materialized, executed, ledger-recorded, replay-checked, and loaded through the workbench library migration path while the WebGPU line remains explicit and CPU-oracled.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

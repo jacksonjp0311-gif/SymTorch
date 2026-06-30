@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "symtorch.policyBundle.v1",
+  "name": "Support Routing Policy",
+  "version": "2026.06.30",
+  "rules": "route_specialist(X) :- high_risk(X), not approved(X).\nresolve_standard(X) :- approved(X).",
+  "predicates": [
+    {
+      "kind": "fact",
+      "name": "approved"
+    },
+    {
+      "kind": "threshold",
+      "name": "high_risk",
+      "valueKey": "high_risk",
+      "threshold": 0.72,
+      "slope": 10
+    }
+  ],
+  "metadata": {
+    "scenarioId": "support-routing",
+    "source": "fixture-suite"
+  },
+  "hash": "fnv1a32:a07ec626"
+}
