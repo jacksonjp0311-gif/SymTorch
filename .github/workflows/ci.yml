@@ -30,11 +30,12 @@ jobs:
           path: ~/.cache/ms-playwright
           key: pw-chromium-1178
 
+      - run: pnpm install --frozen-lockfile
+
       - name: Install Playwright Chromium
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --only-shell chromium
 
-      - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm playground:test
