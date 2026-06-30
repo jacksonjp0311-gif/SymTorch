@@ -463,19 +463,13 @@ export function max(x: Tensor): Tensor {
 }
 
 export function matmul(a: Tensor, b: Tensor): Tensor {
+  if (a.ndim < 2 || b.ndim < 2) {
+    throw new Error("matmul requires at least rank-2 tensors.");
+  }
   if (a.ndim === 2 && b.ndim === 2) {
     return matmul2D(a, b);
   }
-  if (a.ndim >= 2 && b.ndim === 2) {
-    return batchedMatmul(a, b);
-  }
-  if (a.ndim === 2 && b.ndim >= 2) {
-    return batchedMatmul(a, b);
-  }
-  if (a.ndim >= 2 && b.ndim >= 2) {
-    return batchedMatmul(a, b);
-  }
-  throw new Error("matmul requires at least rank-2 tensors.");
+  return batchedMatmul(a, b);
 }
 
 export function circularConvolve(a: Tensor, b: Tensor): Tensor {
@@ -551,21 +545,37 @@ function matmul2D(a: Tensor, b: Tensor): Tensor {
 }
 
 function batchedMatmul(a: Tensor, b: Tensor): Tensor {
-  const [aBatch, aM, aK] = matmulShapes(a.shape, b.shape);
-  const [, bK, bN] = matmulShapes(b.shape, a.shape);
+  const aM = a.shape[a.ndim - 2]!;
+  const aK = a.shape[a.ndim - 1]!;
+  const bK = b.shape[b.ndim - 2]!;
+  const bN = b.shape[b.ndim - 1]!;
+
   if (aK !== bK) {
     throw new Error(`matmul shape mismatch: [${a.shape.join(", ")}] x [${b.shape.join(", ")}].`);
   }
 
-  const batch = aBatch;
   const m = aM;
   const k = aK;
   const n = bN;
+
+  // Extract and broadcast batch dimensions from the leading axes
+  const aBatchShape = a.shape.slice(0, -2);
+  const bBatchShape = b.shape.slice(0, -2);
+  const batchShape = broadcastBatchShape(aBatchShape, bBatchShape);
+  const batch = sizeOf(batchShape);
+
+  // Compute strides for batch indexing into a and b data
+  const aBatchStrides = batchStrides(aBatchShape, batchShape);
+  const bBatchStrides = batchStrides(bBatchShape, batchShape);
+
+  const aBatchStride = aM * aK;
+  const bBatchStride = bK * bN;
+
   const out = new Float32Array(batch * m * n);
 
   for (let bi = 0; bi < batch; bi++) {
-    const aOff = bi * m * k;
-    const bOff = bi * k * n;
+    const aOff = aBatchStrides[bi]! * aBatchStride;
+    const bOff = bBatchStrides[bi]! * bBatchStride;
     const oOff = bi * m * n;
     for (let i = 0; i < m; i++) {
       for (let j = 0; j < n; j++) {
@@ -578,83 +588,147 @@ function batchedMatmul(a: Tensor, b: Tensor): Tensor {
     }
   }
 
-  const outShape = a.ndim >= b.ndim
-    ? [...a.shape.slice(0, -2), m, n]
-    : [...b.shape.slice(0, -2), m, n];
+  const outShape = [...batchShape, m, n];
 
   return new Tensor(out, outShape, {}, [
     {
       parent: a,
       backward: (grad) => {
-        const gradReshaped = reshapeToBatch(grad, batch, m, n);
-        const bReshaped = reshapeToBatch(b, batch, k, n);
-        const result = batchedMatmulNoGrad(gradReshaped, transposeLast2D(bReshaped));
-        const resultShape = a.ndim === 2 && b.ndim > 2
-          ? [k, m] as [number, number]
-          : a.ndim === 2
-            ? [k, m] as [number, number]
-            : [...a.shape.slice(0, -2), m, k];
-        return reshapeOrPass(result, resultShape);
+        // grad: [...batchShape, m, n], need a-grad: [...a.shape]
+        // a-grad = grad @ b^T
+        const aResult = batchedMatmulGradAT(grad, b, batchShape, aBatchShape, aBatchStrides, bBatchStrides);
+        return reduceBroadcast(aResult, a.shape);
       }
     },
     {
       parent: b,
       backward: (grad) => {
-        const gradReshaped = reshapeToBatch(grad, batch, m, n);
-        const aReshaped = reshapeToBatch(a, batch, m, k);
-        const result = batchedMatmulNoGrad(transposeLast2D(aReshaped), gradReshaped);
-        const resultShape = b.ndim === 2 && a.ndim > 2
-          ? [k, n] as [number, number]
-          : b.ndim === 2
-            ? [k, n] as [number, number]
-            : [...b.shape.slice(0, -2), k, n];
-        return reshapeOrPass(result, resultShape);
+        // grad: [...batchShape, m, n], need b-grad: [...b.shape]
+        // b-grad = a^T @ grad
+        const bResult = batchedMatmulGradBT(a, grad, batchShape, bBatchShape, aBatchStrides, bBatchStrides);
+        return reduceBroadcast(bResult, b.shape);
       }
     }
   ]);
 }
 
-function matmulShapes(aShape: readonly number[], bShape: readonly number[]): [number, number, number] {
-  const aM = aShape[aShape.length - 2] ?? 1;
-  const aK = aShape[aShape.length - 1] ?? 1;
-  const maxBatch = Math.max(aShape.length, bShape.length) - 2;
-  let batch = 1;
-  for (let i = 0; i < maxBatch; i++) {
-    const aDim = aShape[aShape.length - 3 - i] ?? 1;
-    const bDim = bShape[bShape.length - 3 - i] ?? 1;
-    batch *= Math.max(aDim, bDim);
-  }
-  return [batch, aM, aK];
-}
+function batchedMatmulGradAT(
+  grad: Tensor,
+  b: Tensor,
+  outBatchShape: readonly number[],
+  aBatchShape: readonly number[],
+  aBatchStrides: readonly number[],
+  bBatchStrides: readonly number[]
+): Tensor {
+  const bM = b.shape[b.ndim - 2]!;
+  const bN = b.shape[b.ndim - 1]!;
+  const m = grad.shape[grad.ndim - 2]!;
+  const n = grad.shape[grad.ndim - 1]!;
+  const k = bM;
 
-function reshapeToBatch(x: Tensor, batch: number, m: number, n: number): Tensor {
-  if (x.shape.length === 3 && x.shape[0] === batch && x.shape[1] === m && x.shape[2] === n) {
-    return x.detach();
-  }
-  return new Tensor(x.data.slice(), [batch, m, n]);
-}
+  const batch = sizeOf(outBatchShape);
+  const aBatchStride = m * k;
+  const bBatchStride = bM * bN;
 
-function batchedMatmulNoGrad(a: Tensor, b: Tensor): Tensor {
-  if (a.ndim === 2 && b.ndim === 2) {
-    return matmul2D(a.detach(), b.detach()).detach();
-  }
-  return batchedMatmul(a.detach(), b.detach()).detach();
-}
+  // b^T has shape [..., k, n]
+  const out = new Float32Array(batch * m * k);
 
-function transposeLast2D(x: Tensor): Tensor {
-  if (x.ndim === 3) {
-    const [batch, m, k] = x.shape as [number, number, number];
-    const out = new Float32Array(x.size);
-    for (let bi = 0; bi < batch; bi++) {
-      for (let i = 0; i < m; i++) {
-        for (let j = 0; j < k; j++) {
-          out[bi * k * m + j * m + i] = x.data[bi * m * k + i * k + j] ?? 0;
+  for (let bi = 0; bi < batch; bi++) {
+    const gOff = bi * m * n;
+    const bOff = bBatchStrides[bi]! * bBatchStride;
+    const oOff = bi * m * k;
+    for (let i = 0; i < m; i++) {
+      for (let p = 0; p < k; p++) {
+        let acc = 0;
+        for (let j = 0; j < n; j++) {
+          // grad[bi, i, j] * b^T[bi, p, j] = grad[bi, i, j] * b[bi, j, p]
+          // Wait: b has shape [..., bK(=k), bN(=n)], so b^T[p,j] = b[j,p]
+          // But b indices are [bi, bK_row, bN_col] = [bi, p, j]
+          acc += (grad.data[gOff + i * n + j] ?? 0) * (b.data[bOff + p * bN + j] ?? 0);
         }
+        out[oOff + i * k + p] = acc;
       }
     }
-    return new Tensor(out, [batch, k, m]);
   }
-  return transposeNoGrad(x);
+
+  return new Tensor(out, [...outBatchShape, m, k]);
+}
+
+function batchedMatmulGradBT(
+  a: Tensor,
+  grad: Tensor,
+  outBatchShape: readonly number[],
+  bBatchShape: readonly number[],
+  aBatchStrides: readonly number[],
+  bBatchStrides: readonly number[]
+): Tensor {
+  const aM = a.shape[a.ndim - 2]!;
+  const aK = a.shape[a.ndim - 1]!;
+  const m = grad.shape[grad.ndim - 2]!;
+  const n = grad.shape[grad.ndim - 1]!;
+  const k = aK;
+
+  const batch = sizeOf(outBatchShape);
+  const aBatchStride = aM * aK;
+  const gradBatchStride = m * n;
+
+  // a^T has shape [..., k, m]
+  const out = new Float32Array(batch * k * n);
+
+  for (let bi = 0; bi < batch; bi++) {
+    const aOff = aBatchStrides[bi]! * aBatchStride;
+    const gOff = bi * gradBatchStride;
+    const oOff = bi * k * n;
+    for (let p = 0; p < k; p++) {
+      for (let j = 0; j < n; j++) {
+        let acc = 0;
+        for (let i = 0; i < m; i++) {
+          // a^T[bi, p, i] = a[bi, i, p]
+          acc += (a.data[aOff + i * aK + p] ?? 0) * (grad.data[gOff + i * n + j] ?? 0);
+        }
+        out[oOff + p * n + j] = acc;
+      }
+    }
+  }
+
+  return new Tensor(out, [...outBatchShape, k, n]);
+}
+
+function broadcastBatchShape(aShape: readonly number[], bShape: readonly number[]): number[] {
+  const rank = Math.max(aShape.length, bShape.length);
+  const out = new Array<number>(rank);
+  for (let i = 0; i < rank; i++) {
+    const ad = aShape[aShape.length - rank + i] ?? 1;
+    const bd = bShape[bShape.length - rank + i] ?? 1;
+    if (ad !== bd && ad !== 1 && bd !== 1) {
+      throw new Error(`Batch dimensions [${aShape.join(", ")}] and [${bShape.join(", ")}] are not broadcastable.`);
+    }
+    out[i] = Math.max(ad, bd);
+  }
+  return out;
+}
+
+function batchStrides(inputBatchShape: readonly number[], outBatchShape: readonly number[]): number[] {
+  const batch = sizeOf(outBatchShape);
+  const strides = new Array<number>(batch);
+  const rank = outBatchShape.length;
+  for (let bi = 0; bi < batch; bi++) {
+    let idx = 0;
+    let rest = bi;
+    for (let dim = rank - 1; dim >= 0; dim--) {
+      const outDim = outBatchShape[dim] ?? 1;
+      const inDim = inputBatchShape[inputBatchShape.length - rank + dim] ?? 1;
+      const coord = rest % outDim;
+      rest = Math.floor(rest / outDim);
+      if (inDim === 1) {
+        // broadcast dim — stride is 0
+      } else {
+        idx = idx * inDim + coord;
+      }
+    }
+    strides[bi] = idx;
+  }
+  return strides;
 }
 
 function reshapeOrPass(tensor: Tensor, targetShape: readonly number[]): Tensor {

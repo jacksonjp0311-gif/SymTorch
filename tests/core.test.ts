@@ -155,9 +155,9 @@ describe("@symtorch/core", () => {
     );
   });
 
-  it("computes batched matmul for rank-3 tensors", () => {
+  it("computes batched matmul for rank-3 × rank-2 tensors", () => {
     const a = tensor([1, 2, 3, 4, 5, 6, 7, 8], { shape: [2, 2, 2] });
-    const b = tensor([1, 0, 0, 1], { shape: [2, 2] });
+    const b = tensor([1, 0, 0, 1], { shape: [2, 2] });  // identity matrix
     const result = matmul(a, b);
     expect(result.shape).toEqual([2, 2, 2]);
     expect(result.toArray()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -168,10 +168,12 @@ describe("@symtorch/core", () => {
     const b = tensor([1, 0, 0, 1, 2, 0, 0, 2], { shape: [2, 2, 2] });
     const result = matmul(a, b);
     expect(result.shape).toEqual([2, 1, 2]);
+    // Batch 0: [[1,2]] × [[1,0],[0,1]] = [[1,2]]
+    // Batch 1: [[3,4]] × [[2,0],[0,2]] = [[6,8]]
     expect(result.toArray()[0]).toBeCloseTo(1, 5);
     expect(result.toArray()[1]).toBeCloseTo(2, 5);
-    expect(result.toArray()[2]).toBeCloseTo(3, 5);
-    expect(result.toArray()[3]).toBeCloseTo(4, 5);
+    expect(result.toArray()[2]).toBeCloseTo(6, 5);
+    expect(result.toArray()[3]).toBeCloseTo(8, 5);
   });
 
   it("computes batched matmul between rank-2 weight and rank-3 input", () => {
@@ -179,6 +181,8 @@ describe("@symtorch/core", () => {
     const weight = tensor([1, 1, 1, -1], { shape: [2, 2] });
     const result = matmul(input, weight);
     expect(result.shape).toEqual([2, 1, 2]);
+    // Batch 0: [[1,2]] × [[1,1],[1,-1]] = [[3,-1]]
+    // Batch 1: [[3,4]] × [[1,1],[1,-1]] = [[7,-1]]
     expect(result.toArray()[0]).toBeCloseTo(3, 5);
     expect(result.toArray()[1]).toBeCloseTo(-1, 5);
     expect(result.toArray()[2]).toBeCloseTo(7, 5);
