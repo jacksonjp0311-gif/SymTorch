@@ -11,6 +11,8 @@ concurrency:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.53.0-noble
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -23,18 +25,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Cache Playwright Chromium
-        uses: actions/cache@v4
-        id: pw-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: pw-chromium-1178
-
       - run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright Chromium
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --only-shell chromium
 
       - run: pnpm typecheck
       - run: pnpm test
