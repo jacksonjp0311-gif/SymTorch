@@ -20,6 +20,8 @@ import {
   exportPlaygroundPolicyBundle,
   exportPlaygroundScenario,
   exportPlaygroundState,
+  migratePlaygroundState,
+  migratePolicyBundleLibrary,
   parsePolicyBundleLibrary,
   parsePlaygroundPolicyBundle,
   parsePlaygroundState,
@@ -143,8 +145,11 @@ describe("browser playground model", () => {
     const legacyState = { ...state, policyLibrary: undefined };
     delete legacyState.policyLibrary;
     const roundTrip = parsePlaygroundState(JSON.stringify(legacyState));
+    const migration = migratePlaygroundState(legacyState);
 
     expect(roundTrip?.policyLibrary).toEqual(createPolicyLibrary());
+    expect(migration.ok).toBe(true);
+    expect(migration.ok && migration.migrated).toBe(true);
   });
 
   it("exports readable versioned playground state", () => {
@@ -200,6 +205,29 @@ describe("browser playground model", () => {
     expect(library.bundles[0]?.savedAt).toBe("2026-06-30T01:00:00.000Z");
     expect(exported).toContain("symtorch.policyLibrary.v1");
     expect(parsed).toEqual(library);
+  });
+
+  it("migrates legacy bare-array policy libraries", () => {
+    const bundle = createPlaygroundPolicyBundle(DEFAULT_SCENARIO_ID, defaultRule, 0.42);
+    const saved = savePolicyBundleToLibrary(createPolicyLibrary(), bundle, "2026-06-30T00:00:00.000Z").bundles;
+    const migration = migratePolicyBundleLibrary(saved);
+
+    expect(migration.ok).toBe(true);
+    expect(migration.ok && migration.migrated).toBe(true);
+    expect(migration.ok && migration.value.schemaVersion).toBe(POLICY_LIBRARY_SCHEMA_VERSION);
+    expect(migration.ok && migration.value.bundles).toHaveLength(1);
+  });
+
+  it("reports migration diagnostics for invalid state", () => {
+    const migration = migratePlaygroundState({
+      schemaVersion: "old",
+      ruleSource: defaultRule,
+      cases: [],
+      trainedThreshold: 0.5
+    });
+
+    expect(migration.ok).toBe(false);
+    expect(migration.diagnostics[0]?.path).toBe("$.schemaVersion");
   });
 
   it("persists policy bundle libraries inside playground state", () => {

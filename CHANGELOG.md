@@ -1,6 +1,15 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.24.0` is the policy workbench persistence line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.25.0` is the policy workbench migration line, not a production stability claim.
+
+## v0.25.0 Policy Workbench Migrations
+
+- Added explicit `MigrationResult` contracts for workbench artifact upgrades.
+- Added `migratePlaygroundState()` for saved playground state with structured diagnostics.
+- Added `migratePolicyBundleLibrary()` for current libraries and legacy bare saved-bundle arrays.
+- Kept current schema versions stable while formalizing upgrade behavior for missing `policyLibrary` and `trainingExamples`.
+- Added migration documentation and tests.
+- Bumped private workspace package versions to `0.25.0`.
 
 ## v0.24.0 Policy Workbench Persistence
 

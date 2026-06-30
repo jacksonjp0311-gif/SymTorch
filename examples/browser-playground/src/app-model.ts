@@ -74,6 +74,10 @@ export type PolicyBundleLibrary = {
   bundles: SavedPolicyBundle[];
 };
 
+export type MigrationResult<T> =
+  | { ok: true; migrated: boolean; value: T; diagnostics: [] }
+  | { ok: false; migrated: false; value: null; diagnostics: ScenarioValidationDiagnostic[] };
+
 export type TrainingResult = {
   beforeThreshold: number;
   afterThreshold: number;
@@ -406,10 +410,31 @@ export function exportPolicyBundleLibrary(library: PolicyBundleLibrary): string 
 export function parsePolicyBundleLibrary(serialized: string | null): PolicyBundleLibrary | null {
   if (!serialized) return null;
   try {
-    return normalizePolicyBundleLibrary(JSON.parse(serialized));
+    const migration = migratePolicyBundleLibrary(JSON.parse(serialized));
+    return migration.ok ? migration.value : null;
   } catch {
     return null;
   }
+}
+
+export function migratePolicyBundleLibrary(value: unknown): MigrationResult<PolicyBundleLibrary> {
+  const normalized = normalizePolicyBundleLibrary(value);
+  if (normalized) {
+    return { ok: true, migrated: false, value: normalized, diagnostics: [] };
+  }
+  if (Array.isArray(value)) {
+    const bundles = value.map(normalizeSavedPolicyBundle);
+    if (bundles.some((item) => item === null)) {
+      return migrationError("$", `Expected ${POLICY_LIBRARY_SCHEMA_VERSION} library or an array of saved policy bundles.`);
+    }
+    return {
+      ok: true,
+      migrated: true,
+      value: createPolicyLibrary(bundles as SavedPolicyBundle[]),
+      diagnostics: []
+    };
+  }
+  return migrationError("$", `Expected ${POLICY_LIBRARY_SCHEMA_VERSION} library.`);
 }
 
 export function policyBundleLibraryId(bundle: SerializedPolicyBundle): string {
@@ -456,26 +481,48 @@ export function exportPlaygroundState(
 export function parsePlaygroundState(serialized: string | null): BrowserPlaygroundState | null {
   if (!serialized) return null;
   try {
-    const value = JSON.parse(serialized) as Partial<BrowserPlaygroundState>;
-    if (value.schemaVersion !== PLAYGROUND_STATE_VERSION) return null;
-    if (typeof value.ruleSource !== "string") return null;
-    if (typeof value.trainedThreshold !== "number" || !Number.isFinite(value.trainedThreshold)) return null;
-    if (!Array.isArray(value.cases)) return null;
-    const cases = value.cases.map(normalizeCase);
-    if (cases.some((item) => item === null)) return null;
-    const trainingExamples = Array.isArray(value.trainingExamples)
-      ? value.trainingExamples.map(normalizeTrainingExample)
-      : defaultTrainingExamples();
-    if (trainingExamples.some((item) => item === null)) return null;
-    const lastTrainingRun = value.lastTrainingRun === null || value.lastTrainingRun === undefined
-      ? null
-      : normalizeTrainingRun(value.lastTrainingRun);
-    if (value.lastTrainingRun !== null && value.lastTrainingRun !== undefined && !lastTrainingRun) return null;
-    const policyLibrary = value.policyLibrary === undefined
-      ? createPolicyLibrary()
-      : normalizePolicyBundleLibrary(value.policyLibrary);
-    if (!policyLibrary) return null;
-    return {
+    const migration = migratePlaygroundState(JSON.parse(serialized));
+    return migration.ok ? migration.value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function migratePlaygroundState(value: unknown): MigrationResult<BrowserPlaygroundState> {
+  if (!isRecord(value)) return migrationError("$", "Expected an object.");
+  if (value.schemaVersion !== PLAYGROUND_STATE_VERSION) {
+    return migrationError("$.schemaVersion", `Expected ${PLAYGROUND_STATE_VERSION}.`);
+  }
+  if (typeof value.ruleSource !== "string") return migrationError("$.ruleSource", "Expected a string.");
+  if (typeof value.trainedThreshold !== "number" || !Number.isFinite(value.trainedThreshold)) {
+    return migrationError("$.trainedThreshold", "Expected a finite number.");
+  }
+  if (!Array.isArray(value.cases)) return migrationError("$.cases", "Expected an array.");
+  const cases = value.cases.map(normalizeCase);
+  if (cases.some((item) => item === null)) return migrationError("$.cases", "Expected entityId, high_risk, and approved.");
+  const trainingExamples = Array.isArray(value.trainingExamples)
+    ? value.trainingExamples.map(normalizeTrainingExample)
+    : defaultTrainingExamples();
+  if (trainingExamples.some((item) => item === null)) {
+    return migrationError("$.trainingExamples", "Expected risk, approved, and label.");
+  }
+  const lastTrainingRun = value.lastTrainingRun === null || value.lastTrainingRun === undefined
+    ? null
+    : normalizeTrainingRun(value.lastTrainingRun);
+  if (value.lastTrainingRun !== null && value.lastTrainingRun !== undefined && !lastTrainingRun) {
+    return migrationError("$.lastTrainingRun", `Expected ${TRAINING_RUN_SCHEMA_VERSION}.`);
+  }
+  const policyLibraryMigration = value.policyLibrary === undefined
+    ? { ok: true as const, migrated: true, value: createPolicyLibrary(), diagnostics: [] as [] }
+    : migratePolicyBundleLibrary(value.policyLibrary);
+  if (!policyLibraryMigration.ok) {
+    return migrationError("$.policyLibrary", policyLibraryMigration.diagnostics[0]?.message ?? `Expected ${POLICY_LIBRARY_SCHEMA_VERSION}.`);
+  }
+  return {
+    ok: true,
+    migrated: policyLibraryMigration.migrated || value.trainingExamples === undefined,
+    diagnostics: [],
+    value: {
       schemaVersion: PLAYGROUND_STATE_VERSION,
       scenarioId: typeof value.scenarioId === "string" ? value.scenarioId : DEFAULT_SCENARIO_ID,
       ruleSource: value.ruleSource,
@@ -483,11 +530,9 @@ export function parsePlaygroundState(serialized: string | null): BrowserPlaygrou
       trainingExamples: trainingExamples as TrainingExample[],
       trainedThreshold: value.trainedThreshold,
       lastTrainingRun,
-      policyLibrary
-    };
-  } catch {
-    return null;
-  }
+      policyLibrary: policyLibraryMigration.value
+    }
+  };
 }
 
 function cloneScenario(scenario: PlaygroundScenario): PlaygroundScenario {
@@ -510,6 +555,15 @@ function policyBundleError(path: string, message: string): PolicyBundleValidatio
   return {
     ok: false,
     bundle: null,
+    diagnostics: [{ path, message }]
+  };
+}
+
+function migrationError<T>(path: string, message: string): MigrationResult<T> {
+  return {
+    ok: false,
+    migrated: false,
+    value: null,
     diagnostics: [{ path, message }]
   };
 }

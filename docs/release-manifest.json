@@ -1,6 +1,6 @@
 {
-  "version": "0.24.0",
-  "status": "policy-workbench-persistence",
+  "version": "0.25.0",
+  "status": "policy-workbench-migrations",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

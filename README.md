@@ -57,6 +57,30 @@ console.log(decisionTrace(result));
 
 The rule stays readable, `high_risk(X)` can train, and the final output remains a versioned JSON-safe explanation trace.
 
+## Working Prototype Loop
+
+The current browser workbench demonstrates the product loop SymTorch is moving toward:
+
+```text
+edit readable policy
+-> package hashed policy bundle
+-> verify bundle
+-> save/load local policy library
+-> materialize RuleAgent
+-> evaluate entity decisions
+-> inspect explanation trace
+-> record decision ledger
+-> replay-check behavior
+```
+
+Run it locally:
+
+```powershell
+pnpm playground:browser
+```
+
+The workbench is intentionally local-first. It proves the contracts and runtime path before adding remote registries, auth, or multi-user storage.
+
 ## Why SymTorch
 
 Most JavaScript ML tools focus on neural models alone. Most rule engines are discrete and brittle. SymTorch is building the missing middle: a tensor system where symbolic rules are first-class differentiable programs.
@@ -104,6 +128,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Executable policy bundle runtime that materializes predicates and creates `RuleAgent` instances.
 - Browser policy bundle import/export with hash verification and bundle-backed decisions.
 - Versioned browser policy libraries for saving, loading, exporting, and importing local bundles.
+- Explicit workbench migration helpers for old saved state and policy-library artifacts.
 - Append-oriented Node ledger persistence for newline-delimited decision entries.
 - Dependency-free observer hooks for rule evaluation, decisions, ledger appends, and replay summaries.
 - Holographic memory primitive for binding, superposing, and recalling vector symbols.
@@ -231,6 +256,7 @@ examples/
 - [Observability hooks](docs/observability.md)
 - [Production hardening](docs/production-hardening.md)
 - [Policy bundle runtime](docs/policy-bundle-runtime.md)
+- [Workbench migrations](docs/workbench-migrations.md)
 - [Backend abstraction alpha](docs/backend-abstraction.md)
 - [GPU backend plan](docs/gpu-backend-plan.md)
 - [WebGPU residency prototype](docs/webgpu-residency.md)
@@ -253,6 +279,7 @@ examples/
 
 Near term:
 
+- workbench migration coverage for every persisted artifact
 - backend dispatch foundation for future WebGPU kernels
 - typed domains and guarded grounding
 - scenario contract loaders beyond the playground
@@ -275,6 +302,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.24.0` workspace line is the policy workbench persistence line: the browser workbench can now export/import hashed policy bundles, save them into a versioned local policy library, reload saved bundles through the same `createPolicyAgent()` runtime as Node, evaluate decisions, record ledger entries, and replay-check them while the WebGPU line remains explicit and CPU-oracled.
+SymTorch is early, active, and intentionally foundation-first. The `0.25.0` workspace line is the policy workbench migration line: saved playground state and policy-library artifacts now pass through explicit migration helpers, so local-first workbench persistence can evolve without silently breaking old demos while the WebGPU line remains explicit and CPU-oracled.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.
