@@ -1,6 +1,15 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.10.0` is the WebGPU add-kernel prototype line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.11.0` is the WebGPU browser parity gate line, not a production stability claim.
+
+## v0.11.0 WebGPU Browser Parity Gate
+
+- Added a Playwright browser parity gate for the same-shape WebGPU add kernel.
+- The parity gate compiles the exported WGSL shader in a browser when WebGPU is available.
+- The test compares GPU output against a CPU oracle using documented tolerance.
+- The parity gate skips cleanly when `navigator.gpu` or an adapter is unavailable.
+- Added WebGPU browser parity documentation.
+- Bumped private workspace package versions to `0.11.0`.
 
 ## v0.10.0 WebGPU Add Kernel Prototype
 

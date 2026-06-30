@@ -1,6 +1,6 @@
 {
-  "version": "0.10.0",
-  "status": "webgpu-add-kernel-prototype",
+  "version": "0.11.0",
+  "status": "webgpu-browser-parity-gate",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",

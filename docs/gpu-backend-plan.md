@@ -75,4 +75,6 @@ The `0.10.0` line adds the first WGSL kernel:
 - explicit upload and readback
 - fake-device CI coverage
 
-The next missing piece is a real browser/hardware parity gate for the add kernel.
+The `0.11.0` line adds a browser parity gate for the add kernel. It runs on real browser WebGPU when available and skips cleanly otherwise.
+
+The next missing piece is a second kernel family or core dispatch integration for same-shape add.

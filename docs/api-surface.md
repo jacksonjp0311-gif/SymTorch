@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.10.0` WebGPU add-kernel prototype line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.11.0` WebGPU browser parity gate line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -140,6 +140,7 @@ Notes:
 
 - WebGPU support is currently capability detection, buffer pooling, and explicit tensor upload/readback.
 - Same-shape add has a prototype kernel. Wider tensor kernels, browser hardware parity gates, and core dispatch integration are future work.
+- The browser parity gate exercises same-shape add when WebGPU is available and skips otherwise.
 
 ## Internal By Convention
 

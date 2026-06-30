@@ -1,6 +1,6 @@
 {
   "name": "symtorch-monorepo",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
   "description": "SymTorch: differentiable tensors and neuro-symbolic agents for TypeScript.",
@@ -8,7 +8,8 @@
     "@symtorch/agent": "workspace:*",
     "@symtorch/core": "workspace:*",
     "@symtorch/logic": "workspace:*",
-    "@symtorch/nn": "workspace:*"
+    "@symtorch/nn": "workspace:*",
+    "@symtorch/webgpu": "workspace:*"
   },
   "scripts": {
     "build": "tsc -b",

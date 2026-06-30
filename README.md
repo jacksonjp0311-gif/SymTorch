@@ -103,7 +103,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Browser policy workbench with scenario selection, trainable predicates, import/export, smoke tests, and Playwright E2E coverage.
 - Versioned `symtorch.scenario.v1` contracts for JSON-safe policy scenarios.
 - Versioned `symtorch.trainingRun.v1` records for browser-side training history.
-- WebGPU package with runtime detection, buffer pooling, explicit tensor residency, and a first same-shape add kernel prototype.
+- WebGPU package with runtime detection, buffer pooling, explicit tensor residency, a first same-shape add kernel prototype, and a browser parity gate when WebGPU is available.
 
 ## Quickstart
 
@@ -221,6 +221,7 @@ examples/
 - [GPU backend plan](docs/gpu-backend-plan.md)
 - [WebGPU residency prototype](docs/webgpu-residency.md)
 - [WebGPU add kernel prototype](docs/webgpu-add-kernel.md)
+- [WebGPU browser parity gate](docs/webgpu-browser-parity.md)
 - [Production readiness alpha](docs/production-readiness.md)
 - [Limitations](docs/limitations.md)
 - [Changelog](CHANGELOG.md)
@@ -259,6 +260,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.10.0` workspace line is the WebGPU add-kernel prototype: CPU remains the correctness oracle, WebGPU upload/readback boundaries exist, and the first same-shape `float32` add kernel now proves the GPU compute path without claiming full tensor dispatch.
+SymTorch is early, active, and intentionally foundation-first. The `0.11.0` workspace line is the WebGPU browser parity gate: CPU remains the correctness oracle, the first same-shape `float32` add kernel exists, and browser parity runs when WebGPU is available while skipping cleanly when it is not.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.
