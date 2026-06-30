@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.23.0` is the policy workbench runtime line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.24.0` is the policy workbench persistence line, not a production stability claim.
+
+## v0.24.0 Policy Workbench Persistence
+
+- Added the `symtorch.policyLibrary.v1` browser policy library contract.
+- Added workbench controls to save the current bundle, load a saved bundle, and export/import a saved bundle library.
+- Persisted the policy library inside versioned playground state while preserving compatibility with older saved states.
+- Added tests for library deduplication, export/import, state persistence, and browser save/load flows.
+- Bumped private workspace package versions to `0.24.0`.
 
 ## v0.23.0 Policy Workbench Runtime
 

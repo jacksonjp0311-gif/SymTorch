@@ -28,6 +28,7 @@ button:hover {
 
 .button-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -196,6 +197,10 @@ pre {
   color: #18202a;
   font: 0.85rem ui-monospace, SFMono-Regular, Consolas, monospace;
   overflow-wrap: anywhere;
+}
+
+.library select {
+  margin-top: 6px;
 }
 
 .hint {

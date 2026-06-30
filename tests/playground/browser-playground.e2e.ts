@@ -36,6 +36,13 @@ test("browser playground trains, exports, imports, and records decisions", async
   expect(exportedBundle).toContain("symtorch.policyBundle.v1");
   expect(exportedBundle).toContain("\"hash\"");
 
+  await page.getByRole("button", { name: "Save Current" }).click();
+  await expect(page.locator("#policyLibraryStatus")).toContainText("Saved");
+  await page.getByRole("button", { name: "Export Library" }).click();
+  const exportedLibrary = await page.locator("#stateBuffer").inputValue();
+  expect(exportedLibrary).toContain("symtorch.policyLibrary.v1");
+  expect(exportedLibrary).toContain("symtorch.policyBundle.v1");
+
   await page.locator("#ruleSource").fill("escalate(X) :- missing_predicate(X).");
   await page.getByRole("button", { name: "Evaluate" }).click();
   await expect(page.locator("#diagnostics")).toContainText("missing_predicate");
@@ -45,6 +52,14 @@ test("browser playground trains, exports, imports, and records decisions", async
   await expect(page.locator("#stateStatus")).toContainText("Imported policy bundle.");
   await expect(page.locator("#diagnostics")).toContainText("Rule validation: PASS");
   await expect(page.locator("#policyHealth")).toContainText("PASS");
+
+  await page.locator("#stateBuffer").fill(exportedLibrary);
+  await page.getByRole("button", { name: "Import" }).click();
+  await expect(page.locator("#stateStatus")).toContainText("Imported policy bundle library.");
+  await expect(page.locator("#policyLibraryStatus")).toContainText("saved policy bundle");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await expect(page.locator("#policyLibraryStatus")).toContainText("Loaded");
+  await expect(page.locator("#diagnostics")).toContainText("Rule validation: PASS");
 
   await page.locator("#stateBuffer").fill(exportedScenario);
   await page.getByRole("button", { name: "Import" }).click();

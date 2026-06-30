@@ -2,6 +2,7 @@ import {
   serializeDecisionLedger,
   verifyDecisionLedgerReplay,
   type DecisionLedgerEntry,
+  type RuleAgent,
   type SerializedAgentDecision,
   type SerializedEntityDecision
 } from "@symtorch/agent";
@@ -11,18 +12,23 @@ import {
   createFactRegistry,
   createPlaygroundPolicyBundle,
   createPolicyHealth,
+  createPolicyLibrary,
   createPlaygroundState,
   createTrainingRun,
   defaultScenario,
+  exportPolicyBundleLibrary,
   exportPlaygroundPolicyBundle,
   exportPlaygroundScenario,
   exportPlaygroundState,
+  parsePolicyBundleLibrary,
   parsePlaygroundPolicyBundle,
   parsePlaygroundState,
   parsePlaygroundScenario,
+  type PolicyBundleLibrary,
   playgroundScenarios,
   scenarioById,
   scenarioIdFromPolicyBundle,
+  savePolicyBundleToLibrary,
   summarizeTrainingRun,
   thresholdFromPolicyBundle,
   type TrainingRun,
@@ -41,6 +47,7 @@ const registry = createFactRegistry();
 let trainedThreshold = initialState?.trainedThreshold ?? initialScenario.trainedThreshold;
 let lastTrainingRun: TrainingRun | null = initialState?.lastTrainingRun ?? null;
 let trainingSummary = summarizeTrainingRun(lastTrainingRun);
+let policyLibrary: PolicyBundleLibrary = initialState?.policyLibrary ?? createPolicyLibrary();
 
 const scenarioTitle = mustElement<HTMLElement>("scenarioTitle");
 const scenarioDescription = mustElement<HTMLElement>("scenarioDescription");
@@ -54,10 +61,15 @@ const trainingExamplesView = mustElement<HTMLElement>("trainingExamples");
 const trainingStats = mustElement<HTMLElement>("trainingStats");
 const trainingHistory = mustElement<HTMLElement>("trainingHistory");
 const policyHealth = mustElement<HTMLElement>("policyHealth");
+const policyLibrarySelect = mustElement<HTMLSelectElement>("policyLibrarySelect");
+const policyLibraryStatus = mustElement<HTMLElement>("policyLibraryStatus");
 const evaluate = mustElement<HTMLButtonElement>("evaluate");
 const record = mustElement<HTMLButtonElement>("record");
 const resetRule = mustElement<HTMLButtonElement>("resetRule");
 const train = mustElement<HTMLButtonElement>("train");
+const saveBundle = mustElement<HTMLButtonElement>("saveBundle");
+const loadBundle = mustElement<HTMLButtonElement>("loadBundle");
+const exportLibrary = mustElement<HTMLButtonElement>("exportLibrary");
 const exportState = mustElement<HTMLButtonElement>("exportState");
 const exportScenario = mustElement<HTMLButtonElement>("exportScenario");
 const exportBundle = mustElement<HTMLButtonElement>("exportBundle");
@@ -73,12 +85,16 @@ ruleSource.value = initialState?.ruleSource ?? initialScenario.ruleSource;
 renderScenarioHeader();
 renderFacts();
 renderTrainingExamples();
+renderPolicyLibrary();
 evaluatePolicy();
 
 scenarioSelect.addEventListener("change", loadSelectedScenario);
 evaluate.addEventListener("click", evaluatePolicy);
 record.addEventListener("click", recordLedger);
 train.addEventListener("click", trainHighRisk);
+saveBundle.addEventListener("click", saveCurrentPolicyBundle);
+loadBundle.addEventListener("click", loadSelectedPolicyBundle);
+exportLibrary.addEventListener("click", exportCurrentPolicyLibrary);
 exportState.addEventListener("click", exportCurrentState);
 exportScenario.addEventListener("click", exportCurrentScenario);
 exportBundle.addEventListener("click", exportCurrentPolicyBundle);
@@ -172,7 +188,7 @@ function trainHighRisk(): void {
 }
 
 function exportCurrentState(): void {
-  stateBuffer.value = exportPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples, lastTrainingRun);
+  stateBuffer.value = exportPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples, lastTrainingRun, policyLibrary);
   stateStatus.textContent = "Exported current playground state.";
 }
 
@@ -194,10 +210,45 @@ function exportCurrentPolicyBundle(): void {
   evaluatePolicy();
 }
 
+function saveCurrentPolicyBundle(): void {
+  const result = evaluatePolicy();
+  if (!result) return;
+  policyLibrary = savePolicyBundleToLibrary(policyLibrary, result.bundle);
+  persistState();
+  renderPolicyLibrary(result.bundle.hash);
+  policyLibraryStatus.textContent = `Saved ${result.bundle.name} (${result.bundle.hash}).`;
+}
+
+function loadSelectedPolicyBundle(): void {
+  const selected = policyLibrary.bundles.find((item) => item.id === policyLibrarySelect.value);
+  if (!selected) {
+    policyLibraryStatus.textContent = "Select a saved policy bundle.";
+    return;
+  }
+  loadPolicyBundleIntoWorkbench(selected.bundle);
+  policyLibraryStatus.textContent = `Loaded ${selected.bundle.name} (${selected.bundle.hash}).`;
+}
+
+function exportCurrentPolicyLibrary(): void {
+  stateBuffer.value = exportPolicyBundleLibrary(policyLibrary);
+  stateStatus.textContent = "Exported policy bundle library.";
+}
+
 function importBufferedState(): void {
+  const library = parsePolicyBundleLibrary(stateBuffer.value);
+  if (library) {
+    policyLibrary = library;
+    persistState();
+    renderPolicyLibrary();
+    stateStatus.textContent = "Imported policy bundle library.";
+    return;
+  }
+
   const bundle = parsePlaygroundPolicyBundle(stateBuffer.value);
   if (bundle.ok) {
+    policyLibrary = savePolicyBundleToLibrary(policyLibrary, bundle.bundle);
     loadPolicyBundleIntoWorkbench(bundle.bundle);
+    renderPolicyLibrary(bundle.bundle.hash);
     stateStatus.textContent = "Imported policy bundle.";
     return;
   }
@@ -229,6 +280,7 @@ function loadImportedState(imported: NonNullable<ReturnType<typeof parsePlaygrou
   trainingExamples.splice(0, trainingExamples.length, ...imported.trainingExamples);
   trainedThreshold = imported.trainedThreshold;
   lastTrainingRun = imported.lastTrainingRun;
+  policyLibrary = imported.policyLibrary;
   trainingSummary = summarizeTrainingRun(lastTrainingRun);
   refreshAfterLoad();
 }
@@ -261,6 +313,7 @@ function refreshAfterLoad(): void {
   renderScenarioHeader();
   renderFacts();
   renderTrainingExamples();
+  renderPolicyLibrary();
   evaluatePolicy();
 }
 
@@ -274,6 +327,25 @@ function renderPolicyHealth(health: ReturnType<typeof createPolicyHealth>): void
     renderHealthItem("Decision", health.lastDecisionStatus),
     renderHealthItem("Replay", health.replayStatus)
   ].join("");
+}
+
+function renderPolicyLibrary(selectedHash: string | null = null): void {
+  if (policyLibrary.bundles.length === 0) {
+    policyLibrarySelect.innerHTML = `<option value="">No saved bundles</option>`;
+    policyLibrarySelect.value = "";
+    policyLibraryStatus.textContent = "No saved policy bundles.";
+    return;
+  }
+  policyLibrarySelect.innerHTML = policyLibrary.bundles.map((item) => `
+    <option value="${item.id}">
+      ${item.bundle.name} ${item.bundle.version} ${item.bundle.hash}
+    </option>
+  `).join("");
+  const selected = selectedHash
+    ? policyLibrary.bundles.find((item) => item.bundle.hash === selectedHash)
+    : policyLibrary.bundles[0];
+  policyLibrarySelect.value = selected?.id ?? policyLibrary.bundles[0]!.id;
+  policyLibraryStatus.textContent = `${policyLibrary.bundles.length} saved policy bundle${policyLibrary.bundles.length === 1 ? "" : "s"}.`;
 }
 
 function renderHealthItem(label: string, value: string): string {
@@ -384,7 +456,7 @@ function loadState(): ReturnType<typeof parsePlaygroundState> {
 
 function persistState(): void {
   try {
-    localStorage.setItem(stateKey, JSON.stringify(createPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples, lastTrainingRun)));
+    localStorage.setItem(stateKey, JSON.stringify(createPlaygroundState(scenarioId, ruleSource.value, cases, trainedThreshold, trainingExamples, lastTrainingRun, policyLibrary)));
   } catch {
     // Persistence is best-effort; evaluation should still work if storage is unavailable.
   }

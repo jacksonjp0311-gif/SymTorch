@@ -4,6 +4,7 @@ import { AGENT_DECISION_SCHEMA_VERSION, DECISION_LEDGER_SCHEMA_VERSION } from "@
 import { EXPLANATION_SCHEMA_VERSION, POLICY_BUNDLE_SCHEMA_VERSION } from "@symtorch/logic";
 import {
   PLAYGROUND_STATE_VERSION,
+  POLICY_LIBRARY_SCHEMA_VERSION,
   SCENARIO_SCHEMA_VERSION,
   TRAINING_RUN_SCHEMA_VERSION
 } from "../examples/browser-playground/src/app-model";
@@ -19,6 +20,7 @@ type ReleaseManifest = {
     scenario: string;
     trainingRun: string;
     policyBundle: string;
+    policyLibrary: string;
   };
   validationGates: string[];
   nonClaims: string[];
@@ -34,7 +36,7 @@ describe("production readiness manifest", () => {
     const rootPackage = readJson<{ version: string }>("../package.json");
 
     expect(manifest.version).toBe(rootPackage.version);
-    expect(manifest.status).toBe("policy-workbench-runtime");
+    expect(manifest.status).toBe("policy-workbench-persistence");
     expect(manifest.schemaVersions).toEqual({
       explanation: EXPLANATION_SCHEMA_VERSION,
       agentDecision: AGENT_DECISION_SCHEMA_VERSION,
@@ -42,7 +44,8 @@ describe("production readiness manifest", () => {
       playgroundState: PLAYGROUND_STATE_VERSION,
       scenario: SCENARIO_SCHEMA_VERSION,
       trainingRun: TRAINING_RUN_SCHEMA_VERSION,
-      policyBundle: POLICY_BUNDLE_SCHEMA_VERSION
+      policyBundle: POLICY_BUNDLE_SCHEMA_VERSION,
+      policyLibrary: POLICY_LIBRARY_SCHEMA_VERSION
     });
   });
 

@@ -6,6 +6,7 @@ import {
   buildAgent,
   buildPolicyBundleAgent,
   createFactRegistry,
+  createPolicyLibrary,
   createPlaygroundPolicyBundle,
   createPolicyHealth,
   createPlaygroundState,
@@ -15,15 +16,19 @@ import {
   defaultRule,
   defaultScenario,
   defaultTrainingExamples,
+  exportPolicyBundleLibrary,
   exportPlaygroundPolicyBundle,
   exportPlaygroundScenario,
   exportPlaygroundState,
+  parsePolicyBundleLibrary,
   parsePlaygroundPolicyBundle,
   parsePlaygroundState,
   parsePlaygroundScenario,
+  POLICY_LIBRARY_SCHEMA_VERSION,
   playgroundScenarios,
   scenarioIdFromPolicyBundle,
   SCENARIO_SCHEMA_VERSION,
+  savePolicyBundleToLibrary,
   summarizeTrainingRun,
   thresholdFromPolicyBundle,
   trainHighRiskRule,
@@ -133,6 +138,15 @@ describe("browser playground model", () => {
     expect(parsePlaygroundState(JSON.stringify({ ...state, lastTrainingRun: { schemaVersion: "bad" } }))).toBeNull();
   });
 
+  it("keeps old playground state compatible by defaulting an empty policy library", () => {
+    const state = createPlaygroundState(DEFAULT_SCENARIO_ID, defaultRule, defaultCases(), 0.42, defaultTrainingExamples(), null);
+    const legacyState = { ...state, policyLibrary: undefined };
+    delete legacyState.policyLibrary;
+    const roundTrip = parsePlaygroundState(JSON.stringify(legacyState));
+
+    expect(roundTrip?.policyLibrary).toEqual(createPolicyLibrary());
+  });
+
   it("exports readable versioned playground state", () => {
     const exported = exportPlaygroundState(defaultScenario().id, defaultRule, defaultCases(), 0.5, defaultTrainingExamples());
     const parsed = parsePlaygroundState(exported);
@@ -143,6 +157,7 @@ describe("browser playground model", () => {
     expect(parsed?.ruleSource).toBe(defaultRule);
     expect(parsed?.trainedThreshold).toBe(0.5);
     expect(parsed?.trainingExamples).toHaveLength(5);
+    expect(parsed?.policyLibrary.schemaVersion).toBe(POLICY_LIBRARY_SCHEMA_VERSION);
   });
 
   it("exports and parses standalone scenario contracts", () => {
@@ -172,6 +187,28 @@ describe("browser playground model", () => {
     expect(health.predicateCount).toBe(2);
     expect(thresholdFromPolicyBundle(parsed.bundle)).toBe(0.42);
     expect(scenarioIdFromPolicyBundle(parsed.bundle)).toBe(DEFAULT_SCENARIO_ID);
+  });
+
+  it("saves, dedupes, exports, and parses policy bundle libraries", () => {
+    const bundle = createPlaygroundPolicyBundle(DEFAULT_SCENARIO_ID, defaultRule, 0.42);
+    const library = savePolicyBundleToLibrary(savePolicyBundleToLibrary(createPolicyLibrary(), bundle, "2026-06-30T00:00:00.000Z"), bundle, "2026-06-30T01:00:00.000Z");
+    const exported = exportPolicyBundleLibrary(library);
+    const parsed = parsePolicyBundleLibrary(exported);
+
+    expect(library.schemaVersion).toBe(POLICY_LIBRARY_SCHEMA_VERSION);
+    expect(library.bundles).toHaveLength(1);
+    expect(library.bundles[0]?.savedAt).toBe("2026-06-30T01:00:00.000Z");
+    expect(exported).toContain("symtorch.policyLibrary.v1");
+    expect(parsed).toEqual(library);
+  });
+
+  it("persists policy bundle libraries inside playground state", () => {
+    const bundle = createPlaygroundPolicyBundle(DEFAULT_SCENARIO_ID, defaultRule, 0.42);
+    const library = savePolicyBundleToLibrary(createPolicyLibrary(), bundle, "2026-06-30T00:00:00.000Z");
+    const state = createPlaygroundState(DEFAULT_SCENARIO_ID, defaultRule, defaultCases(), 0.42, defaultTrainingExamples(), null, library);
+    const roundTrip = parsePlaygroundState(JSON.stringify(state));
+
+    expect(roundTrip?.policyLibrary).toEqual(library);
   });
 
   it("rejects tampered policy bundle imports", () => {

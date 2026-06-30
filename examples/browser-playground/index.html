@@ -66,6 +66,21 @@
             <div id="policyHealth" class="health-grid"></div>
           </section>
 
+          <section class="panel library">
+            <div class="panel-title">
+              <h2>Policy Library</h2>
+              <div class="button-row">
+                <button id="saveBundle" type="button">Save Current</button>
+                <button id="loadBundle" type="button">Load</button>
+                <button id="exportLibrary" type="button">Export Library</button>
+              </div>
+            </div>
+            <label>Saved bundles
+              <select id="policyLibrarySelect"></select>
+            </label>
+            <div id="policyLibraryStatus" class="hint">No saved policy bundles.</div>
+          </section>
+
           <section class="panel trace">
             <div class="panel-title">
               <h2>Trace</h2>
@@ -84,7 +99,7 @@
               </div>
             </div>
             <textarea id="stateBuffer" spellcheck="false"></textarea>
-            <div id="stateStatus" class="hint">Import accepts saved playground state, a `symtorch.scenario.v1` scenario, or a `symtorch.policyBundle.v1` policy bundle.</div>
+            <div id="stateStatus" class="hint">Import accepts saved playground state, a scenario, a policy bundle, or a policy library.</div>
           </section>
         </div>
       </section>

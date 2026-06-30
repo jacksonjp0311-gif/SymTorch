@@ -63,6 +63,17 @@ export type PolicyHealth = {
   replayStatus: "PASS" | "FAIL" | "NOT_RUN";
 };
 
+export type SavedPolicyBundle = {
+  id: string;
+  savedAt: string;
+  bundle: SerializedPolicyBundle;
+};
+
+export type PolicyBundleLibrary = {
+  schemaVersion: typeof POLICY_LIBRARY_SCHEMA_VERSION;
+  bundles: SavedPolicyBundle[];
+};
+
 export type TrainingResult = {
   beforeThreshold: number;
   afterThreshold: number;
@@ -101,9 +112,11 @@ export type BrowserPlaygroundState = {
   trainingExamples: TrainingExample[];
   trainedThreshold: number;
   lastTrainingRun: TrainingRun | null;
+  policyLibrary: PolicyBundleLibrary;
 };
 
 export const PLAYGROUND_STATE_VERSION = "symtorch.playground.v1";
+export const POLICY_LIBRARY_SCHEMA_VERSION = "symtorch.policyLibrary.v1";
 export const SCENARIO_SCHEMA_VERSION = "symtorch.scenario.v1";
 export const TRAINING_RUN_SCHEMA_VERSION = "symtorch.trainingRun.v1";
 export const DEFAULT_SCENARIO_ID = "case-escalation";
@@ -367,6 +380,42 @@ export function scenarioIdFromPolicyBundle(bundle: SerializedPolicyBundle): stri
   return typeof scenarioId === "string" && scenarioId.trim() !== "" ? scenarioId : null;
 }
 
+export function createPolicyLibrary(bundles: readonly SavedPolicyBundle[] = []): PolicyBundleLibrary {
+  return {
+    schemaVersion: POLICY_LIBRARY_SCHEMA_VERSION,
+    bundles: dedupeSavedBundles(bundles)
+  };
+}
+
+export function savePolicyBundleToLibrary(
+  library: PolicyBundleLibrary,
+  bundle: SerializedPolicyBundle,
+  savedAt = new Date().toISOString()
+): PolicyBundleLibrary {
+  const id = policyBundleLibraryId(bundle);
+  return createPolicyLibrary([
+    { id, savedAt, bundle },
+    ...library.bundles.filter((item) => item.id !== id)
+  ]);
+}
+
+export function exportPolicyBundleLibrary(library: PolicyBundleLibrary): string {
+  return JSON.stringify(createPolicyLibrary(library.bundles), null, 2);
+}
+
+export function parsePolicyBundleLibrary(serialized: string | null): PolicyBundleLibrary | null {
+  if (!serialized) return null;
+  try {
+    return normalizePolicyBundleLibrary(JSON.parse(serialized));
+  } catch {
+    return null;
+  }
+}
+
+export function policyBundleLibraryId(bundle: SerializedPolicyBundle): string {
+  return `${bundle.name}:${bundle.version}:${bundle.hash}`;
+}
+
 export function validateRuleSource(source: string, registry = createFactRegistry()): ReturnType<typeof validateProgram> {
   return validateProgram(source, { registry });
 }
@@ -377,7 +426,8 @@ export function createPlaygroundState(
   cases: readonly CaseFacts[],
   trainedThreshold: number,
   trainingExamples: readonly TrainingExample[] = defaultTrainingExamples(),
-  lastTrainingRun: TrainingRun | null = null
+  lastTrainingRun: TrainingRun | null = null,
+  policyLibrary: PolicyBundleLibrary = createPolicyLibrary()
 ): BrowserPlaygroundState {
   return {
     schemaVersion: PLAYGROUND_STATE_VERSION,
@@ -386,7 +436,8 @@ export function createPlaygroundState(
     cases: cases.map((item) => ({ ...item })),
     trainingExamples: trainingExamples.map((item) => ({ ...item })),
     trainedThreshold,
-    lastTrainingRun: lastTrainingRun ? cloneTrainingRun(lastTrainingRun) : null
+    lastTrainingRun: lastTrainingRun ? cloneTrainingRun(lastTrainingRun) : null,
+    policyLibrary: createPolicyLibrary(policyLibrary.bundles)
   };
 }
 
@@ -396,9 +447,10 @@ export function exportPlaygroundState(
   cases: readonly CaseFacts[],
   trainedThreshold: number,
   trainingExamples: readonly TrainingExample[] = defaultTrainingExamples(),
-  lastTrainingRun: TrainingRun | null = null
+  lastTrainingRun: TrainingRun | null = null,
+  policyLibrary: PolicyBundleLibrary = createPolicyLibrary()
 ): string {
-  return JSON.stringify(createPlaygroundState(scenarioId, ruleSource, cases, trainedThreshold, trainingExamples, lastTrainingRun), null, 2);
+  return JSON.stringify(createPlaygroundState(scenarioId, ruleSource, cases, trainedThreshold, trainingExamples, lastTrainingRun, policyLibrary), null, 2);
 }
 
 export function parsePlaygroundState(serialized: string | null): BrowserPlaygroundState | null {
@@ -419,6 +471,10 @@ export function parsePlaygroundState(serialized: string | null): BrowserPlaygrou
       ? null
       : normalizeTrainingRun(value.lastTrainingRun);
     if (value.lastTrainingRun !== null && value.lastTrainingRun !== undefined && !lastTrainingRun) return null;
+    const policyLibrary = value.policyLibrary === undefined
+      ? createPolicyLibrary()
+      : normalizePolicyBundleLibrary(value.policyLibrary);
+    if (!policyLibrary) return null;
     return {
       schemaVersion: PLAYGROUND_STATE_VERSION,
       scenarioId: typeof value.scenarioId === "string" ? value.scenarioId : DEFAULT_SCENARIO_ID,
@@ -426,7 +482,8 @@ export function parsePlaygroundState(serialized: string | null): BrowserPlaygrou
       cases: cases as CaseFacts[],
       trainingExamples: trainingExamples as TrainingExample[],
       trainedThreshold: value.trainedThreshold,
-      lastTrainingRun
+      lastTrainingRun,
+      policyLibrary
     };
   } catch {
     return null;
@@ -565,6 +622,41 @@ function cloneTrainingRun(run: TrainingRun): TrainingRun {
     ...run,
     history: run.history.map((item) => ({ ...item }))
   };
+}
+
+function normalizePolicyBundleLibrary(value: unknown): PolicyBundleLibrary | null {
+  if (!isRecord(value)) return null;
+  if (value.schemaVersion !== POLICY_LIBRARY_SCHEMA_VERSION) return null;
+  if (!Array.isArray(value.bundles)) return null;
+  const bundles = value.bundles.map(normalizeSavedPolicyBundle);
+  if (bundles.some((item) => item === null)) return null;
+  return createPolicyLibrary(bundles as SavedPolicyBundle[]);
+}
+
+function normalizeSavedPolicyBundle(value: unknown): SavedPolicyBundle | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.id !== "string" || typeof value.savedAt !== "string") return null;
+  if (!isSerializedPolicyBundle(value.bundle)) return null;
+  return {
+    id: policyBundleLibraryId(value.bundle),
+    savedAt: value.savedAt,
+    bundle: value.bundle
+  };
+}
+
+function dedupeSavedBundles(bundles: readonly SavedPolicyBundle[]): SavedPolicyBundle[] {
+  const seen = new Set<string>();
+  const result: SavedPolicyBundle[] = [];
+  for (const item of bundles) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    result.push({
+      id: item.id,
+      savedAt: item.savedAt,
+      bundle: item.bundle
+    });
+  }
+  return result;
 }
 
 function normalizeTrainingRun(value: unknown): TrainingRun | null {

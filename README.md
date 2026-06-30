@@ -103,6 +103,7 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Versioned policy bundle contracts with deterministic integrity hashes.
 - Executable policy bundle runtime that materializes predicates and creates `RuleAgent` instances.
 - Browser policy bundle import/export with hash verification and bundle-backed decisions.
+- Versioned browser policy libraries for saving, loading, exporting, and importing local bundles.
 - Append-oriented Node ledger persistence for newline-delimited decision entries.
 - Dependency-free observer hooks for rule evaluation, decisions, ledger appends, and replay summaries.
 - Holographic memory primitive for binding, superposing, and recalling vector symbols.
@@ -274,6 +275,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.23.0` workspace line is the policy workbench runtime line: the browser workbench can now export/import hashed policy bundles, materialize them through the same `createPolicyAgent()` runtime as Node, evaluate decisions, record ledger entries, and replay-check them while the WebGPU line remains explicit and CPU-oracled.
+SymTorch is early, active, and intentionally foundation-first. The `0.24.0` workspace line is the policy workbench persistence line: the browser workbench can now export/import hashed policy bundles, save them into a versioned local policy library, reload saved bundles through the same `createPolicyAgent()` runtime as Node, evaluate decisions, record ledger entries, and replay-check them while the WebGPU line remains explicit and CPU-oracled.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.
