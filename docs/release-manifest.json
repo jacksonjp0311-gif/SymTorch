@@ -1,6 +1,6 @@
 {
-  "version": "0.16.0",
-  "status": "webgpu-stable-logsumexp-kernel",
+  "version": "0.17.0",
+  "status": "ledger-persistence-replay",
   "schemaVersions": {
     "explanation": "symtorch.explanation.v1",
     "agentDecision": "symtorch.agentDecision.v1",
@@ -25,6 +25,7 @@
     "not a full Prolog or Datalog engine",
     "not a production authorization system",
     "not a high-performance GPU tensor runtime yet",
+    "not a durable database or retention system",
     "not an npm stability guarantee"
   ]
 }

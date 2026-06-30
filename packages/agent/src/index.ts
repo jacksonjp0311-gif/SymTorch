@@ -53,6 +53,23 @@ export type DecisionLedgerSink = {
   read(): SerializedDecisionLedger | Promise<SerializedDecisionLedger>;
 };
 
+export type DecisionReplayMismatch = {
+  entryId: string;
+  reason: string;
+  expected: SerializedAgentDecision | SerializedEntityDecision;
+  actual: SerializedAgentDecision | SerializedEntityDecision;
+};
+
+export type DecisionReplayReport = {
+  ok: boolean;
+  checked: number;
+  mismatches: DecisionReplayMismatch[];
+};
+
+export type DecisionReplayFn = (
+  entry: DecisionLedgerEntry
+) => SerializedAgentDecision | SerializedEntityDecision;
+
 export class DecisionLedger {
   private readonly entries: DecisionLedgerEntry[] = [];
   private nextId = 1;
@@ -312,6 +329,32 @@ export function loadDecisionLedger(ledger: DecisionLedger, snapshot: SerializedD
   return ledger;
 }
 
+export function verifyDecisionLedgerReplay(
+  snapshot: SerializedDecisionLedger,
+  replay: DecisionReplayFn
+): DecisionReplayReport {
+  if (!isSerializedDecisionLedger(snapshot)) {
+    throw new Error(`Expected ${DECISION_LEDGER_SCHEMA_VERSION} snapshot.`);
+  }
+  const mismatches: DecisionReplayMismatch[] = [];
+  for (const entry of snapshot.entries) {
+    const actual = replay(cloneJson(entry));
+    if (!sameJson(entry.decision, actual)) {
+      mismatches.push({
+        entryId: entry.id,
+        reason: "decision mismatch",
+        expected: cloneJson(entry.decision),
+        actual: cloneJson(actual)
+      });
+    }
+  }
+  return {
+    ok: mismatches.length === 0,
+    checked: snapshot.entries.length,
+    mismatches
+  };
+}
+
 function selectBestResult(results: readonly AggregatedRuleResult[]): AggregatedRuleResult | null {
   return results.reduce<AggregatedRuleResult | null>((winner, result) => {
     if (!winner || result.score.item() > winner.score.item()) return result;
@@ -373,4 +416,8 @@ function cloneContext(context: PredicateContext): PredicateContext {
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }

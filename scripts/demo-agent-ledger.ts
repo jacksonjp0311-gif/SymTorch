@@ -1,10 +1,18 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   DecisionLedger,
+  type DecisionLedgerEntry,
   isSerializedDecisionLedger,
   loadDecisionLedger,
   RuleAgent,
-  serializeDecisionLedger
+  serializeDecisionLedger,
+  type SerializedAgentDecision,
+  type SerializedEntityDecision,
+  verifyDecisionLedgerReplay
 } from "@symtorch/agent";
+import { FileDecisionLedgerSink } from "@symtorch/agent/node";
 import { FactPredicate, FuzzyRuleEngine, PredicateRegistry, RuleProgram } from "@symtorch/logic";
 
 const program = new RuleProgram(`
@@ -26,6 +34,21 @@ const accepted = agent.decideEntitiesTrace({ acceptedOnly: true, topK: 2 });
 const entries = agent.recordEntityDecisions({ acceptedOnly: true, topK: 2 }, new Date("2026-06-29T00:00:00.000Z"));
 const snapshot = serializeDecisionLedger(agent.ledger);
 const restored = loadDecisionLedger(new DecisionLedger(), JSON.parse(JSON.stringify(snapshot)));
+const replay = (entry: DecisionLedgerEntry): SerializedAgentDecision | SerializedEntityDecision => {
+  const replayAgent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+  if (entry.kind === "entity" && "entityId" in entry.decision) {
+    replayAgent.memory.observeEntity(entry.decision.entityId, entry.context);
+    return replayAgent.decideEntityTrace(entry.decision.entityId);
+  }
+  replayAgent.observe(entry.context);
+  return replayAgent.decideTrace();
+};
+const replayReport = verifyDecisionLedgerReplay(snapshot, replay);
+const tempDir = await mkdtemp(join(tmpdir(), "symtorch-ledger-demo-"));
+const sink = new FileDecisionLedgerSink(join(tempDir, "ledger.json"));
+await sink.write(snapshot);
+const fileSnapshot = await sink.read();
+await rm(tempDir, { recursive: true, force: true });
 
 console.log("SymTorch Agent Ledger Demo");
 console.log("ranked decisions:");
@@ -51,9 +74,13 @@ console.log(JSON.stringify(restored.all().map(({ id, decision }) => ({
   action: decision.action,
   accepted: decision.accepted
 })), null, 2));
+console.log("replay verification:");
+console.log(JSON.stringify(replayReport, null, 2));
 
 if (accepted.length !== 2) throw new Error("Expected two accepted decisions.");
 if (entries.length !== 2) throw new Error("Expected two ledger entries.");
 if (agent.ledger.all()[0]?.id !== "decision-1") throw new Error("Expected deterministic ledger ids.");
 if (!isSerializedDecisionLedger(snapshot)) throw new Error("Expected a valid ledger snapshot.");
 if (JSON.stringify(restored.snapshot()) !== JSON.stringify(snapshot)) throw new Error("Expected restored ledger snapshot to round-trip.");
+if (JSON.stringify(fileSnapshot) !== JSON.stringify(snapshot)) throw new Error("Expected file ledger snapshot to round-trip.");
+if (!replayReport.ok) throw new Error("Expected ledger replay verification to pass.");

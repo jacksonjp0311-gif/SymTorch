@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.16.0` WebGPU stable log-sum-exp line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.17.0` ledger persistence and replay line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -90,6 +90,9 @@ Supported:
 - `SerializedEntityDecision`
 - `SerializedDecisionLedger`
 - `DecisionLedgerSink`
+- `DecisionReplayFn`
+- `DecisionReplayReport`
+- `DecisionReplayMismatch`
 - `EntityDecisionOptions`
 - `DecisionLedgerEntry`
 - `DecisionLedger`
@@ -103,6 +106,12 @@ Supported:
 - `isSerializedDecisionLedger`
 - `serializeDecisionLedger`
 - `loadDecisionLedger`
+- `verifyDecisionLedgerReplay`
+
+Node-only subpath:
+
+- `@symtorch/agent/node`
+- `FileDecisionLedgerSink`
 
 Notes:
 
@@ -110,7 +119,9 @@ Notes:
 - `RuleAgent.decideTrace()` and entity trace methods return JSON-safe decision contracts.
 - Serialized decisions are versioned as `symtorch.agentDecision.v1`.
 - Serialized ledger snapshots are versioned as `symtorch.decisionLedger.v1`.
-- `DecisionLedger` is in-memory only. It is an audit primitive, not persistent storage.
+- `DecisionLedger` is in-memory, but snapshots can be persisted through `DecisionLedgerSink` adapters.
+- `FileDecisionLedgerSink` is Node-only and intentionally exported from `@symtorch/agent/node` so browser bundles do not pull in `node:fs`.
+- `verifyDecisionLedgerReplay()` compares recorded decisions to replayed policy output and reports drift.
 - `HolographicMemory` is an experimental vector-symbolic memory primitive. It supports differentiable binding and approximate recall, not guaranteed cleanup memory.
 
 ## `@symtorch/webgpu`

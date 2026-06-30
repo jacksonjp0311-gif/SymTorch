@@ -217,6 +217,7 @@ examples/
 - [Browser playground prep](docs/browser-playground.md)
 - [Holographic memory](docs/holographic-memory.md)
 - [Persistence adapter alpha](docs/persistence.md)
+- [Decision ledger persistence and replay](docs/decision-ledger-persistence.md)
 - [Backend abstraction alpha](docs/backend-abstraction.md)
 - [GPU backend plan](docs/gpu-backend-plan.md)
 - [WebGPU residency prototype](docs/webgpu-residency.md)
@@ -261,6 +262,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.16.0` workspace line is the WebGPU stable log-sum-exp line: CPU remains the correctness oracle, explicit WebGPU kernels now cover the same-shape elementwise set, scalar `sumAll`, composed `meanAll`, and stable scalar `logSumExpAll`, with browser parity gating the explicit kernel set when WebGPU is available.
+SymTorch is early, active, and intentionally foundation-first. The `0.17.0` workspace line is the ledger persistence and replay line: decision ledgers can be persisted through a Node file sink, replayed against current policy behavior, and checked for decision drift while the WebGPU line remains explicit and CPU-oracled.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

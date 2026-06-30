@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.16.0` is the WebGPU stable log-sum-exp line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, and an environment-aware browser parity gate needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.17.0` is the ledger persistence and replay line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, and replay verification needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -12,6 +12,8 @@ SymTorch `0.16.0` is the WebGPU stable log-sum-exp line. This does not mean the 
 - Versioned training runs via `symtorch.trainingRun.v1`.
 - JSON-safe decision and explanation payloads.
 - Entity decision batches and replayable in-memory ledger snapshots.
+- Node filesystem ledger persistence through `FileDecisionLedgerSink`.
+- Decision replay verification for detecting policy drift against recorded ledger entries.
 - Local browser build, smoke, and Playwright interaction gates.
 - Executable demos for gradients, trainable rules, agent ledgers, and holographic memory.
 - Backend descriptors for CPU and future WebGPU dispatch.
@@ -27,7 +29,7 @@ SymTorch `0.16.0` is the WebGPU stable log-sum-exp line. This does not mean the 
 
 - WebGPU kernels are still narrow: same-shape `float32` elementwise, scalar `sumAll`, composed `meanAll`, and scalar `logSumExpAll` only.
 - WebGPU is a registered placeholder backend, not an execution backend.
-- The decision ledger is in-memory only, with a versioned snapshot/load boundary for storage adapters.
+- The decision ledger is still an in-memory runtime primitive; the file sink persists snapshots but is not a database or retention system.
 - Rule evaluation does not yet implement full unification, joins, quantifiers, or relational grounding.
 - There is no security sandbox for executing untrusted rule sources.
 - There are no persistence adapters, migration runners, or service-level observability hooks.

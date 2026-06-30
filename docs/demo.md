@@ -13,7 +13,7 @@ pnpm demo:all
 
 - `demo:gradients` checks finite-difference sanity for reductions, cross entropy, and LayerNorm.
 - `demo:rule` trains a readable fuzzy rule and prints a versioned explanation trace.
-- `demo:ledger` ranks entity decisions, filters accepted results, and prints replayable ledger entries.
+- `demo:ledger` ranks entity decisions, filters accepted results, persists a ledger snapshot, and verifies replay.
 
 ```ts
 import { tensor } from "@symtorch/core";

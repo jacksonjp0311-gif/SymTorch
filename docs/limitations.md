@@ -24,6 +24,8 @@ The `@symtorch/webgpu` package currently focuses on detection and backend planni
 
 The `0.16.0` WebGPU line can upload tensor data into GPU buffers, run same-shape `float32` binary and unary elementwise kernels, run scalar `sumAll`, compose `meanAll`, run stable scalar `logSumExpAll`, read results back explicitly, and run a browser parity gate for the explicit kernel set when WebGPU is available. It does not yet provide general tensor dispatch, broadcasting, axis reductions, autograd on GPU, full softmax, or broad hardware coverage.
 
+The `0.17.0` ledger line adds a Node filesystem sink and replay verification, but it is not a database, consensus log, authorization audit system, or retention policy. Applications still need their own storage durability, access control, privacy, and lifecycle rules.
+
 ## Current Best Use Cases
 
 - Explainable agent policy prototypes.

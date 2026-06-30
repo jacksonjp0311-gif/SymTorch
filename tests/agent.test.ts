@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   AGENT_DECISION_SCHEMA_VERSION,
@@ -10,8 +13,13 @@ import {
   loadDecisionLedger,
   RuleAgent,
   serializeDecisionLedger,
-  vectorSymbol
+  vectorSymbol,
+  verifyDecisionLedgerReplay,
+  type DecisionLedgerEntry,
+  type SerializedAgentDecision,
+  type SerializedEntityDecision
 } from "@symtorch/agent";
+import { FileDecisionLedgerSink } from "@symtorch/agent/node";
 import { EXPLANATION_SCHEMA_VERSION, FactPredicate, FuzzyRuleEngine, PredicateRegistry, RuleProgram } from "@symtorch/logic";
 
 describe("@symtorch/agent", () => {
@@ -280,6 +288,68 @@ describe("@symtorch/agent", () => {
     }, new Date("2026-06-29T14:01:00.000Z"));
 
     expect(restored.all().map((entry) => entry.id)).toEqual(["decision-1", "decision-2"]);
+  });
+
+  it("verifies decision ledger replay against current policy behavior", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.memory.observeEntity("case-hot", { high_risk: 0.9 });
+    agent.recordEntityDecision("case-hot", new Date("2026-06-29T14:00:00.000Z"));
+    const snapshot = serializeDecisionLedger(agent.ledger);
+    const replay = (entry: DecisionLedgerEntry): SerializedAgentDecision | SerializedEntityDecision => {
+      const replayAgent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+      if (entry.kind === "entity" && "entityId" in entry.decision) {
+        replayAgent.memory.observeEntity(entry.decision.entityId, entry.context);
+        return replayAgent.decideEntityTrace(entry.decision.entityId);
+      }
+      replayAgent.observe(entry.context);
+      return replayAgent.decideTrace();
+    };
+
+    const report = verifyDecisionLedgerReplay(snapshot, replay);
+    const changed = JSON.parse(JSON.stringify(snapshot));
+    changed.entries[0].decision.score = 0.1;
+    const mismatch = verifyDecisionLedgerReplay(changed, replay);
+
+    expect(report).toEqual({ ok: true, checked: 1, mismatches: [] });
+    expect(mismatch.ok).toBe(false);
+    expect(mismatch.checked).toBe(1);
+    expect(mismatch.mismatches[0]).toMatchObject({
+      entryId: "decision-1",
+      reason: "decision mismatch"
+    });
+  });
+
+  it("persists decision ledger snapshots through the node file sink", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "symtorch-ledger-"));
+    try {
+      const sink = new FileDecisionLedgerSink(join(dir, "ledger.json"));
+      const ledger = new DecisionLedger();
+      ledger.append({
+        kind: "agent",
+        context: { high_risk: 0.8 },
+        decision: {
+          schemaVersion: AGENT_DECISION_SCHEMA_VERSION,
+          action: "escalate(X)",
+          selectedHead: "escalate(X)",
+          score: 0.8,
+          threshold: 0.5,
+          accepted: true,
+          trace: null,
+          results: []
+        }
+      }, new Date("2026-06-29T14:02:00.000Z"));
+
+      await sink.write(ledger.snapshot());
+      const restored = await sink.read();
+
+      expect(restored).toEqual(ledger.snapshot());
+      expect(isSerializedDecisionLedger(restored)).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("rejects invalid decision ledger snapshots", () => {

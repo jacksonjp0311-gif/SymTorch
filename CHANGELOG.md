@@ -1,6 +1,14 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.16.0` is the WebGPU stable log-sum-exp line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.17.0` is the ledger persistence and replay line, not a production stability claim.
+
+## v0.17.0 Ledger Persistence and Replay
+
+- Added browser-safe decision ledger replay verification with `verifyDecisionLedgerReplay()`.
+- Added `DecisionReplayFn`, `DecisionReplayReport`, and `DecisionReplayMismatch` contracts.
+- Added Node-only `FileDecisionLedgerSink` under `@symtorch/agent/node`.
+- Expanded tests and the agent ledger demo to cover file persistence and replay verification.
+- Bumped private workspace package versions to `0.17.0`.
 
 ## v0.16.0 WebGPU Stable LogSumExp
 
