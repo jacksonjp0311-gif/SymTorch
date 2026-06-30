@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.8.0` is the CPU backend dispatch alpha line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, and no-hidden-sync storage policy needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.9.0` is the WebGPU residency prototype line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, and initial WebGPU upload/readback boundary needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -16,6 +16,7 @@ SymTorch `0.8.0` is the CPU backend dispatch alpha line. This does not mean the 
 - Executable demos for gradients, trainable rules, agent ledgers, and holographic memory.
 - Backend descriptors for CPU and future WebGPU dispatch.
 - Explicit tensor storage types and readback boundaries.
+- WebGPU tensor upload/readback prototype in `@symtorch/webgpu`.
 
 ## What Is Still Not Production-Ready
 

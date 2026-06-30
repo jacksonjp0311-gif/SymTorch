@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.8.0` CPU backend dispatch alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.9.0` WebGPU residency prototype line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -118,16 +118,25 @@ Notes:
 Supported:
 
 - `WebGPUStatus`
+- `WebGPUDType`
+- `WebGPUTensorStorage`
+- `WebGPUTolerance`
+- `WEBGPU_DEFAULT_TOLERANCE`
 - `detectWebGPU`
 - `requestWebGPUDevice`
+- `WebGPUContext`
+- `createWebGPUContext`
+- `uploadTensor`
+- `readTensor`
+- `BufferPool`
 
 Experimental:
 
-- `BufferPool`
+- Tensor residency APIs are prototypes until real kernels and hardware parity gates exist.
 
 Notes:
 
-- WebGPU support is currently capability detection and backend planning.
+- WebGPU support is currently capability detection, buffer pooling, and explicit tensor upload/readback.
 - Tensor kernels, buffer scheduling, and CPU/GPU parity tests are future work.
 
 ## Internal By Convention

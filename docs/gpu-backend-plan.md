@@ -58,3 +58,15 @@ Before implementing WebGPU kernels, the repo should keep passing:
 - browser playground smoke and E2E gates
 
 The first WebGPU kernel should be same-shape vector `add`, with a parity test that uploads CPU data, executes the kernel, explicitly reads back, and compares against CPU output.
+
+## Phase 1 Progress
+
+The `0.9.0` line adds the first residency prototype:
+
+- `WebGPUContext`
+- explicit tensor upload
+- explicit tensor readback
+- `BufferPool` integration
+- fake-device tests for CI-safe upload/readback contract coverage
+
+The next missing piece is the first WGSL kernel.

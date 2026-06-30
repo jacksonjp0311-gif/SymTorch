@@ -1,6 +1,16 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.8.0` is the CPU backend dispatch alpha line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.9.0` is the WebGPU residency prototype line, not a production stability claim.
+
+## v0.9.0 WebGPU Residency Prototype
+
+- Added `WebGPUContext` for explicit WebGPU tensor upload/readback workflows.
+- Added `WebGPUTensorStorage`, `WebGPUDType`, and default parity tolerance constants.
+- Added `uploadTensor()` and `readTensor()` primitives backed by `GPUBuffer` copy/readback operations.
+- Integrated upload/dispose paths with `BufferPool`.
+- Added CI-safe fake-device tests for WebGPU residency contracts.
+- Added WebGPU residency documentation.
+- Bumped private workspace package versions to `0.9.0`.
 
 ## v0.8.0 CPU Backend Dispatch Alpha
 

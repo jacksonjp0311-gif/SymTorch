@@ -17,7 +17,7 @@ readable rule
 - `@symtorch/nn`: modules, parameters, layers, optimizers, and losses.
 - `@symtorch/logic`: rule parsing, fuzzy evaluation, predicates, explanations, training, and validation.
 - `@symtorch/agent`: working memory, serialized decisions, entity batches, filtering, and decision ledger.
-- `@symtorch/webgpu`: WebGPU capability detection and future accelerated backend work.
+- `@symtorch/webgpu`: WebGPU capability detection, buffer pooling, explicit tensor residency, and future accelerated backend work.
 
 See [Public API Surface](api-surface.md) for the currently supported exports and experimental boundaries.
 
