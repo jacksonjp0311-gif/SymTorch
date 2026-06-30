@@ -1,4 +1,4 @@
-import { add, bind, mul, ResourceLimitError, sum, tensor, type Tensor, unbind, zeros } from "@symtorch/core";
+import { add, bind, mul, ResourceLimitError, sum, SymTorchError, tensor, type Tensor, unbind, zeros } from "@symtorch/core";
 import { decisionTrace, FactStore, loadPolicyBundle, type AggregatedRuleResult, type FuzzyRuleEngine, type LogicObserver, type LogicRuntimeLimits, type PredicateContext, type RuleProgram, type SerializedAggregatedRuleExplanation, type SerializedPolicyBundle } from "@symtorch/logic";
 
 export type Observation = Record<string, unknown>;
@@ -12,6 +12,8 @@ export const AGENT_DECISION_SCHEMA_VERSION = "symtorch.agentDecision.v1" as cons
 export type AgentDecisionSchemaVersion = typeof AGENT_DECISION_SCHEMA_VERSION;
 export const DECISION_LEDGER_SCHEMA_VERSION = "symtorch.decisionLedger.v1" as const;
 export type DecisionLedgerSchemaVersion = typeof DECISION_LEDGER_SCHEMA_VERSION;
+export const DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION = "symtorch.decisionTraceSnapshot.v1" as const;
+export type DecisionTraceSnapshotSchemaVersion = typeof DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION;
 
 export type SerializedAgentDecision = {
   schemaVersion: AgentDecisionSchemaVersion;
@@ -48,6 +50,13 @@ export type SerializedDecisionLedger = {
   entries: DecisionLedgerEntry[];
 };
 
+export type DecisionTraceSnapshot = {
+  schemaVersion: DecisionTraceSnapshotSchemaVersion;
+  createdAt: string;
+  decision: SerializedAgentDecision | SerializedEntityDecision;
+  ledger?: SerializedDecisionLedger;
+};
+
 export type DecisionLedgerSink = {
   write(snapshot: SerializedDecisionLedger): void | Promise<void>;
   read(): SerializedDecisionLedger | Promise<SerializedDecisionLedger>;
@@ -69,6 +78,13 @@ export type DecisionReplayReport = {
   checked: number;
   mismatches: DecisionReplayMismatch[];
 };
+
+export class DecisionReplayError extends SymTorchError {
+  constructor(message: string) {
+    super("ERR_REPLAY", message);
+    this.name = "DecisionReplayError";
+  }
+}
 
 export type DecisionReplayFn = (
   entry: DecisionLedgerEntry
@@ -159,7 +175,7 @@ export class DecisionLedger {
 
   load(snapshot: SerializedDecisionLedger): void {
     if (!isSerializedDecisionLedger(snapshot)) {
-      throw new Error(`Expected ${DECISION_LEDGER_SCHEMA_VERSION} snapshot.`);
+      throw new DecisionReplayError(`Expected ${DECISION_LEDGER_SCHEMA_VERSION} snapshot.`);
     }
     this.entries.length = 0;
     this.entries.push(...snapshot.entries.map((entry) => cloneJson(entry)));
@@ -434,6 +450,31 @@ export function serializeDecisionLedger(ledger: DecisionLedger): SerializedDecis
   return ledger.snapshot();
 }
 
+export function createDecisionTraceSnapshot(
+  decision: SerializedAgentDecision | SerializedEntityDecision,
+  options: { ledger?: DecisionLedger | SerializedDecisionLedger; createdAt?: Date } = {}
+): DecisionTraceSnapshot {
+  const snapshot: DecisionTraceSnapshot = {
+    schemaVersion: DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION,
+    createdAt: (options.createdAt ?? new Date()).toISOString(),
+    decision: cloneJson(decision)
+  };
+  if (options.ledger) {
+    snapshot.ledger = options.ledger instanceof DecisionLedger ? options.ledger.snapshot() : cloneJson(options.ledger);
+  }
+  return snapshot;
+}
+
+export function isDecisionTraceSnapshot(value: unknown): value is DecisionTraceSnapshot {
+  return (
+    isRecord(value) &&
+    value.schemaVersion === DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION &&
+    typeof value.createdAt === "string" &&
+    (isSerializedAgentDecision(value.decision) || isSerializedEntityDecision(value.decision)) &&
+    (value.ledger === undefined || isSerializedDecisionLedger(value.ledger))
+  );
+}
+
 export function loadDecisionLedger(ledger: DecisionLedger, snapshot: SerializedDecisionLedger): DecisionLedger {
   ledger.load(snapshot);
   return ledger;
@@ -445,7 +486,7 @@ export function verifyDecisionLedgerReplay(
   tolerance?: DecisionReplayTolerance
 ): DecisionReplayReport {
   if (!isSerializedDecisionLedger(snapshot)) {
-    throw new Error(`Expected ${DECISION_LEDGER_SCHEMA_VERSION} snapshot.`);
+    throw new DecisionReplayError(`Expected ${DECISION_LEDGER_SCHEMA_VERSION} snapshot.`);
   }
   enforceReplayLimit(snapshot.entries.length, tolerance?.limits);
   const atol = tolerance?.atol ?? 0;

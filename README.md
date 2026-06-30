@@ -127,6 +127,9 @@ That means a policy such as `escalate(X) :- high_risk(X), not approved(X).` can 
 - Versioned decision ledger snapshots for replay and persistence adapters.
 - Versioned policy bundle contracts with deterministic integrity hashes.
 - Local development policy bundle signing alpha.
+- Structured bundle verification diagnostics and policy security assessment for local admission gates.
+- Versioned production-readiness reports covering the ten production hardening tracks.
+- Versioned decision trace snapshots for freezing decisions and optional ledger state as fixtures.
 - Executable policy bundle runtime that materializes predicates and creates `RuleAgent` instances.
 - Browser policy bundle import/export with hash verification and bundle-backed decisions.
 - Versioned browser policy libraries for saving, loading, exporting, and importing local bundles.
@@ -311,6 +314,6 @@ Long term:
 
 ## Status
 
-SymTorch is early, active, and intentionally foundation-first. The `0.28.0` workspace line is the production foundations alpha line: typed domain contracts, local bundle signing, expected decision fixtures, migrations, replay checks, and browser gates now form a stronger contract layer while durable storage, real cryptographic signing, sandboxing, and WebGPU backend dispatch remain explicit future work.
+SymTorch is early, active, and intentionally foundation-first. The `0.29.0` workspace line is the production hardening contracts alpha line: the ten production tracks are now represented in machine-readable readiness reports, policy bundle assessment, typed domain contracts, local bundle signing diagnostics, decision trace snapshots, expected decision fixtures, migrations, replay checks, and browser gates. Durable storage, real cryptographic signing, sandboxing, and WebGPU backend dispatch remain explicit future work.
 
 The version labels in this repository are engineering checkpoints for the private workspace. They are not production deployment, autonomous authority, or npm stability claims. See [CHANGELOG.md](CHANGELOG.md) for the seal history and [Production Readiness Alpha](docs/production-readiness.md) for the current gate.

@@ -1,6 +1,6 @@
 # Public API Surface
 
-This document defines the intended public API surface for the current `0.28.0` production foundations alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
+This document defines the intended public API surface for the current `0.29.0` production hardening contracts alpha line. SymTorch is still early, so this is a stability guide rather than a semantic-versioning guarantee.
 
 ## Stability Levels
 
@@ -70,7 +70,10 @@ Supported:
 - Predicates and registry: `PredicateRegistry`, `FixedPredicate`, `FactPredicate`, `ThresholdPredicate`, `LinearPredicate`
 - Evaluation: `FuzzyRuleEngine`, `RuleResult`, `AggregatedRuleResult`, `EntityRuleResult`, `RankedEntityResult`
 - Observability: `LogicObserver`, `FuzzyRuleEngineOptions`, `RuleEvaluationEvent`, `ProgramEvaluationEvent`
-- Runtime limits and policy bundles: `LogicRuntimeLimits`, `POLICY_BUNDLE_SCHEMA_VERSION`, `SerializedPolicyBundle`, `PolicyBundlePredicate`, `PolicyBundleInput`, `LoadedPolicyBundle`, `LoadPolicyBundleOptions`, `createPolicyBundle`, `isSerializedPolicyBundle`, `verifyPolicyBundleHash`, `loadPolicyBundle`
+- Runtime limits and policy bundles: `LogicRuntimeLimits`, `productionRuntimeLimits`, `POLICY_BUNDLE_SCHEMA_VERSION`, `SerializedPolicyBundle`, `PolicyBundlePredicate`, `PolicyBundleInput`, `LoadedPolicyBundle`, `LoadPolicyBundleOptions`, `createPolicyBundle`, `isSerializedPolicyBundle`, `verifyPolicyBundleHash`, `loadPolicyBundle`
+- Production contracts: `PRODUCTION_READINESS_SCHEMA_VERSION`, `ProductionReadinessReport`, `ProductionReadinessTrack`, `ProductionTrackId`, `ProductionTrackStatus`, `getProductionReadinessReport`
+- Policy admission alpha: `POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION`, `PolicyBundleSignature`, `SignedPolicyBundle`, `SignedPolicyBundleVerificationResult`, `signPolicyBundle`, `verifySignedPolicyBundle`, `verifySignedPolicyBundleDetailed`, `PolicyBundleSecurityAssessment`, `assessPolicyBundleSecurity`
+- Domain contracts: `DOMAIN_CONTRACT_SCHEMA_VERSION`, `DomainContract`, `DomainEntity`, `DomainField`, `DomainFieldType`, `DomainValidationDiagnostic`, `DomainValidationResult`, `createDomainContract`, `validateDomainContext`
 - Training: `LabeledRuleExample`, `RuleTrainerOptions`, `RuleTrainerHistoryItem`, `RuleTrainerResult`, `RuleTrainer`
 - Explanations: `EXPLANATION_SCHEMA_VERSION`, `ExplanationSchemaVersion`, `RuleExplanation`, `PredicateTrace`, `AggregatedRuleExplanation`, `SerializedPredicateTrace`, `SerializedRuleExplanation`, `SerializedAggregatedRuleExplanation`, `SerializedExplanation`
 - Rendering and serialization: `renderRuleExplanation`, `renderAggregatedExplanation`, `decisionCard`, `decisionTrace`, `serializeExplanation`
@@ -96,15 +99,19 @@ Supported:
 - `AgentDecisionSchemaVersion`
 - `DECISION_LEDGER_SCHEMA_VERSION`
 - `DecisionLedgerSchemaVersion`
+- `DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION`
+- `DecisionTraceSnapshotSchemaVersion`
 - `SerializedAgentDecision`
 - `SerializedEntityDecision`
 - `SerializedDecisionLedger`
+- `DecisionTraceSnapshot`
 - `DecisionLedgerSink`
 - `DecisionLedgerAppendSink`
 - `DecisionReplayFn`
 - `DecisionReplayReport`
 - `DecisionReplayMismatch`
 - `DecisionReplayTolerance`
+- `DecisionReplayError`
 - `AgentObserver`
 - `AgentDecisionEvent`
 - `DecisionLedgerAppendEvent`
@@ -124,6 +131,8 @@ Supported:
 - `isSerializedEntityDecision`
 - `isSerializedDecisionLedger`
 - `serializeDecisionLedger`
+- `createDecisionTraceSnapshot`
+- `isDecisionTraceSnapshot`
 - `loadDecisionLedger`
 - `verifyDecisionLedgerReplay`
 - `createPolicyAgent`

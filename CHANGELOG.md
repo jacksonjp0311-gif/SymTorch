@@ -1,6 +1,15 @@
 # Changelog
 
-SymTorch uses "seal" checkpoints as internal engineering milestones. `0.28.0` is the production foundations alpha line, not a production stability claim.
+SymTorch uses "seal" checkpoints as internal engineering milestones. `0.29.0` is the production hardening contracts alpha line, not a production stability claim.
+
+## v0.29.0 Production Hardening Contracts Alpha
+
+- Added `symtorch.productionReadiness.v1` readiness reports covering all ten production tracks.
+- Added structured signed-policy verification diagnostics and policy bundle security assessment.
+- Added default production runtime limit profiles for logic admission gates.
+- Added `symtorch.decisionTraceSnapshot.v1` decision snapshots with optional ledger state.
+- Extended the core error taxonomy with policy-bundle and replay categories.
+- Updated README, production docs, release manifest, and tests for the new contract layer.
 
 ## v0.28.0 Production Foundations Alpha
 

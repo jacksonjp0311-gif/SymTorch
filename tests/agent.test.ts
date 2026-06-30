@@ -5,10 +5,13 @@ import { describe, expect, it } from "vitest";
 import { ResourceLimitError } from "@symtorch/core";
 import {
   AGENT_DECISION_SCHEMA_VERSION,
+  createDecisionTraceSnapshot,
   DECISION_LEDGER_SCHEMA_VERSION,
+  DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION,
   DecisionLedger,
   HolographicMemory,
   isSerializedAgentDecision,
+  isDecisionTraceSnapshot,
   isSerializedDecisionLedger,
   isSerializedEntityDecision,
   loadDecisionLedger,
@@ -123,6 +126,30 @@ describe("@symtorch/agent", () => {
     expect(decision.trace?.rules[0]?.predicates[0]?.detail).toEqual({ key: "high_risk" });
     expect(decision.results.map((result) => result.head)).toEqual(["escalate(X)", "defer(X)"]);
     expect(roundTrip).toEqual(decision);
+  });
+
+  it("creates versioned decision trace snapshots with optional ledgers", () => {
+    const program = new RuleProgram("escalate(X) :- high_risk(X).");
+    const registry = new PredicateRegistry().register(new FactPredicate("high_risk"));
+    const agent = new RuleAgent(program, new FuzzyRuleEngine(registry), 0.5);
+
+    agent.observe({ high_risk: 0.8 });
+    const decision = agent.decideTrace();
+    agent.recordDecision(new Date("2026-06-30T10:00:00.000Z"));
+    const snapshot = createDecisionTraceSnapshot(decision, {
+      ledger: agent.ledger,
+      createdAt: new Date("2026-06-30T10:01:00.000Z")
+    });
+    const roundTrip = JSON.parse(JSON.stringify(snapshot));
+
+    expect(snapshot.schemaVersion).toBe(DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION);
+    expect(snapshot.createdAt).toBe("2026-06-30T10:01:00.000Z");
+    expect(snapshot.decision.action).toBe("escalate(X)");
+    expect(snapshot.ledger?.schemaVersion).toBe(DECISION_LEDGER_SCHEMA_VERSION);
+    expect(snapshot.ledger?.entries).toHaveLength(1);
+    expect(isDecisionTraceSnapshot(snapshot)).toBe(true);
+    expect(isDecisionTraceSnapshot({ ...snapshot, schemaVersion: "old" })).toBe(false);
+    expect(roundTrip).toEqual(snapshot);
   });
 
   it("keeps selected trace while returning no_action below threshold", () => {

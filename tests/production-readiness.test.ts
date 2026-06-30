@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { AGENT_DECISION_SCHEMA_VERSION, DECISION_LEDGER_SCHEMA_VERSION } from "@symtorch/agent";
-import { DOMAIN_CONTRACT_SCHEMA_VERSION, EXPLANATION_SCHEMA_VERSION, POLICY_BUNDLE_SCHEMA_VERSION, POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION } from "@symtorch/logic";
+import { AGENT_DECISION_SCHEMA_VERSION, DECISION_LEDGER_SCHEMA_VERSION, DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION } from "@symtorch/agent";
+import { DOMAIN_CONTRACT_SCHEMA_VERSION, EXPLANATION_SCHEMA_VERSION, POLICY_BUNDLE_SCHEMA_VERSION, POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION, PRODUCTION_READINESS_SCHEMA_VERSION } from "@symtorch/logic";
 import {
   PLAYGROUND_STATE_VERSION,
   POLICY_LIBRARY_SCHEMA_VERSION,
@@ -23,6 +23,8 @@ type ReleaseManifest = {
     policyLibrary: string;
     domainContract: string;
     policyBundleSignature: string;
+    decisionTraceSnapshot: string;
+    productionReadiness: string;
   };
   validationGates: string[];
   nonClaims: string[];
@@ -38,7 +40,7 @@ describe("production readiness manifest", () => {
     const rootPackage = readJson<{ version: string }>("../package.json");
 
     expect(manifest.version).toBe(rootPackage.version);
-    expect(manifest.status).toBe("production-foundations-alpha");
+    expect(manifest.status).toBe("production-hardening-contracts-alpha");
     expect(manifest.schemaVersions).toEqual({
       explanation: EXPLANATION_SCHEMA_VERSION,
       agentDecision: AGENT_DECISION_SCHEMA_VERSION,
@@ -49,7 +51,9 @@ describe("production readiness manifest", () => {
       policyBundle: POLICY_BUNDLE_SCHEMA_VERSION,
       policyLibrary: POLICY_LIBRARY_SCHEMA_VERSION,
       domainContract: DOMAIN_CONTRACT_SCHEMA_VERSION,
-      policyBundleSignature: POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION
+      policyBundleSignature: POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION,
+      decisionTraceSnapshot: DECISION_TRACE_SNAPSHOT_SCHEMA_VERSION,
+      productionReadiness: PRODUCTION_READINESS_SCHEMA_VERSION
     });
   });
 

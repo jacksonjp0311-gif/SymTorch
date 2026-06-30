@@ -1,6 +1,6 @@
 # Production Readiness Alpha
 
-SymTorch `0.28.0` is the production foundations alpha line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, replay verification with configurable tolerance, batched tensor operations, neural regularization, a command-line replay gate, dependency-free operator hooks, runtime guardrails, policy bundle integrity checks, local development signing, typed domain contracts, append-oriented ledgers, backend dispatch contracts, executable policy bundles, browser workbench bundle import/export, a versioned local browser policy library, explicit local artifact migration helpers, a checked-in policy fixture corpus, and expected decision assertions needed to keep moving toward production without blurring research claims into deployment claims.
+SymTorch `0.29.0` is the production hardening contracts alpha line. This does not mean the project is production-ready. It means the repository now has the contract discipline, validation gates, replay boundaries, explicit backend intent, no-hidden-sync storage policy, initial WebGPU upload/readback boundary, a broader explicit GPU kernel set, scalar reduction composition, a first numerical-stability primitive, file-backed ledger snapshots for Node, replay verification with configurable tolerance, batched tensor operations, neural regularization, a command-line replay gate, dependency-free operator hooks, runtime guardrails, policy bundle integrity checks, local development signing diagnostics, typed domain contracts, decision trace snapshots, production readiness reports across the ten hardening tracks, append-oriented ledgers, backend dispatch contracts, executable policy bundles, browser workbench bundle import/export, a versioned local browser policy library, explicit local artifact migration helpers, a checked-in policy fixture corpus, and expected decision assertions needed to keep moving toward production without blurring research claims into deployment claims.
 
 ## What Is Production-Shaped
 
@@ -21,6 +21,10 @@ SymTorch `0.28.0` is the production foundations alpha line. This does not mean t
 - Typed errors for resource limits, backend execution, validation, and predicate evaluation.
 - Versioned policy bundles with deterministic integrity hashes.
 - Executable policy bundle loading into rule programs, predicate registries, engines, and agents.
+- Structured signed-policy verification diagnostics.
+- Local policy bundle security assessment for admission-style gates.
+- Versioned decision trace snapshots with optional ledger state.
+- Machine-readable ten-track production readiness reports.
 - Append-oriented Node ledger sink for newline-delimited decision entries.
 - Explicit core backend dispatch boundary with typed failure for missing kernels.
 - Batched `matmul` with gradient support for rank-3+ tensors.
@@ -48,6 +52,7 @@ SymTorch `0.28.0` is the production foundations alpha line. This does not mean t
 - Observability hooks are structured operator signals. They are not a metrics backend, durable audit log, distributed tracing implementation, or security boundary.
 - Runtime limits are guardrails, not a sandbox for arbitrary untrusted rule execution.
 - Policy bundle hashes are integrity checks, not cryptographic signatures.
+- The production readiness report is a status contract, not proof of production readiness.
 - Policy bundle runtime is local and does not provide a registry, promotion workflow, or schema migration runner.
 - Append file ledgers are simple persistence adapters, not transactional databases.
 - Package versions are private workspace checkpoints, not npm stability guarantees.

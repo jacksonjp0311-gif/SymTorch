@@ -4,7 +4,9 @@ export type BackendStatus = "available" | "placeholder";
 export type SymTorchErrorCode =
   | "ERR_BACKEND"
   | "ERR_BACKEND_EXECUTION"
+  | "ERR_POLICY_BUNDLE"
   | "ERR_PREDICATE"
+  | "ERR_REPLAY"
   | "ERR_RESOURCE_LIMIT"
   | "ERR_RULE_VALIDATION"
   | "ERR_TENSOR_SHAPE";

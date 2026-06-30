@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ResourceLimitError, tensor } from "@symtorch/core";
 import { mseLoss, SGD } from "@symtorch/nn";
-import { createDomainContract, createPolicyBundle, decisionCard, decisionTrace, DOMAIN_CONTRACT_SCHEMA_VERSION, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, isSerializedPolicyBundle, LinearPredicate, loadPolicyBundle, POLICY_BUNDLE_SCHEMA_VERSION, POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION, parseProgram, PredicateEvaluationError, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, signPolicyBundle, ThresholdPredicate, validateDomainContext, validateProgram, validatePrograms, verifyPolicyBundleHash, verifySignedPolicyBundle } from "@symtorch/logic";
+import { assessPolicyBundleSecurity, createDomainContract, createPolicyBundle, decisionCard, decisionTrace, DOMAIN_CONTRACT_SCHEMA_VERSION, EXPLANATION_SCHEMA_VERSION, FactPredicate, FactStore, FuzzyRuleEngine, getProductionReadinessReport, isSerializedPolicyBundle, LinearPredicate, loadPolicyBundle, POLICY_BUNDLE_SCHEMA_VERSION, POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION, productionRuntimeLimits, PRODUCTION_READINESS_SCHEMA_VERSION, parseProgram, PredicateEvaluationError, PredicateRegistry, renderAggregatedExplanation, renderRuleExplanation, RuleParseError, RuleProgram, RuleTrainer, serializeExplanation, signPolicyBundle, ThresholdPredicate, validateDomainContext, validateProgram, validatePrograms, verifyPolicyBundleHash, verifySignedPolicyBundle, verifySignedPolicyBundleDetailed } from "@symtorch/logic";
 
 describe("@symtorch/logic", () => {
   it("evaluates differentiable fuzzy rules with explanations", () => {
@@ -409,6 +409,46 @@ describe("@symtorch/logic", () => {
     expect(verifySignedPolicyBundle(signed, { "local-dev": "secret" })).toBe(true);
     expect(verifySignedPolicyBundle(signed, { "local-dev": "wrong" })).toBe(false);
     expect(verifySignedPolicyBundle(tampered, { "local-dev": "secret" })).toBe(false);
+    expect(verifySignedPolicyBundleDetailed(signed, { "local-dev": "secret" })).toMatchObject({ ok: true, keyId: "local-dev" });
+    expect(verifySignedPolicyBundleDetailed(signed, { "other": "secret" })).toEqual({ ok: false, reason: "unknown_key" });
+  });
+
+  it("assesses policy bundle security and exposes production readiness tracks", () => {
+    const bundle = createPolicyBundle({
+      name: "Assessed Policy",
+      version: "test",
+      rules: "escalate(X) :- high_risk(X).",
+      predicates: [{ kind: "fact", name: "high_risk" }],
+      metadata: { owner: "test" }
+    });
+    const signed = signPolicyBundle(bundle, "local-dev", "secret");
+    const report = getProductionReadinessReport("0.29.0");
+    const limits = productionRuntimeLimits({ maxRules: 8 });
+
+    expect(limits.maxRules).toBe(8);
+    expect(report.schemaVersion).toBe(PRODUCTION_READINESS_SCHEMA_VERSION);
+    expect(report.productionReady).toBe(false);
+    expect(report.tracks.map((track) => track.id)).toEqual([
+      "typed_domains",
+      "bundle_signing",
+      "durable_persistence",
+      "trace_snapshots",
+      "runtime_limits",
+      "error_taxonomy",
+      "cpu_gpu_parity",
+      "api_stability",
+      "security_model",
+      "real_apps"
+    ]);
+    expect(assessPolicyBundleSecurity(signed, {
+      secrets: { "local-dev": "secret" },
+      trustedKeyIds: ["local-dev"]
+    }).ok).toBe(true);
+    expect(assessPolicyBundleSecurity(signed, {
+      secrets: { "local-dev": "secret" },
+      trustedKeyIds: ["other"]
+    }).diagnostics[0]).toMatchObject({ code: "untrusted_key" });
+    expect(assessPolicyBundleSecurity(bundle).diagnostics[0]).toMatchObject({ code: "security_boundary" });
   });
 
   it("trains a threshold predicate through a fuzzy rule", () => {

@@ -238,6 +238,8 @@ export const POLICY_BUNDLE_SCHEMA_VERSION = "symtorch.policyBundle.v1" as const;
 export type PolicyBundleSchemaVersion = typeof POLICY_BUNDLE_SCHEMA_VERSION;
 export const POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION = "symtorch.policyBundleSignature.v1" as const;
 export type PolicyBundleSignatureSchemaVersion = typeof POLICY_BUNDLE_SIGNATURE_SCHEMA_VERSION;
+export const PRODUCTION_READINESS_SCHEMA_VERSION = "symtorch.productionReadiness.v1" as const;
+export type ProductionReadinessSchemaVersion = typeof PRODUCTION_READINESS_SCHEMA_VERSION;
 
 export type PolicyBundlePredicate =
   | { kind: "fact"; name: string; key?: string }
@@ -263,6 +265,47 @@ export type PolicyBundleSignature = {
 
 export type SignedPolicyBundle = SerializedPolicyBundle & {
   signature: PolicyBundleSignature;
+};
+
+export type SignedPolicyBundleVerificationResult =
+  | { ok: true; keyId: string; algorithm: PolicyBundleSignature["algorithm"] }
+  | { ok: false; reason: "invalid_bundle" | "missing_signature" | "invalid_signature_schema" | "unknown_key" | "signature_mismatch" };
+
+export type ProductionTrackId =
+  | "typed_domains"
+  | "bundle_signing"
+  | "durable_persistence"
+  | "trace_snapshots"
+  | "runtime_limits"
+  | "error_taxonomy"
+  | "cpu_gpu_parity"
+  | "api_stability"
+  | "security_model"
+  | "real_apps";
+
+export type ProductionTrackStatus = "implemented" | "alpha" | "planned";
+
+export type ProductionReadinessTrack = {
+  id: ProductionTrackId;
+  status: ProductionTrackStatus;
+  evidence: string[];
+  remaining: string[];
+};
+
+export type ProductionReadinessReport = {
+  schemaVersion: ProductionReadinessSchemaVersion;
+  version: string;
+  tracks: ProductionReadinessTrack[];
+  productionReady: false;
+};
+
+export type PolicyBundleSecurityAssessment = {
+  schemaVersion: ProductionReadinessSchemaVersion;
+  ok: boolean;
+  diagnostics: {
+    code: "invalid_hash" | "invalid_signature" | "untrusted_key" | "rule_validation" | "runtime_limit" | "security_boundary";
+    message: string;
+  }[];
 };
 
 export type PolicyBundleInput = Omit<SerializedPolicyBundle, "schemaVersion" | "hash">;
@@ -835,11 +878,136 @@ export function signPolicyBundle(bundle: SerializedPolicyBundle, keyId: string, 
 }
 
 export function verifySignedPolicyBundle(bundle: SignedPolicyBundle, secrets: Record<string, string>): boolean {
-  if (!isSerializedPolicyBundle(bundle)) return false;
-  if (!isPolicyBundleSignature(bundle.signature)) return false;
+  return verifySignedPolicyBundleDetailed(bundle, secrets).ok;
+}
+
+export function verifySignedPolicyBundleDetailed(bundle: unknown, secrets: Record<string, string>): SignedPolicyBundleVerificationResult {
+  if (!isSerializedPolicyBundle(bundle)) return { ok: false, reason: "invalid_bundle" };
+  if (!isRecord(bundle) || !("signature" in bundle)) return { ok: false, reason: "missing_signature" };
+  if (!isPolicyBundleSignature(bundle.signature)) return { ok: false, reason: "invalid_signature_schema" };
   const secret = secrets[bundle.signature.keyId];
-  if (secret === undefined) return false;
-  return bundle.signature.signature === stableHash(`${bundle.hash}:${bundle.signature.keyId}:${secret}`);
+  if (secret === undefined) return { ok: false, reason: "unknown_key" };
+  if (bundle.signature.signature !== stableHash(`${bundle.hash}:${bundle.signature.keyId}:${secret}`)) {
+    return { ok: false, reason: "signature_mismatch" };
+  }
+  return { ok: true, keyId: bundle.signature.keyId, algorithm: bundle.signature.algorithm };
+}
+
+export function productionRuntimeLimits(overrides: LogicRuntimeLimits = {}): Required<LogicRuntimeLimits> {
+  return {
+    maxRuleSourceLength: overrides.maxRuleSourceLength ?? 16_384,
+    maxRules: overrides.maxRules ?? 256,
+    maxPredicatesPerRule: overrides.maxPredicatesPerRule ?? 32,
+    maxEntitiesPerEvaluation: overrides.maxEntitiesPerEvaluation ?? 10_000
+  };
+}
+
+export function assessPolicyBundleSecurity(
+  bundle: unknown,
+  options: { secrets?: Record<string, string>; trustedKeyIds?: readonly string[]; limits?: LogicRuntimeLimits } = {}
+): PolicyBundleSecurityAssessment {
+  const diagnostics: PolicyBundleSecurityAssessment["diagnostics"] = [];
+  if (!isSerializedPolicyBundle(bundle)) {
+    diagnostics.push({ code: "invalid_hash", message: `Expected ${POLICY_BUNDLE_SCHEMA_VERSION} bundle with a valid deterministic hash.` });
+    return { schemaVersion: PRODUCTION_READINESS_SCHEMA_VERSION, ok: false, diagnostics };
+  }
+
+  const limits = productionRuntimeLimits(options.limits);
+  const validation = validateProgram(bundle.rules, { limits });
+  if (!validation.ok) diagnostics.push({ code: "rule_validation", message: validation.error.message });
+
+  if (bundle.rules.length > limits.maxRuleSourceLength || bundle.predicates.length > limits.maxRules) {
+    diagnostics.push({ code: "runtime_limit", message: "Bundle exceeds configured production runtime limits." });
+  }
+
+  if (options.secrets) {
+    const signature = verifySignedPolicyBundleDetailed(bundle, options.secrets);
+    if (!signature.ok) diagnostics.push({ code: "invalid_signature", message: `Bundle signature verification failed: ${signature.reason}.` });
+    if (signature.ok && options.trustedKeyIds && !options.trustedKeyIds.includes(signature.keyId)) {
+      diagnostics.push({ code: "untrusted_key", message: `Bundle key "${signature.keyId}" is not in the trusted key set.` });
+    }
+  } else {
+    diagnostics.push({
+      code: "security_boundary",
+      message: "No signature secrets were provided. Treat this as local integrity validation, not trusted policy admission."
+    });
+  }
+
+  return {
+    schemaVersion: PRODUCTION_READINESS_SCHEMA_VERSION,
+    ok: diagnostics.length === 0,
+    diagnostics
+  };
+}
+
+export function getProductionReadinessReport(version = "0.29.0"): ProductionReadinessReport {
+  return {
+    schemaVersion: PRODUCTION_READINESS_SCHEMA_VERSION,
+    version,
+    productionReady: false,
+    tracks: [
+      {
+        id: "typed_domains",
+        status: "alpha",
+        evidence: ["symtorch.domainContract.v1", "validateDomainContext()"],
+        remaining: ["entity-aware grounding and schema-driven predicate binding"]
+      },
+      {
+        id: "bundle_signing",
+        status: "alpha",
+        evidence: ["symtorch.policyBundleSignature.v1", "verifySignedPolicyBundleDetailed()"],
+        remaining: ["replace development FNV signatures with audited cryptographic signatures and key rotation"]
+      },
+      {
+        id: "durable_persistence",
+        status: "alpha",
+        evidence: ["decision ledger snapshots", "append-oriented Node sink"],
+        remaining: ["transactional adapters, corruption recovery, IndexedDB and SQLite production adapters"]
+      },
+      {
+        id: "trace_snapshots",
+        status: "alpha",
+        evidence: ["versioned explanations", "expected decision fixtures"],
+        remaining: ["full golden trace snapshot corpus across policies and ledgers"]
+      },
+      {
+        id: "runtime_limits",
+        status: "alpha",
+        evidence: ["productionRuntimeLimits()", "core, logic, and agent limit hooks"],
+        remaining: ["abortable execution and browser workload timeouts"]
+      },
+      {
+        id: "error_taxonomy",
+        status: "alpha",
+        evidence: ["SymTorchError codes for backend, policy, predicate, replay, resource, validation, and shape failures"],
+        remaining: ["package-wide conversion of generic errors to typed errors"]
+      },
+      {
+        id: "cpu_gpu_parity",
+        status: "planned",
+        evidence: ["CPU correctness oracle", "explicit WebGPU kernel prototypes"],
+        remaining: ["backend-routed WebGPU execution and forward/gradient parity gates"]
+      },
+      {
+        id: "api_stability",
+        status: "alpha",
+        evidence: ["docs/api-surface.md", "release manifest schema checks"],
+        remaining: ["export snapshots and formal deprecation policy"]
+      },
+      {
+        id: "security_model",
+        status: "alpha",
+        evidence: ["assessPolicyBundleSecurity()", "explicit non-claims"],
+        remaining: ["sandbox boundary, trusted registries, and resource-exhaustion controls"]
+      },
+      {
+        id: "real_apps",
+        status: "alpha",
+        evidence: ["browser policy workbench", "checked-in policy fixtures"],
+        remaining: ["production app shell, auth integration boundaries, and deployment documentation"]
+      }
+    ]
+  };
 }
 
 export function loadPolicyBundle(bundle: SerializedPolicyBundle, options: LoadPolicyBundleOptions = {}): LoadedPolicyBundle {
